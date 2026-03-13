@@ -1,0 +1,21 @@
+[
+  {
+    "id": "1773408078095",
+    "title": "Tổng a, b",
+    "difficulty": "Easy",
+    "statement": "Tính tổng a + b.",
+    "inputFormat": "2 7",
+    "outputFormat": "9",
+    "testcases": [
+      {
+        "input": "10 5",
+        "output": "15"
+      },
+      {
+        "input": "4 7",
+        "output": "11"
+      }
+    ],
+    "author": "hmaicute"
+  }
+]

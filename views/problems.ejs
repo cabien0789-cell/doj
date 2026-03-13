@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Problems - DOJ</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">DOJ</a>
+      <a href="/problems" class="nav-link active">Problems</a>
+    </div>
+    <div class="nav-right">
+      <% if (user) { %>
+        <a href="/problems/create" class="btn-register">+ Create</a>
+        <span class="nav-username"><%= user.username %></span>
+        <a href="/logout" class="btn-logout">Logout</a>
+      <% } else { %>
+        <a href="/login" class="btn-login">Log In</a>
+        <a href="/register" class="btn-register">Sign Up</a>
+      <% } %>
+    </div>
+  </nav>
+
+  <div class="problems-container">
+    <div class="problems-header">
+      <h2>Problems</h2>
+    </div>
+
+    <table class="problems-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Title</th>
+          <th>Difficulty</th>
+          <th>Author</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (problems.length === 0) { %>
+          <tr>
+            <td colspan="4" class="no-problems">No problems yet.</td>
+          </tr>
+        <% } else { %>
+          <% problems.forEach((problem, index) => { %>
+            <tr>
+              <td><%= index + 1 %></td>
+              <td><a href="/problems/<%= problem.id %>"><%= problem.title %></a></td>
+              <td class="difficulty-<%= problem.difficulty.toLowerCase() %>"><%= problem.difficulty %></td>
+              <td><%= problem.author %></td>
+            </tr>
+          <% }) %>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOJ - Dary Online Judge</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">DOJ</a>
+      <a href="/problems" class="nav-link">Problems</a>
+    </div>
+    <div class="nav-right">
+      <% if (user) { %>
+        <a href="/problems/create" class="btn-register">+ Create</a>
+        <span class="nav-username"><%= user.username %></span>
+        <a href="/logout" class="btn-logout">Logout</a>
+      <% } else { %>
+        <a href="/login" class="btn-login">Log In</a>
+        <a href="/register" class="btn-register">Sign Up</a>
+      <% } %>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <div class="hero-content">
+      <h1>Dary Online Judge</h1>
+      <p>Practice coding. Solve problems. Compete with others.</p>
+      <% if (!user) { %>
+        <a href="/register" class="btn-hero">Get Started</a>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="features">
+    <div class="feature-card">
+      <h3>Solve Problems</h3>
+      <p>Challenge yourself with algorithmic problems of all difficulty levels.</p>
+    </div>
+    <div class="feature-card">
+      <h3>Create Problems</h3>
+      <p>Create and share your own problems with the community.</p>
+    </div>
+    <div class="feature-card">
+      <h3>Compete</h3>
+      <p>Join organizations and participate in contests.</p>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify Email - DOJ</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">DOJ</a>
+    </div>
+    <div class="nav-right">
+      <a href="/login" class="btn-login">Log In</a>
+      <a href="/register" class="btn-register">Sign Up</a>
+    </div>
+  </nav>
+
+  <div class="auth-container">
+    <div class="auth-box">
+      <h2>Verify Email</h2>
+      <p class="verify-desc">A 6-digit verification code has been sent to your email. Please enter it below.</p>
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="error-msg"><%= error %></div>
+      <% } %>
+      <form action="/verify" method="POST">
+        <div class="form-group">
+          <label>Verification Code</label>
+          <input type="text" name="code" placeholder="Enter 6-digit code" maxlength="6" required />
+        </div>
+        <button type="submit" class="btn-submit">Verify</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

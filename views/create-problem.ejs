@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Problem - DOJ</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">DOJ</a>
+      <a href="/problems" class="nav-link">Problems</a>
+    </div>
+    <div class="nav-right">
+      <a href="/problems/create" class="btn-register">+ Create</a>
+      <span class="nav-username"><%= user.username %></span>
+      <a href="/logout" class="btn-logout">Logout</a>
+    </div>
+  </nav>
+
+  <div class="create-container">
+    <h2>Create Problem</h2>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="error-msg"><%= error %></div>
+    <% } %>
+    <form action="/problems/create" method="POST">
+      <div class="form-group">
+        <label>Title</label>
+        <input type="text" name="title" placeholder="Problem title" required />
+      </div>
+      <div class="form-group">
+        <label>Difficulty</label>
+        <select name="difficulty">
+          <option value="Easy">Easy</option>
+          <option value="Medium">Medium</option>
+          <option value="Hard">Hard</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Problem Statement</label>
+        <textarea name="statement" rows="8" placeholder="Describe the problem..." required></textarea>
+      </div>
+      <div class="form-group">
+        <label>Input Format</label>
+        <textarea name="inputFormat" rows="3" placeholder="Describe the input format..." required></textarea>
+      </div>
+      <div class="form-group">
+        <label>Output Format</label>
+        <textarea name="outputFormat" rows="3" placeholder="Describe the output format..." required></textarea>
+      </div>
+
+      <div class="testcases-section">
+        <h3>Test Cases</h3>
+        <div id="testcases">
+          <div class="testcase">
+            <div class="form-group">
+              <label>Input</label>
+              <textarea name="tcInput[]" rows="3" placeholder="Test case input..." required></textarea>
+            </div>
+            <div class="form-group">
+              <label>Output</label>
+              <textarea name="tcOutput[]" rows="3" placeholder="Expected output..." required></textarea>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="btn-add-tc" onclick="addTestCase()">+ Add Test Case</button>
+      </div>
+
+      <button type="submit" class="btn-submit">Create Problem</button>
+    </form>
+  </div>
+
+  <script>
+    function addTestCase() {
+      const container = document.getElementById('testcases');
+      const div = document.createElement('div');
+      div.className = 'testcase';
+      div.innerHTML = `
+        <div class="form-group">
+          <label>Input</label>
+          <textarea name="tcInput[]" rows="3" placeholder="Test case input..." required></textarea>
+        </div>
+        <div class="form-group">
+          <label>Output</label>
+          <textarea name="tcOutput[]" rows="3" placeholder="Expected output..." required></textarea>
+        </div>
+        <button type="button" class="btn-remove-tc" onclick="this.parentElement.remove()">Remove</button>
+      `;
+      container.appendChild(div);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submission Result - DOJ</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">DOJ</a>
+      <a href="/problems" class="nav-link">Problems</a>
+    </div>
+    <div class="nav-right">
+      <% if (user) { %>
+        <a href="/problems/create" class="btn-register">+ Create</a>
+        <span class="nav-username"><%= user.username %></span>
+        <a href="/logout" class="btn-logout">Logout</a>
+      <% } else { %>
+        <a href="/login" class="btn-login">Log In</a>
+        <a href="/register" class="btn-register">Sign Up</a>
+      <% } %>
+    </div>
+  </nav>
+
+  <div class="result-container">
+    <h2>Submission Result</h2>
+    <div class="result-box">
+      <div class="result-status <%= result.passed ? 'status-ac' : 'status-wa' %>">
+        <%= result.passed ? 'Accepted' : 'Wrong Answer' %>
+      </div>
+      <p class="result-score">Passed: <%= result.passedCount %> / <%= result.total %> test cases</p>
+    </div>
+
+    <div class="result-details">
+      <% result.details.forEach((tc, i) => { %>
+        <div class="tc-result <%= tc.passed ? 'tc-pass' : 'tc-fail' %>">
+          <span>Test Case <%= i + 1 %>:</span>
+          <span><%= tc.passed ? '✓ Passed' : '✗ Failed' %></span>
+        </div>
+      <% }) %>
+    </div>
+
+    <a href="/problems/<%= problemId %>" class="btn-submit" style="display:inline-block; text-decoration:none; margin-top:20px;">Back to Problem</a>
+  </div>
+</body>
+</html>

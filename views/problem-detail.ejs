@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= problem.title %> - DOJ</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">DOJ</a>
+      <a href="/problems" class="nav-link">Problems</a>
+    </div>
+    <div class="nav-right">
+      <% if (user) { %>
+        <a href="/problems/create" class="btn-register">+ Create</a>
+        <span class="nav-username"><%= user.username %></span>
+        <a href="/logout" class="btn-logout">Logout</a>
+      <% } else { %>
+        <a href="/login" class="btn-login">Log In</a>
+        <a href="/register" class="btn-register">Sign Up</a>
+      <% } %>
+    </div>
+  </nav>
+
+  <div class="problem-layout">
+    <div class="problem-left">
+      <div class="problem-header">
+        <h2><%= problem.title %></h2>
+        <span class="difficulty-<%= problem.difficulty.toLowerCase() %>"><%= problem.difficulty %></span>
+      </div>
+      <p class="problem-author">By <strong><%= problem.author %></strong></p>
+
+      <div class="problem-section">
+        <h3>Problem Statement</h3>
+        <p><%= problem.statement %></p>
+      </div>
+
+      <div class="problem-section">
+        <h3>Input Format</h3>
+        <p><%= problem.inputFormat %></p>
+      </div>
+
+      <div class="problem-section">
+        <h3>Output Format</h3>
+        <p><%= problem.outputFormat %></p>
+      </div>
+
+      <div class="problem-section">
+        <h3>Sample Test Cases</h3>
+        <% problem.testcases.slice(0, 2).forEach((tc, i) => { %>
+          <div class="testcase-display">
+            <div class="tc-block">
+              <div class="tc-label">Input <%= i + 1 %></div>
+              <pre><%= tc.input %></pre>
+            </div>
+            <div class="tc-block">
+              <div class="tc-label">Output <%= i + 1 %></div>
+              <pre><%= tc.output %></pre>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+
+    <div class="problem-right">
+      <% if (user) { %>
+        <form action="/problems/<%= problem.id %>/submit" method="POST">
+          <div class="editor-header">
+            <select name="language" class="language-select">
+              <option value="cpp">C++</option>
+              <option value="c">C</option>
+              <option value="java">Java</option>
+              <option value="python">Python</option>
+            </select>
+          </div>
+          <textarea name="code" class="code-editor" placeholder="Write your code here..."></textarea>
+          <button type="submit" class="btn-submit">Submit</button>
+        </form>
+      <% } else { %>
+        <div class="login-to-submit">
+          <p>Please <a href="/login">log in</a> to submit your solution.</p>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</body>
+</html>
