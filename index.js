@@ -92,7 +92,7 @@ function judgeCode(code, language, testcases) {
       if (passed) passedCount++;
       details.push({ passed, output, expected });
     } catch (e) {
-      details.push({ passed: false, output: 'Runtime Error', expected: tc.output.trim() });
+      details.push({ passed: false, output: e.message || e.toString(), expected: tc.output.trim() });
     }
   }
 
