@@ -16,6 +16,7 @@
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "mailer": "^0.6.7",
+    "node-fetch": "^2.7.0",
     "nodemailer": "^8.0.2"
   }
 }

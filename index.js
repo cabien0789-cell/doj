@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const fs = require('fs');
 const { execSync } = require('child_process');
-const nodemailer = require('nodemailer');
+const fetch = require('node-fetch');
 
 const app = express();
 
@@ -65,28 +65,32 @@ function requireLogin(req, res, next) {
   next();
 }
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS
-  }
-});
-
 async function sendVerificationEmail(email, code) {
-  await transporter.sendMail({
-    from: `"DOJ - Dary Online Judge" <${process.env.GMAIL_USER}>`,
-    to: email,
-    subject: 'DOJ - Email Verification Code',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
-        <h2 style="color: #00e5a0;">Dary Online Judge</h2>
-        <p>Your verification code is:</p>
-        <h1 style="letter-spacing: 8px; color: #0f0f23; background: #00e5a0; padding: 16px; text-align: center; border-radius: 8px;">${code}</h1>
-        <p>This code will expire in 10 minutes.</p>
-      </div>
-    `
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'api-key': process.env.BREVO_API_KEY
+    },
+    body: JSON.stringify({
+      sender: { name: 'DOJ - Dary Online Judge', email: process.env.GMAIL_USER },
+      to: [{ email }],
+      subject: 'DOJ - Email Verification Code',
+      htmlContent: `
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
+          <h2 style="color: #00e5a0;">Dary Online Judge</h2>
+          <p>Your verification code is:</p>
+          <h1 style="letter-spacing: 8px; color: #0f0f23; background: #00e5a0; padding: 16px; text-align: center; border-radius: 8px;">${code}</h1>
+          <p>This code will expire in 10 minutes.</p>
+        </div>
+      `
+    })
   });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(err);
+  }
 }
 
 function judgeCode(code, language, testcases) {
