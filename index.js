@@ -2,9 +2,10 @@ const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const path = require('path');
-const fs = require('fs');
+const { MongoClient, ObjectId } = require('mongodb');
 const { execSync } = require('child_process');
 const fetch = require('node-fetch');
+const fs = require('fs');
 
 const app = express();
 
@@ -20,46 +21,21 @@ app.use(session({
   saveUninitialized: false
 }));
 
-const USERS_FILE = path.join(__dirname, 'data/users.json');
-const PROBLEMS_FILE = path.join(__dirname, 'data/problems.json');
-const ORGS_FILE = path.join(__dirname, 'data/organizations.json');
-const CONTESTS_FILE = path.join(__dirname, 'data/contests.json');
-const SUBMISSIONS_FILE = path.join(__dirname, 'data/submissions.json');
+// ─── MONGODB ──────────────────────────────────────────────
+const client = new MongoClient(process.env.MONGODB_URI);
+let db;
 
-function getUsers() {
-  return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+async function connectDB() {
+  await client.connect();
+  db = client.db('doj');
+  console.log('Connected to MongoDB');
 }
-function saveUsers(users) {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
-}
-function getProblems() {
-  if (!fs.existsSync(PROBLEMS_FILE)) fs.writeFileSync(PROBLEMS_FILE, '[]');
-  return JSON.parse(fs.readFileSync(PROBLEMS_FILE, 'utf8'));
-}
-function saveProblems(problems) {
-  fs.writeFileSync(PROBLEMS_FILE, JSON.stringify(problems, null, 2));
-}
-function getOrgs() {
-  if (!fs.existsSync(ORGS_FILE)) fs.writeFileSync(ORGS_FILE, '[]');
-  return JSON.parse(fs.readFileSync(ORGS_FILE, 'utf8'));
-}
-function saveOrgs(orgs) {
-  fs.writeFileSync(ORGS_FILE, JSON.stringify(orgs, null, 2));
-}
-function getContests() {
-  if (!fs.existsSync(CONTESTS_FILE)) fs.writeFileSync(CONTESTS_FILE, '[]');
-  return JSON.parse(fs.readFileSync(CONTESTS_FILE, 'utf8'));
-}
-function saveContests(contests) {
-  fs.writeFileSync(CONTESTS_FILE, JSON.stringify(contests, null, 2));
-}
-function getSubmissions() {
-  if (!fs.existsSync(SUBMISSIONS_FILE)) fs.writeFileSync(SUBMISSIONS_FILE, '[]');
-  return JSON.parse(fs.readFileSync(SUBMISSIONS_FILE, 'utf8'));
-}
-function saveSubmissions(submissions) {
-  fs.writeFileSync(SUBMISSIONS_FILE, JSON.stringify(submissions, null, 2));
-}
+
+function getUsers() { return db.collection('users'); }
+function getProblems() { return db.collection('problems'); }
+function getOrgs() { return db.collection('organizations'); }
+function getContests() { return db.collection('contests'); }
+function getSubmissions() { return db.collection('submissions'); }
 
 function requireLogin(req, res, next) {
   if (!req.session.user) return res.redirect('/login');
@@ -92,8 +68,8 @@ function judgeCode(code, language, testcases) {
 
   const details = [];
   let passedCount = 0;
-
   let compiledPath = null;
+
   try {
     if (language === 'cpp') {
       const codeFile = path.join(tmpDir, 'solution.cpp');
@@ -172,13 +148,13 @@ function judgeCode(code, language, testcases) {
 
 // ─── ROUTES ───────────────────────────────────────────────
 
-app.get('/', (req, res) => {
-  const problems = getProblems();
-  const users = getUsers();
-  const submissions = getSubmissions();
+app.get('/', async (req, res) => {
+  const problemCount = await getProblems().countDocuments();
+  const userCount = await getUsers().countDocuments();
+  const submissionCount = await getSubmissions().countDocuments();
   res.render('index', {
     user: req.session.user || null,
-    stats: { problems: problems.length, users: users.length, submissions: submissions.length }
+    stats: { problems: problemCount, users: userCount, submissions: submissionCount }
   });
 });
 
@@ -187,13 +163,12 @@ app.get('/register', (req, res) => res.render('register', {}));
 
 app.post('/register', async (req, res) => {
   const { username, password, confirmPassword, email } = req.body;
-  const users = getUsers();
 
   if (username.length < 3 || username.length > 20)
     return res.render('register', { error: 'Username must be between 3 and 20 characters.' });
   if (!/^[a-zA-Z0-9_]+$/.test(username))
     return res.render('register', { error: 'Username can only contain letters, numbers, and underscores.' });
-  if (users.find(u => u.username === username))
+  if (await getUsers().findOne({ username }))
     return res.render('register', { error: 'Username already exists.' });
   if (password.length < 6)
     return res.render('register', { error: 'Password must be at least 6 characters.' });
@@ -201,7 +176,7 @@ app.post('/register', async (req, res) => {
     return res.render('register', { error: 'Passwords do not match.' });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     return res.render('register', { error: 'Invalid email address.' });
-  if (users.find(u => u.email === email))
+  if (await getUsers().findOne({ email }))
     return res.render('register', { error: 'Email already in use.' });
 
   const hashedPassword = await bcrypt.hash(password, 10);
@@ -230,12 +205,10 @@ app.get('/verify', (req, res) => {
   res.render('verify', { error: undefined });
 });
 
-app.post('/verify', (req, res) => {
+app.post('/verify', async (req, res) => {
   const { code } = req.body;
   if (code === req.session.verifyCode) {
-    const users = getUsers();
-    users.push(req.session.pendingUser);
-    saveUsers(users);
+    await getUsers().insertOne(req.session.pendingUser);
     req.session.pendingUser = null;
     req.session.verifyCode = null;
     res.render('register-success');
@@ -246,8 +219,7 @@ app.post('/verify', (req, res) => {
 
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
-  const users = getUsers();
-  const user = users.find(u => u.username === username);
+  const user = await getUsers().findOne({ username });
   if (!user) return res.render('login', { error: 'Username does not exist.' });
   const match = await bcrypt.compare(password, user.password);
   if (!match) return res.render('login', { error: 'Incorrect password.' });
@@ -268,12 +240,9 @@ app.get('/forgot-password', (req, res) => {
 
 app.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
-  const users = getUsers();
-  const user = users.find(u => u.email === email);
-
-  if (!user) {
+  const user = await getUsers().findOne({ email });
+  if (!user)
     return res.render('forgot-password', { error: 'No account found with that email.', success: undefined });
-  }
 
   const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
   req.session.resetEmail = email;
@@ -291,7 +260,6 @@ app.post('/forgot-password', async (req, res) => {
   } catch (e) {
     console.error('Email error:', e.message);
   }
-
   res.redirect('/reset-password');
 });
 
@@ -302,7 +270,6 @@ app.get('/reset-password', (req, res) => {
 
 app.post('/reset-password', async (req, res) => {
   const { code, password, confirmPassword } = req.body;
-
   if (code !== req.session.resetCode)
     return res.render('reset-password', { error: 'Invalid reset code.' });
   if (password.length < 6)
@@ -310,16 +277,10 @@ app.post('/reset-password', async (req, res) => {
   if (password !== confirmPassword)
     return res.render('reset-password', { error: 'Passwords do not match.' });
 
-  const users = getUsers();
-  const userIndex = users.findIndex(u => u.email === req.session.resetEmail);
-  if (userIndex === -1) return res.redirect('/forgot-password');
-
-  users[userIndex].password = await bcrypt.hash(password, 10);
-  saveUsers(users);
-
+  const hashedPassword = await bcrypt.hash(password, 10);
+  await getUsers().updateOne({ email: req.session.resetEmail }, { $set: { password: hashedPassword } });
   req.session.resetEmail = null;
   req.session.resetCode = null;
-
   res.redirect('/login');
 });
 
@@ -331,10 +292,8 @@ app.get('/change-password', requireLogin, (req, res) => {
 
 app.post('/change-password', requireLogin, async (req, res) => {
   const { currentPassword, newPassword, confirmPassword } = req.body;
-  const users = getUsers();
-  const userIndex = users.findIndex(u => u.username === req.session.user.username);
-
-  const match = await bcrypt.compare(currentPassword, users[userIndex].password);
+  const user = await getUsers().findOne({ username: req.session.user.username });
+  const match = await bcrypt.compare(currentPassword, user.password);
   if (!match)
     return res.render('change-password', { user: req.session.user, error: 'Current password is incorrect.', success: undefined });
   if (newPassword.length < 6)
@@ -342,28 +301,27 @@ app.post('/change-password', requireLogin, async (req, res) => {
   if (newPassword !== confirmPassword)
     return res.render('change-password', { user: req.session.user, error: 'Passwords do not match.', success: undefined });
 
-  users[userIndex].password = await bcrypt.hash(newPassword, 10);
-  saveUsers(users);
-
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  await getUsers().updateOne({ username: req.session.user.username }, { $set: { password: hashedPassword } });
   res.render('change-password', { user: req.session.user, error: undefined, success: 'Password changed successfully!' });
 });
 
 // ─── PROBLEMS ─────────────────────────────────────────────
 
-app.get('/problems', (req, res) => {
-  const problems = getProblems();
-  const submissions = getSubmissions();
+app.get('/problems', async (req, res) => {
+  const problems = await getProblems().find().toArray();
   const user = req.session.user || null;
 
   const solvedSet = new Set();
   if (user) {
-    submissions.filter(s => s.username === user.username && s.verdict === 'Accepted')
-               .forEach(s => solvedSet.add(s.problemId));
+    const solvedSubs = await getSubmissions().find({ username: user.username, verdict: 'Accepted' }).toArray();
+    solvedSubs.forEach(s => solvedSet.add(s.problemId));
   }
 
   const problemsWithStatus = problems.map(p => ({
     ...p,
-    solved: solvedSet.has(p.id)
+    id: p._id.toString(),
+    solved: solvedSet.has(p._id.toString())
   }));
 
   res.render('problems', { user, problems: problemsWithStatus });
@@ -373,59 +331,57 @@ app.get('/problems/create', requireLogin, (req, res) => {
   res.render('create-problem', { user: req.session.user, error: undefined });
 });
 
-app.post('/problems/create', requireLogin, (req, res) => {
+app.post('/problems/create', requireLogin, async (req, res) => {
   const { title, difficulty, statement, inputFormat, outputFormat } = req.body;
 
   const tcInputRaw = req.body['tcInput[]'] || req.body.tcInput;
   const tcOutputRaw = req.body['tcOutput[]'] || req.body.tcOutput;
-
   let tcInput = Array.isArray(tcInputRaw) ? tcInputRaw : [tcInputRaw];
   let tcOutput = Array.isArray(tcOutputRaw) ? tcOutputRaw : [tcOutputRaw];
 
   const testcases = tcInput.map((inp, i) => ({
-    input: inp || '',
-    output: tcOutput[i] || ''
+    input: inp || '', output: tcOutput[i] || ''
   })).filter(tc => tc.input && tc.output);
 
-  const problems = getProblems();
-  const newProblem = {
-    id: Date.now().toString(),
+  const result = await getProblems().insertOne({
     title, difficulty, statement, inputFormat, outputFormat, testcases,
-    author: req.session.user.username
-  };
+    author: req.session.user.username,
+    createdAt: new Date().toISOString()
+  });
 
-  problems.push(newProblem);
-  saveProblems(problems);
   res.redirect('/problems');
 });
 
-app.get('/problems/:id', (req, res) => {
-  const problems = getProblems();
-  const problem = problems.find(p => p.id === req.params.id);
+app.get('/problems/:id', async (req, res) => {
+  let problem;
+  try {
+    problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) });
+  } catch (e) { return res.redirect('/problems'); }
   if (!problem) return res.redirect('/problems');
 
-  const submissions = getSubmissions();
+  problem.id = problem._id.toString();
   const user = req.session.user || null;
 
   const mySubmissions = user
-    ? submissions.filter(s => s.username === user.username && s.problemId === problem.id)
-                 .slice(-5).reverse()
+    ? await getSubmissions().find({ username: user.username, problemId: problem.id })
+        .sort({ submittedAt: -1 }).limit(5).toArray()
     : [];
 
   res.render('problem-detail', { user, problem, mySubmissions });
 });
 
-app.post('/problems/:id/submit', requireLogin, (req, res) => {
+app.post('/problems/:id/submit', requireLogin, async (req, res) => {
   const { code, language } = req.body;
-  const problems = getProblems();
-  const problem = problems.find(p => p.id === req.params.id);
+  let problem;
+  try {
+    problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) });
+  } catch (e) { return res.redirect('/problems'); }
   if (!problem) return res.redirect('/problems');
 
+  problem.id = problem._id.toString();
   const result = judgeCode(code, language, problem.testcases);
 
-  const submissions = getSubmissions();
-  const newSubmission = {
-    id: Date.now().toString(),
+  const submission = {
     username: req.session.user.username,
     problemId: problem.id,
     problemTitle: problem.title,
@@ -436,82 +392,79 @@ app.post('/problems/:id/submit', requireLogin, (req, res) => {
     code,
     submittedAt: new Date().toISOString()
   };
-  submissions.push(newSubmission);
-  saveSubmissions(submissions);
+  const inserted = await getSubmissions().insertOne(submission);
 
   res.render('submission-result', {
     user: req.session.user,
     result,
     problemId: problem.id,
-    submissionId: newSubmission.id
+    submissionId: inserted.insertedId.toString()
   });
 });
 
 // ─── EDIT / DELETE PROBLEM ────────────────────────────────
 
-app.get('/problems/:id/edit', requireLogin, (req, res) => {
-  const problems = getProblems();
-  const problem = problems.find(p => p.id === req.params.id);
+app.get('/problems/:id/edit', requireLogin, async (req, res) => {
+  let problem;
+  try {
+    problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) });
+  } catch (e) { return res.redirect('/problems'); }
   if (!problem) return res.redirect('/problems');
   if (problem.author !== req.session.user.username) return res.redirect('/problems/' + req.params.id);
 
+  problem.id = problem._id.toString();
   res.render('edit-problem', { user: req.session.user, problem, error: undefined });
 });
 
-app.post('/problems/:id/edit', requireLogin, (req, res) => {
-  const problems = getProblems();
-  const index = problems.findIndex(p => p.id === req.params.id);
-  if (index === -1) return res.redirect('/problems');
-  if (problems[index].author !== req.session.user.username) return res.redirect('/problems/' + req.params.id);
-
+app.post('/problems/:id/edit', requireLogin, async (req, res) => {
   const { title, difficulty, statement, inputFormat, outputFormat } = req.body;
   const tcInputRaw = req.body['tcInput[]'] || req.body.tcInput;
   const tcOutputRaw = req.body['tcOutput[]'] || req.body.tcOutput;
-
   let tcInput = Array.isArray(tcInputRaw) ? tcInputRaw : [tcInputRaw];
   let tcOutput = Array.isArray(tcOutputRaw) ? tcOutputRaw : [tcOutputRaw];
-
   const testcases = tcInput.map((inp, i) => ({
-    input: inp || '',
-    output: tcOutput[i] || ''
+    input: inp || '', output: tcOutput[i] || ''
   })).filter(tc => tc.input && tc.output);
 
-  problems[index] = { ...problems[index], title, difficulty, statement, inputFormat, outputFormat, testcases };
-  saveProblems(problems);
+  try {
+    await getProblems().updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: { title, difficulty, statement, inputFormat, outputFormat, testcases } }
+    );
+  } catch (e) { return res.redirect('/problems'); }
   res.redirect('/problems/' + req.params.id);
 });
 
-app.post('/problems/:id/delete', requireLogin, (req, res) => {
-  const problems = getProblems();
-  const problem = problems.find(p => p.id === req.params.id);
-  if (!problem) return res.redirect('/problems');
-  if (problem.author !== req.session.user.username) return res.redirect('/problems/' + req.params.id);
-
-  const filtered = problems.filter(p => p.id !== req.params.id);
-  saveProblems(filtered);
+app.post('/problems/:id/delete', requireLogin, async (req, res) => {
+  try {
+    const problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) });
+    if (!problem || problem.author !== req.session.user.username) return res.redirect('/problems');
+    await getProblems().deleteOne({ _id: new ObjectId(req.params.id) });
+  } catch (e) { return res.redirect('/problems'); }
   res.redirect('/problems');
 });
 
 // ─── SUBMISSION DETAIL ────────────────────────────────────
 
-app.get('/submissions/:id', requireLogin, (req, res) => {
-  const submissions = getSubmissions();
-  const submission = submissions.find(s => s.id === req.params.id);
-  if (!submission) return res.redirect('/');
-  if (submission.username !== req.session.user.username) return res.redirect('/');
+app.get('/submissions/:id', requireLogin, async (req, res) => {
+  let submission;
+  try {
+    submission = await getSubmissions().findOne({ _id: new ObjectId(req.params.id) });
+  } catch (e) { return res.redirect('/'); }
+  if (!submission || submission.username !== req.session.user.username) return res.redirect('/');
 
+  submission.id = submission._id.toString();
   res.render('submission-detail', { user: req.session.user, submission });
 });
 
 // ─── PROFILE ──────────────────────────────────────────────
 
-app.get('/profile/:username', (req, res) => {
-  const users = getUsers();
-  const targetUser = users.find(u => u.username === req.params.username);
+app.get('/profile/:username', async (req, res) => {
+  const targetUser = await getUsers().findOne({ username: req.params.username });
   if (!targetUser) return res.redirect('/');
 
-  const submissions = getSubmissions();
-  const userSubs = submissions.filter(s => s.username === req.params.username);
+  const userSubs = await getSubmissions().find({ username: req.params.username })
+    .sort({ submittedAt: -1 }).toArray();
 
   const solvedSet = new Set(
     userSubs.filter(s => s.verdict === 'Accepted').map(s => s.problemId)
@@ -527,7 +480,10 @@ app.get('/profile/:username', (req, res) => {
     ce: userSubs.filter(s => s.verdict === 'Compilation Error').length,
   };
 
-  const recentSubmissions = userSubs.slice(-20).reverse();
+  const recentSubmissions = userSubs.slice(0, 20).map(s => ({
+    ...s,
+    id: s._id.toString()
+  }));
 
   res.render('profile', {
     user: req.session.user || null,
@@ -539,134 +495,141 @@ app.get('/profile/:username', (req, res) => {
 
 // ─── ORGANIZATIONS ────────────────────────────────────────
 
-app.get('/organizations', (req, res) => {
-  const organizations = getOrgs();
-  res.render('organizations', { user: req.session.user || null, organizations });
+app.get('/organizations', async (req, res) => {
+  const organizations = await getOrgs().find().toArray();
+  const orgsWithId = organizations.map(o => ({ ...o, id: o._id.toString() }));
+  res.render('organizations', { user: req.session.user || null, organizations: orgsWithId });
 });
 
 app.get('/organizations/create', requireLogin, (req, res) => {
   res.render('create-organization', { user: req.session.user, error: undefined });
 });
 
-app.post('/organizations/create', requireLogin, (req, res) => {
+app.post('/organizations/create', requireLogin, async (req, res) => {
   const { name, description } = req.body;
-  const orgs = getOrgs();
-
   if (!name || name.trim().length < 3)
     return res.render('create-organization', { user: req.session.user, error: 'Organization name must be at least 3 characters.' });
-  if (orgs.find(o => o.name === name.trim()))
+  if (await getOrgs().findOne({ name: name.trim() }))
     return res.render('create-organization', { user: req.session.user, error: 'Organization name already exists.' });
 
-  const newOrg = {
-    id: Date.now().toString(),
+  const result = await getOrgs().insertOne({
     name: name.trim(),
     description: description || '',
     owner: req.session.user.username,
     members: [req.session.user.username]
-  };
-
-  orgs.push(newOrg);
-  saveOrgs(orgs);
-  res.redirect('/organizations/' + newOrg.id);
+  });
+  res.redirect('/organizations/' + result.insertedId.toString());
 });
 
-app.get('/organizations/:id', (req, res) => {
-  const orgs = getOrgs();
-  const org = orgs.find(o => o.id === req.params.id);
+app.get('/organizations/:id', async (req, res) => {
+  let org;
+  try {
+    org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
+  } catch (e) { return res.redirect('/organizations'); }
   if (!org) return res.redirect('/organizations');
 
-  const contests = getContests().filter(c => c.orgId === org.id);
+  org.id = org._id.toString();
+  const allContests = await getContests().find({ orgId: org.id }).toArray();
+  const contests = allContests.map(c => ({ ...c, id: c._id.toString() }));
   res.render('organization-detail', { user: req.session.user || null, org, contests });
 });
 
-app.get('/organizations/:id/join', requireLogin, (req, res) => {
-  const orgs = getOrgs();
-  const org = orgs.find(o => o.id === req.params.id);
-  if (!org) return res.redirect('/organizations');
-
-  if (!org.members.includes(req.session.user.username)) {
-    org.members.push(req.session.user.username);
-    saveOrgs(orgs);
-  }
-  res.redirect('/organizations/' + org.id);
+app.get('/organizations/:id/join', requireLogin, async (req, res) => {
+  try {
+    await getOrgs().updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $addToSet: { members: req.session.user.username } }
+    );
+  } catch (e) {}
+  res.redirect('/organizations/' + req.params.id);
 });
 
-app.get('/organizations/:id/leave', requireLogin, (req, res) => {
-  const orgs = getOrgs();
-  const org = orgs.find(o => o.id === req.params.id);
-  if (!org) return res.redirect('/organizations');
-
-  if (org.owner === req.session.user.username) return res.redirect('/organizations/' + org.id);
-
-  org.members = org.members.filter(m => m !== req.session.user.username);
-  saveOrgs(orgs);
-  res.redirect('/organizations/' + org.id);
+app.get('/organizations/:id/leave', requireLogin, async (req, res) => {
+  try {
+    const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
+    if (org && org.owner !== req.session.user.username) {
+      await getOrgs().updateOne(
+        { _id: new ObjectId(req.params.id) },
+        { $pull: { members: req.session.user.username } }
+      );
+    }
+  } catch (e) {}
+  res.redirect('/organizations/' + req.params.id);
 });
 
-app.get('/organizations/:id/contests/create', requireLogin, (req, res) => {
-  const orgs = getOrgs();
-  const org = orgs.find(o => o.id === req.params.id);
+app.get('/organizations/:id/contests/create', requireLogin, async (req, res) => {
+  let org;
+  try {
+    org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
+  } catch (e) { return res.redirect('/organizations'); }
   if (!org || org.owner !== req.session.user.username) return res.redirect('/organizations');
 
-  const problems = getProblems();
+  org.id = org._id.toString();
+  const problems = (await getProblems().find().toArray()).map(p => ({ ...p, id: p._id.toString() }));
   res.render('create-contest', { user: req.session.user, orgId: org.id, problems, error: undefined });
 });
 
-app.post('/organizations/:id/contests/create', requireLogin, (req, res) => {
-  const orgs = getOrgs();
-  const org = orgs.find(o => o.id === req.params.id);
+app.post('/organizations/:id/contests/create', requireLogin, async (req, res) => {
+  let org;
+  try {
+    org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
+  } catch (e) { return res.redirect('/organizations'); }
   if (!org || org.owner !== req.session.user.username) return res.redirect('/organizations');
 
   const { name, startTime, endTime } = req.body;
   let problemIds = req.body['problemIds[]'] || req.body.problemIds || [];
   if (!Array.isArray(problemIds)) problemIds = [problemIds];
 
-  const contests = getContests();
-  const newContest = {
-    id: Date.now().toString(),
-    name, orgId: org.id, startTime, endTime, problemIds
-  };
-
-  contests.push(newContest);
-  saveContests(contests);
-  res.redirect('/organizations/' + org.id);
+  await getContests().insertOne({
+    name,
+    orgId: org._id.toString(),
+    startTime,
+    endTime,
+    problemIds
+  });
+  res.redirect('/organizations/' + org._id.toString());
 });
 
-app.get('/contests/:id', (req, res) => {
-  const contests = getContests();
-  const contest = contests.find(c => c.id === req.params.id);
+app.get('/contests/:id', async (req, res) => {
+  let contest;
+  try {
+    contest = await getContests().findOne({ _id: new ObjectId(req.params.id) });
+  } catch (e) { return res.redirect('/organizations'); }
   if (!contest) return res.redirect('/organizations');
 
-  const allProblems = getProblems();
-  const problems = allProblems.filter(p => contest.problemIds.includes(p.id));
+  contest.id = contest._id.toString();
+  const allProblems = await getProblems().find().toArray();
+  const problems = allProblems
+    .filter(p => contest.problemIds.includes(p._id.toString()))
+    .map(p => ({ ...p, id: p._id.toString() }));
 
-  const submissions = getSubmissions();
+  const allSubs = await getSubmissions().find({
+    problemId: { $in: contest.problemIds },
+    submittedAt: { $gte: contest.startTime, $lte: contest.endTime }
+  }).toArray();
+
   const scoreMap = {};
-  submissions
-    .filter(s => contest.problemIds.includes(s.problemId) &&
-                 s.submittedAt >= contest.startTime &&
-                 s.submittedAt <= contest.endTime)
-    .forEach(s => {
-      if (!scoreMap[s.username]) scoreMap[s.username] = { solved: new Set(), lastAC: null };
-      if (s.verdict === 'Accepted') {
-        scoreMap[s.username].solved.add(s.problemId);
-        if (!scoreMap[s.username].lastAC || s.submittedAt > scoreMap[s.username].lastAC) {
-          scoreMap[s.username].lastAC = s.submittedAt;
-        }
-      }
-    });
+  allSubs.forEach(s => {
+    if (!scoreMap[s.username]) scoreMap[s.username] = { solved: new Set(), lastAC: null };
+    if (s.verdict === 'Accepted') {
+      scoreMap[s.username].solved.add(s.problemId);
+      if (!scoreMap[s.username].lastAC || s.submittedAt > scoreMap[s.username].lastAC)
+        scoreMap[s.username].lastAC = s.submittedAt;
+    }
+  });
 
   const scoreboard = Object.entries(scoreMap)
-    .map(([username, data]) => ({
-      username,
-      solved: data.solved.size,
-      lastAC: data.lastAC
-    }))
+    .map(([username, data]) => ({ username, solved: data.solved.size, lastAC: data.lastAC }))
     .sort((a, b) => b.solved - a.solved || new Date(a.lastAC) - new Date(b.lastAC));
 
   res.render('contest-detail', { user: req.session.user || null, contest, problems, scoreboard });
 });
 
-app.listen(3000, () => {
-  console.log('DOJ server running on port 3000');
+// ─── START ────────────────────────────────────────────────
+
+connectDB().then(() => {
+  app.listen(3000, () => console.log('DOJ server running on port 3000'));
+}).catch(err => {
+  console.error('Failed to connect to MongoDB:', err);
+  process.exit(1);
 });
