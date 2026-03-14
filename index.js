@@ -100,7 +100,6 @@ function judgeCode(code, language, testcases) {
   const details = [];
   let passedCount = 0;
 
-  // Compile once for compiled languages
   let compiledPath = null;
   try {
     if (language === 'cpp') {
@@ -121,7 +120,6 @@ function judgeCode(code, language, testcases) {
       execSync(`javac ${codeFile}`, { timeout: 30000, cwd: tmpDir });
     }
   } catch (e) {
-    // Compilation Error — fail all test cases
     const errMsg = e.stderr ? e.stderr.toString() : (e.message || 'Compilation Error');
     for (let i = 0; i < testcases.length; i++) {
       details.push({ status: 'CE', passed: false, output: errMsg, expected: testcases[i].output.trim() });
@@ -270,7 +268,6 @@ app.get('/problems', (req, res) => {
   const submissions = getSubmissions();
   const user = req.session.user || null;
 
-  // Mark which problems the current user has solved
   const solvedSet = new Set();
   if (user) {
     submissions.filter(s => s.username === user.username && s.verdict === 'Accepted')
@@ -323,7 +320,6 @@ app.get('/problems/:id', (req, res) => {
   const submissions = getSubmissions();
   const user = req.session.user || null;
 
-  // Last 5 submissions for this problem by this user
   const mySubmissions = user
     ? submissions.filter(s => s.username === user.username && s.problemId === problem.id)
                  .slice(-5).reverse()
@@ -340,7 +336,6 @@ app.post('/problems/:id/submit', requireLogin, (req, res) => {
 
   const result = judgeCode(code, language, problem.testcases);
 
-  // Save submission
   const submissions = getSubmissions();
   const newSubmission = {
     id: Date.now().toString(),
@@ -362,6 +357,20 @@ app.post('/problems/:id/submit', requireLogin, (req, res) => {
     result,
     problemId: problem.id,
     submissionId: newSubmission.id
+  });
+});
+
+// ─── SUBMISSION DETAIL ────────────────────────────────────
+
+app.get('/submissions/:id', requireLogin, (req, res) => {
+  const submissions = getSubmissions();
+  const submission = submissions.find(s => s.id === req.params.id);
+  if (!submission) return res.redirect('/');
+  if (submission.username !== req.session.user.username) return res.redirect('/');
+
+  res.render('submission-detail', {
+    user: req.session.user,
+    submission
   });
 });
 
@@ -501,7 +510,32 @@ app.get('/contests/:id', (req, res) => {
 
   const allProblems = getProblems();
   const problems = allProblems.filter(p => contest.problemIds.includes(p.id));
-  res.render('contest-detail', { user: req.session.user || null, contest, problems });
+
+  const submissions = getSubmissions();
+  const scoreMap = {};
+  submissions
+    .filter(s => contest.problemIds.includes(s.problemId) &&
+                 s.submittedAt >= contest.startTime &&
+                 s.submittedAt <= contest.endTime)
+    .forEach(s => {
+      if (!scoreMap[s.username]) scoreMap[s.username] = { solved: new Set(), lastAC: null };
+      if (s.verdict === 'Accepted') {
+        scoreMap[s.username].solved.add(s.problemId);
+        if (!scoreMap[s.username].lastAC || s.submittedAt > scoreMap[s.username].lastAC) {
+          scoreMap[s.username].lastAC = s.submittedAt;
+        }
+      }
+    });
+
+  const scoreboard = Object.entries(scoreMap)
+    .map(([username, data]) => ({
+      username,
+      solved: data.solved.size,
+      lastAC: data.lastAC
+    }))
+    .sort((a, b) => b.solved - a.solved || new Date(a.lastAC) - new Date(b.lastAC));
+
+  res.render('contest-detail', { user: req.session.user || null, contest, problems, scoreboard });
 });
 
 app.listen(3000, () => {

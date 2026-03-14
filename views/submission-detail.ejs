@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submission Detail - DOJ</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">DOJ</a>
+      <a href="/problems" class="nav-link">Problems</a>
+      <a href="/organizations" class="nav-link">Organizations</a>
+    </div>
+    <div class="nav-right">
+      <% if (user) { %>
+        <a href="/problems/create" class="btn-register">+ Create</a>
+        <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
+        <a href="/logout" class="btn-logout">Logout</a>
+      <% } else { %>
+        <a href="/login" class="btn-login">Log In</a>
+        <a href="/register" class="btn-register">Sign Up</a>
+      <% } %>
+    </div>
+  </nav>
+
+  <div class="result-container">
+    <h2>Submission Detail</h2>
+
+    <div class="result-box">
+      <div class="result-status verdict-<%= submission.verdict.replace(/\s+/g,'').toLowerCase() %>">
+        <%= submission.verdict %>
+      </div>
+      <p class="result-score">
+        <%= submission.passedCount %> / <%= submission.total %> test cases passed
+      </p>
+      <p style="color:#a0a0b0; font-size:13px; margin-top:8px;">
+        <%= submission.language.toUpperCase() %> &nbsp;·&nbsp;
+        <%= new Date(submission.submittedAt).toLocaleString() %> &nbsp;·&nbsp;
+        <a href="/problems/<%= submission.problemId %>" style="color:#00e5a0; text-decoration:none;"><%= submission.problemTitle %></a>
+      </p>
+    </div>
+
+    <div style="margin-bottom:12px; font-size:14px; color:#a0a0b0;">Your Code</div>
+    <div style="border:1px solid #2a2a4a; border-radius:4px; overflow:hidden; margin-bottom:24px;">
+      <textarea id="codeView"><%= submission.code %></textarea>
+    </div>
+
+    <a href="/problems/<%= submission.problemId %>" class="btn-submit" style="display:inline-block; text-decoration:none;">Back to Problem</a>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+  <script>
+    const modeMap = {
+      cpp: 'text/x-c++src',
+      c: 'text/x-csrc',
+      java: 'text/x-java',
+      python: 'text/x-python'
+    };
+    const editor = CodeMirror.fromTextArea(document.getElementById('codeView'), {
+      mode: modeMap['<%= submission.language %>'] || 'text/x-c++src',
+      theme: 'dracula',
+      lineNumbers: true,
+      readOnly: true
+    });
+    editor.setSize('100%', '400px');
+  </script>
+</body>
+</html>

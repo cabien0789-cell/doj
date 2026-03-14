@@ -30,7 +30,18 @@
       <h2>Problems</h2>
     </div>
 
-    <table class="problems-table">
+    <!-- Filter & Search -->
+    <div class="filter-bar">
+      <input type="text" id="searchInput" placeholder="Search problems..." class="filter-input" />
+      <select id="difficultyFilter" class="filter-select">
+        <option value="">All Difficulties</option>
+        <option value="Easy">Easy</option>
+        <option value="Medium">Medium</option>
+        <option value="Hard">Hard</option>
+      </select>
+    </div>
+
+    <table class="problems-table" id="problemsTable">
       <thead>
         <tr>
           <th>#</th>
@@ -40,14 +51,16 @@
           <% if (user) { %><th>Status</th><% } %>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="problemsBody">
         <% if (problems.length === 0) { %>
           <tr>
             <td colspan="5" class="no-problems">No problems yet.</td>
           </tr>
         <% } else { %>
           <% problems.forEach((problem, index) => { %>
-            <tr>
+            <tr class="problem-row"
+                data-title="<%= problem.title.toLowerCase() %>"
+                data-difficulty="<%= problem.difficulty %>">
               <td><%= index + 1 %></td>
               <td><a href="/problems/<%= problem.id %>"><%= problem.title %></a></td>
               <td class="difficulty-<%= problem.difficulty.toLowerCase() %>"><%= problem.difficulty %></td>
@@ -66,6 +79,44 @@
         <% } %>
       </tbody>
     </table>
+
+    <div id="noResults" style="display:none; text-align:center; color:#a0a0b0; padding:40px;">
+      No problems match your search.
+    </div>
   </div>
+
+  <script>
+    const searchInput = document.getElementById('searchInput');
+    const difficultyFilter = document.getElementById('difficultyFilter');
+    const rows = document.querySelectorAll('.problem-row');
+    const noResults = document.getElementById('noResults');
+    const table = document.getElementById('problemsTable');
+
+    function filterProblems() {
+      const search = searchInput.value.toLowerCase();
+      const difficulty = difficultyFilter.value;
+      let visible = 0;
+
+      rows.forEach(row => {
+        const title = row.dataset.title;
+        const diff = row.dataset.difficulty;
+        const matchSearch = title.includes(search);
+        const matchDiff = difficulty === '' || diff === difficulty;
+
+        if (matchSearch && matchDiff) {
+          row.style.display = '';
+          visible++;
+        } else {
+          row.style.display = 'none';
+        }
+      });
+
+      noResults.style.display = visible === 0 ? 'block' : 'none';
+      table.style.display = visible === 0 ? 'none' : '';
+    }
+
+    searchInput.addEventListener('input', filterProblems);
+    difficultyFilter.addEventListener('change', filterProblems);
+  </script>
 </body>
 </html>

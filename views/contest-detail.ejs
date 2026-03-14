@@ -16,7 +16,7 @@
     <div class="nav-right">
       <% if (user) { %>
         <a href="/problems/create" class="btn-register">+ Create</a>
-        <span class="nav-username"><%= user.username %></span>
+        <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
         <a href="/logout" class="btn-logout">Logout</a>
       <% } else { %>
         <a href="/login" class="btn-login">Log In</a>
@@ -34,7 +34,7 @@
       <% } else if (now > new Date(contest.endTime)) { %>
         <span class="status-ended">Ended</span>
       <% } else { %>
-        <span class="status-live">Live</span>
+        <span class="status-live">● Live</span>
       <% } %>
     </div>
 
@@ -43,6 +43,7 @@
       <span>End: <strong><%= new Date(contest.endTime).toLocaleString() %></strong></span>
     </div>
 
+    <!-- Problems -->
     <div class="org-section">
       <h3>Problems</h3>
       <table class="problems-table">
@@ -70,6 +71,48 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Scoreboard -->
+    <div class="org-section">
+      <h3>Scoreboard</h3>
+      <table class="problems-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Username</th>
+            <th>Solved</th>
+            <th>Last Accepted</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (scoreboard.length === 0) { %>
+            <tr>
+              <td colspan="4" class="no-problems">No submissions yet.</td>
+            </tr>
+          <% } else { %>
+            <% scoreboard.forEach((entry, index) => { %>
+              <tr>
+                <td>
+                  <% if (index === 0) { %>
+                    <span style="color:#f5c518; font-weight:700;">🥇 1</span>
+                  <% } else if (index === 1) { %>
+                    <span style="color:#a0a0b0; font-weight:700;">🥈 2</span>
+                  <% } else if (index === 2) { %>
+                    <span style="color:#cd7f32; font-weight:700;">🥉 3</span>
+                  <% } else { %>
+                    <%= index + 1 %>
+                  <% } %>
+                </td>
+                <td><a href="/profile/<%= entry.username %>"><%= entry.username %></a></td>
+                <td style="color:#00e5a0; font-weight:600;"><%= entry.solved %></td>
+                <td style="color:#a0a0b0; font-size:13px;"><%= entry.lastAC ? new Date(entry.lastAC).toLocaleString() : '—' %></td>
+              </tr>
+            <% }) %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+
   </div>
 </body>
 </html>
