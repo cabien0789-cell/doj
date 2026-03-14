@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= targetUser.username %> - DOJ</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">DOJ</a>
+      <a href="/problems" class="nav-link">Problems</a>
+      <a href="/organizations" class="nav-link">Organizations</a>
+    </div>
+    <div class="nav-right">
+      <% if (user) { %>
+        <a href="/problems/create" class="btn-register">+ Create</a>
+        <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
+        <a href="/logout" class="btn-logout">Logout</a>
+      <% } else { %>
+        <a href="/login" class="btn-login">Log In</a>
+        <a href="/register" class="btn-register">Sign Up</a>
+      <% } %>
+    </div>
+  </nav>
+
+  <div class="problems-container">
+
+    <!-- Profile Header -->
+    <div class="profile-header">
+      <div class="profile-avatar"><%= targetUser.username.charAt(0).toUpperCase() %></div>
+      <div class="profile-info">
+        <h2><%= targetUser.username %></h2>
+        <p style="color:#a0a0b0; font-size:14px;"><%= targetUser.email %></p>
+      </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="profile-stats">
+      <div class="profile-stat-card">
+        <span class="profile-stat-number"><%= stats.solved %></span>
+        <span class="profile-stat-label">Problems Solved</span>
+      </div>
+      <div class="profile-stat-card">
+        <span class="profile-stat-number"><%= stats.totalSubmissions %></span>
+        <span class="profile-stat-label">Total Submissions</span>
+      </div>
+      <div class="profile-stat-card">
+        <span class="profile-stat-number" style="color:#00e5a0;"><%= stats.accepted %></span>
+        <span class="profile-stat-label">Accepted</span>
+      </div>
+      <div class="profile-stat-card">
+        <span class="profile-stat-number" style="color:#ff4444;"><%= stats.wrongAnswer %></span>
+        <span class="profile-stat-label">Wrong Answer</span>
+      </div>
+      <div class="profile-stat-card">
+        <span class="profile-stat-number" style="color:#f5a623;"><%= stats.tle %></span>
+        <span class="profile-stat-label">Time Limit Exceeded</span>
+      </div>
+      <div class="profile-stat-card">
+        <span class="profile-stat-number" style="color:#a0a0b0;"><%= stats.ce %></span>
+        <span class="profile-stat-label">Compilation Error</span>
+      </div>
+    </div>
+
+    <!-- Recent Submissions -->
+    <div class="problems-header" style="margin-top:40px;">
+      <h2>Recent Submissions</h2>
+    </div>
+
+    <table class="problems-table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Problem</th>
+          <th>Language</th>
+          <th>Verdict</th>
+          <th>Score</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (recentSubmissions.length === 0) { %>
+          <tr>
+            <td colspan="5" class="no-problems">No submissions yet.</td>
+          </tr>
+        <% } else { %>
+          <% recentSubmissions.forEach(s => { %>
+            <tr>
+              <td style="color:#a0a0b0; font-size:13px;"><%= new Date(s.submittedAt).toLocaleString() %></td>
+              <td><a href="/problems/<%= s.problemId %>"><%= s.problemTitle %></a></td>
+              <td><%= s.language.toUpperCase() %></td>
+              <td class="verdict-<%= s.verdict.replace(/\s+/g,'').toLowerCase() %>"><%= s.verdict %></td>
+              <td><%= s.passedCount %>/<%= s.total %></td>
+            </tr>
+          <% }) %>
+        <% } %>
+      </tbody>
+    </table>
+
+  </div>
+</body>
+</html>

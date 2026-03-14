@@ -5,17 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= problem.title %> - DOJ</title>
   <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
 </head>
 <body>
   <nav class="navbar">
     <div class="nav-left">
       <a href="/" class="logo">DOJ</a>
       <a href="/problems" class="nav-link">Problems</a>
+      <a href="/organizations" class="nav-link">Organizations</a>
     </div>
     <div class="nav-right">
       <% if (user) { %>
         <a href="/problems/create" class="btn-register">+ Create</a>
-        <span class="nav-username"><%= user.username %></span>
+        <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
         <a href="/logout" class="btn-logout">Logout</a>
       <% } else { %>
         <a href="/login" class="btn-login">Log In</a>
@@ -25,6 +28,7 @@
   </nav>
 
   <div class="problem-layout">
+    <!-- LEFT: Problem statement -->
     <div class="problem-left">
       <div class="problem-header">
         <h2><%= problem.title %></h2>
@@ -62,21 +66,50 @@
           </div>
         <% }) %>
       </div>
+
+      <% if (mySubmissions && mySubmissions.length > 0) { %>
+        <div class="problem-section">
+          <h3>My Recent Submissions</h3>
+          <table class="problems-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Language</th>
+                <th>Verdict</th>
+                <th>Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% mySubmissions.forEach(s => { %>
+                <tr>
+                  <td style="color:#a0a0b0; font-size:13px;"><%= new Date(s.submittedAt).toLocaleString() %></td>
+                  <td><%= s.language.toUpperCase() %></td>
+                  <td class="verdict-<%= s.verdict.replace(/\s+/g,'').toLowerCase() %>"><%= s.verdict %></td>
+                  <td><%= s.passedCount %>/<%= s.total %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
     </div>
 
+    <!-- RIGHT: Code editor -->
     <div class="problem-right">
       <% if (user) { %>
-        <form action="/problems/<%= problem.id %>/submit" method="POST">
+        <form action="/problems/<%= problem.id %>/submit" method="POST" id="submitForm">
           <div class="editor-header">
-            <select name="language" class="language-select">
+            <select name="language" class="language-select" id="languageSelect">
               <option value="cpp">C++</option>
               <option value="c">C</option>
               <option value="java">Java</option>
               <option value="python">Python</option>
             </select>
           </div>
-          <textarea name="code" class="code-editor" placeholder="Write your code here..."></textarea>
-          <button type="submit" class="btn-submit">Submit</button>
+          <div id="editorWrapper">
+            <textarea name="code" id="codeArea"></textarea>
+          </div>
+          <button type="submit" class="btn-submit" id="submitBtn">Submit</button>
         </form>
       <% } else { %>
         <div class="login-to-submit">
@@ -85,5 +118,53 @@
       <% } %>
     </div>
   </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+
+  <script>
+    const defaultCode = {
+      cpp: `#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    \n    return 0;\n}`,
+      c: `#include <stdio.h>\n\nint main() {\n    \n    return 0;\n}`,
+      java: `import java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        \n    }\n}`,
+      python: `import sys\ninput = sys.stdin.readline\n\n`
+    };
+
+    const editor = CodeMirror.fromTextArea(document.getElementById('codeArea'), {
+      mode: 'text/x-c++src',
+      theme: 'dracula',
+      lineNumbers: true,
+      autoCloseBrackets: true,
+      matchBrackets: true,
+      indentUnit: 4,
+      tabSize: 4,
+      indentWithTabs: false,
+      lineWrapping: false,
+    });
+
+    editor.setValue(defaultCode.cpp);
+    editor.setSize('100%', '100%');
+
+    const modeMap = {
+      cpp: 'text/x-c++src',
+      c: 'text/x-csrc',
+      java: 'text/x-java',
+      python: 'text/x-python'
+    };
+
+    document.getElementById('languageSelect').addEventListener('change', function() {
+      editor.setOption('mode', modeMap[this.value]);
+      editor.setValue(defaultCode[this.value]);
+    });
+
+    document.getElementById('submitForm').addEventListener('submit', function() {
+      editor.save();
+      document.getElementById('submitBtn').textContent = 'Judging...';
+      document.getElementById('submitBtn').disabled = true;
+    });
+  </script>
 </body>
 </html>

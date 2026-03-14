@@ -11,11 +11,12 @@
     <div class="nav-left">
       <a href="/" class="logo">DOJ</a>
       <a href="/problems" class="nav-link active">Problems</a>
+      <a href="/organizations" class="nav-link">Organizations</a>
     </div>
     <div class="nav-right">
       <% if (user) { %>
         <a href="/problems/create" class="btn-register">+ Create</a>
-        <span class="nav-username"><%= user.username %></span>
+        <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
         <a href="/logout" class="btn-logout">Logout</a>
       <% } else { %>
         <a href="/login" class="btn-login">Log In</a>
@@ -36,12 +37,13 @@
           <th>Title</th>
           <th>Difficulty</th>
           <th>Author</th>
+          <% if (user) { %><th>Status</th><% } %>
         </tr>
       </thead>
       <tbody>
         <% if (problems.length === 0) { %>
           <tr>
-            <td colspan="4" class="no-problems">No problems yet.</td>
+            <td colspan="5" class="no-problems">No problems yet.</td>
           </tr>
         <% } else { %>
           <% problems.forEach((problem, index) => { %>
@@ -50,6 +52,15 @@
               <td><a href="/problems/<%= problem.id %>"><%= problem.title %></a></td>
               <td class="difficulty-<%= problem.difficulty.toLowerCase() %>"><%= problem.difficulty %></td>
               <td><%= problem.author %></td>
+              <% if (user) { %>
+                <td>
+                  <% if (problem.solved) { %>
+                    <span style="color:#00e5a0; font-weight:600;">✓ Solved</span>
+                  <% } else { %>
+                    <span style="color:#a0a0b0;">—</span>
+                  <% } %>
+                </td>
+              <% } %>
             </tr>
           <% }) %>
         <% } %>

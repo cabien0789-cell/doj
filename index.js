@@ -24,40 +24,41 @@ const USERS_FILE = path.join(__dirname, 'data/users.json');
 const PROBLEMS_FILE = path.join(__dirname, 'data/problems.json');
 const ORGS_FILE = path.join(__dirname, 'data/organizations.json');
 const CONTESTS_FILE = path.join(__dirname, 'data/contests.json');
+const SUBMISSIONS_FILE = path.join(__dirname, 'data/submissions.json');
 
 function getUsers() {
   return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
 }
-
 function saveUsers(users) {
   fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
 }
-
 function getProblems() {
   if (!fs.existsSync(PROBLEMS_FILE)) fs.writeFileSync(PROBLEMS_FILE, '[]');
   return JSON.parse(fs.readFileSync(PROBLEMS_FILE, 'utf8'));
 }
-
 function saveProblems(problems) {
   fs.writeFileSync(PROBLEMS_FILE, JSON.stringify(problems, null, 2));
 }
-
 function getOrgs() {
   if (!fs.existsSync(ORGS_FILE)) fs.writeFileSync(ORGS_FILE, '[]');
   return JSON.parse(fs.readFileSync(ORGS_FILE, 'utf8'));
 }
-
 function saveOrgs(orgs) {
   fs.writeFileSync(ORGS_FILE, JSON.stringify(orgs, null, 2));
 }
-
 function getContests() {
   if (!fs.existsSync(CONTESTS_FILE)) fs.writeFileSync(CONTESTS_FILE, '[]');
   return JSON.parse(fs.readFileSync(CONTESTS_FILE, 'utf8'));
 }
-
 function saveContests(contests) {
   fs.writeFileSync(CONTESTS_FILE, JSON.stringify(contests, null, 2));
+}
+function getSubmissions() {
+  if (!fs.existsSync(SUBMISSIONS_FILE)) fs.writeFileSync(SUBMISSIONS_FILE, '[]');
+  return JSON.parse(fs.readFileSync(SUBMISSIONS_FILE, 'utf8'));
+}
+function saveSubmissions(submissions) {
+  fs.writeFileSync(SUBMISSIONS_FILE, JSON.stringify(submissions, null, 2));
 }
 
 function requireLogin(req, res, next) {
@@ -86,7 +87,6 @@ async function sendVerificationEmail(email, code) {
       `
     })
   });
-
   if (!response.ok) {
     const err = await response.text();
     throw new Error(err);
@@ -100,10 +100,39 @@ function judgeCode(code, language, testcases) {
   const details = [];
   let passedCount = 0;
 
+  // Compile once for compiled languages
+  let compiledPath = null;
+  try {
+    if (language === 'cpp') {
+      const codeFile = path.join(tmpDir, 'solution.cpp');
+      const outFile = path.join(tmpDir, 'solution');
+      fs.writeFileSync(codeFile, code);
+      execSync(`g++ -o ${outFile} ${codeFile}`, { timeout: 30000 });
+      compiledPath = outFile;
+    } else if (language === 'c') {
+      const codeFile = path.join(tmpDir, 'solution.c');
+      const outFile = path.join(tmpDir, 'solutionc');
+      fs.writeFileSync(codeFile, code);
+      execSync(`gcc -o ${outFile} ${codeFile}`, { timeout: 30000 });
+      compiledPath = outFile;
+    } else if (language === 'java') {
+      const codeFile = path.join(tmpDir, 'Main.java');
+      fs.writeFileSync(codeFile, code);
+      execSync(`javac ${codeFile}`, { timeout: 30000, cwd: tmpDir });
+    }
+  } catch (e) {
+    // Compilation Error — fail all test cases
+    const errMsg = e.stderr ? e.stderr.toString() : (e.message || 'Compilation Error');
+    for (let i = 0; i < testcases.length; i++) {
+      details.push({ status: 'CE', passed: false, output: errMsg, expected: testcases[i].output.trim() });
+    }
+    return { verdict: 'Compilation Error', passed: false, passedCount: 0, total: testcases.length, details };
+  }
+
   for (let i = 0; i < testcases.length; i++) {
     const tc = testcases[i];
     if (!tc.input || !tc.output) {
-      details.push({ passed: false, output: 'No test case data', expected: '' });
+      details.push({ status: 'WA', passed: false, output: 'No test case data', expected: '' });
       continue;
     }
 
@@ -116,49 +145,55 @@ function judgeCode(code, language, testcases) {
       if (language === 'python') {
         const codeFile = path.join(tmpDir, 'solution.py');
         fs.writeFileSync(codeFile, code);
-        output = execSync(`python3 ${codeFile} < ${inputFile}`, { timeout: 15000 }).toString().trim();
-      } else if (language === 'cpp') {
-        const codeFile = path.join(tmpDir, 'solution.cpp');
-        const outFile = path.join(tmpDir, 'solution');
-        fs.writeFileSync(codeFile, code);
-        execSync(`g++ -o ${outFile} ${codeFile}`, { timeout: 30000 });
-        output = execSync(`${outFile} < ${inputFile}`, { timeout: 15000 }).toString().trim();
-      } else if (language === 'c') {
-        const codeFile = path.join(tmpDir, 'solution.c');
-        const outFile = path.join(tmpDir, 'solutionc');
-        fs.writeFileSync(codeFile, code);
-        execSync(`gcc -o ${outFile} ${codeFile}`, { timeout: 30000 });
-        output = execSync(`${outFile} < ${inputFile}`, { timeout: 15000 }).toString().trim();
+        output = execSync(`python3 ${codeFile} < ${inputFile}`, { timeout: 5000 }).toString().trim();
+      } else if (language === 'cpp' || language === 'c') {
+        output = execSync(`${compiledPath} < ${inputFile}`, { timeout: 5000 }).toString().trim();
       } else if (language === 'java') {
-        const codeFile = path.join(tmpDir, 'Main.java');
-        fs.writeFileSync(codeFile, code);
-        execSync(`javac ${codeFile}`, { timeout: 30000, cwd: tmpDir });
-        output = execSync(`java -cp ${tmpDir} Main < ${inputFile}`, { timeout: 15000 }).toString().trim();
+        output = execSync(`java -cp ${tmpDir} Main < ${inputFile}`, { timeout: 10000 }).toString().trim();
       }
 
       const expected = tc.output.trim();
       const passed = output === expected;
       if (passed) passedCount++;
-      details.push({ passed, output, expected });
+      details.push({ status: passed ? 'AC' : 'WA', passed, output, expected });
+
     } catch (e) {
-      details.push({ passed: false, output: e.message || e.toString(), expected: tc.output.trim() });
+      const isTimeout = e.signal === 'SIGTERM' || (e.message && e.message.includes('ETIMEDOUT'));
+      if (isTimeout) {
+        details.push({ status: 'TLE', passed: false, output: 'Time Limit Exceeded', expected: tc.output.trim() });
+      } else {
+        const errMsg = e.stderr ? e.stderr.toString().split('\n')[0] : (e.message || 'Runtime Error');
+        details.push({ status: 'RE', passed: false, output: errMsg, expected: tc.output.trim() });
+      }
     }
   }
 
-  return { passed: passedCount === testcases.length, passedCount, total: testcases.length, details };
+  const allPassed = passedCount === testcases.length;
+  let verdict = 'Accepted';
+  if (!allPassed) {
+    const firstFail = details.find(d => !d.passed);
+    if (firstFail) verdict = firstFail.status === 'TLE' ? 'Time Limit Exceeded'
+                           : firstFail.status === 'RE' ? 'Runtime Error'
+                           : 'Wrong Answer';
+  }
+
+  return { verdict, passed: allPassed, passedCount, total: testcases.length, details };
 }
 
+// ─── ROUTES ───────────────────────────────────────────────
+
 app.get('/', (req, res) => {
-  res.render('index', { user: req.session.user || null });
+  const problems = getProblems();
+  const users = getUsers();
+  const submissions = getSubmissions();
+  res.render('index', {
+    user: req.session.user || null,
+    stats: { problems: problems.length, users: users.length, submissions: submissions.length }
+  });
 });
 
-app.get('/login', (req, res) => {
-  res.render('login', {});
-});
-
-app.get('/register', (req, res) => {
-  res.render('register', {});
-});
+app.get('/login', (req, res) => res.render('login', {}));
+app.get('/register', (req, res) => res.render('register', {}));
 
 app.post('/register', async (req, res) => {
   const { username, password, confirmPassword, email } = req.body;
@@ -190,7 +225,6 @@ app.post('/register', async (req, res) => {
   } catch (e) {
     console.error('Email error:', e.message);
   }
-
   res.redirect('/verify');
 });
 
@@ -229,9 +263,26 @@ app.get('/logout', (req, res) => {
   res.redirect('/');
 });
 
+// ─── PROBLEMS ─────────────────────────────────────────────
+
 app.get('/problems', (req, res) => {
   const problems = getProblems();
-  res.render('problems', { user: req.session.user || null, problems });
+  const submissions = getSubmissions();
+  const user = req.session.user || null;
+
+  // Mark which problems the current user has solved
+  const solvedSet = new Set();
+  if (user) {
+    submissions.filter(s => s.username === user.username && s.verdict === 'Accepted')
+               .forEach(s => solvedSet.add(s.problemId));
+  }
+
+  const problemsWithStatus = problems.map(p => ({
+    ...p,
+    solved: solvedSet.has(p.id)
+  }));
+
+  res.render('problems', { user, problems: problemsWithStatus });
 });
 
 app.get('/problems/create', requireLogin, (req, res) => {
@@ -268,7 +319,17 @@ app.get('/problems/:id', (req, res) => {
   const problems = getProblems();
   const problem = problems.find(p => p.id === req.params.id);
   if (!problem) return res.redirect('/problems');
-  res.render('problem-detail', { user: req.session.user || null, problem });
+
+  const submissions = getSubmissions();
+  const user = req.session.user || null;
+
+  // Last 5 submissions for this problem by this user
+  const mySubmissions = user
+    ? submissions.filter(s => s.username === user.username && s.problemId === problem.id)
+                 .slice(-5).reverse()
+    : [];
+
+  res.render('problem-detail', { user, problem, mySubmissions });
 });
 
 app.post('/problems/:id/submit', requireLogin, (req, res) => {
@@ -278,8 +339,67 @@ app.post('/problems/:id/submit', requireLogin, (req, res) => {
   if (!problem) return res.redirect('/problems');
 
   const result = judgeCode(code, language, problem.testcases);
-  res.render('submission-result', { user: req.session.user, result, problemId: problem.id });
+
+  // Save submission
+  const submissions = getSubmissions();
+  const newSubmission = {
+    id: Date.now().toString(),
+    username: req.session.user.username,
+    problemId: problem.id,
+    problemTitle: problem.title,
+    language,
+    verdict: result.verdict,
+    passedCount: result.passedCount,
+    total: result.total,
+    code,
+    submittedAt: new Date().toISOString()
+  };
+  submissions.push(newSubmission);
+  saveSubmissions(submissions);
+
+  res.render('submission-result', {
+    user: req.session.user,
+    result,
+    problemId: problem.id,
+    submissionId: newSubmission.id
+  });
 });
+
+// ─── PROFILE ──────────────────────────────────────────────
+
+app.get('/profile/:username', (req, res) => {
+  const users = getUsers();
+  const targetUser = users.find(u => u.username === req.params.username);
+  if (!targetUser) return res.redirect('/');
+
+  const submissions = getSubmissions();
+  const userSubs = submissions.filter(s => s.username === req.params.username);
+
+  const solvedSet = new Set(
+    userSubs.filter(s => s.verdict === 'Accepted').map(s => s.problemId)
+  );
+
+  const stats = {
+    totalSubmissions: userSubs.length,
+    solved: solvedSet.size,
+    accepted: userSubs.filter(s => s.verdict === 'Accepted').length,
+    wrongAnswer: userSubs.filter(s => s.verdict === 'Wrong Answer').length,
+    tle: userSubs.filter(s => s.verdict === 'Time Limit Exceeded').length,
+    re: userSubs.filter(s => s.verdict === 'Runtime Error').length,
+    ce: userSubs.filter(s => s.verdict === 'Compilation Error').length,
+  };
+
+  const recentSubmissions = userSubs.slice(-20).reverse();
+
+  res.render('profile', {
+    user: req.session.user || null,
+    targetUser: { username: targetUser.username, email: targetUser.email },
+    stats,
+    recentSubmissions
+  });
+});
+
+// ─── ORGANIZATIONS ────────────────────────────────────────
 
 app.get('/organizations', (req, res) => {
   const organizations = getOrgs();
@@ -366,11 +486,7 @@ app.post('/organizations/:id/contests/create', requireLogin, (req, res) => {
   const contests = getContests();
   const newContest = {
     id: Date.now().toString(),
-    name,
-    orgId: org.id,
-    startTime,
-    endTime,
-    problemIds
+    name, orgId: org.id, startTime, endTime, problemIds
   };
 
   contests.push(newContest);

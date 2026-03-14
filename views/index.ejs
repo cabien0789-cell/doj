@@ -16,7 +16,7 @@
     <div class="nav-right">
       <% if (user) { %>
         <a href="/problems/create" class="btn-register">+ Create</a>
-        <span class="nav-username"><%= user.username %></span>
+        <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
         <a href="/logout" class="btn-logout">Logout</a>
       <% } else { %>
         <a href="/login" class="btn-login">Log In</a>
@@ -32,6 +32,21 @@
       <% if (!user) { %>
         <a href="/register" class="btn-hero">Get Started</a>
       <% } %>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-item">
+      <span class="stat-number"><%= stats.problems %></span>
+      <span class="stat-label">Problems</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-number"><%= stats.users %></span>
+      <span class="stat-label">Users</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-number"><%= stats.submissions %></span>
+      <span class="stat-label">Submissions</span>
     </div>
   </div>
 
