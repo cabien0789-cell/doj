@@ -37,7 +37,7 @@
       <% result.details.forEach((tc, i) => { %>
         <div class="tc-result <%= tc.passed ? 'tc-pass' : 'tc-fail' %>">
           <span>Test Case <%= i + 1 %>:</span>
-          <span><%= tc.passed ? '✓ Passed' : '✗ Failed' %></span>
+          <span><%= tc.passed ? '✓ Passed' : '✗ ' + tc.output %></span>
         </div>
       <% }) %>
     </div>
