@@ -67,24 +67,24 @@ function judgeCode(code, language, testcases) {
       if (language === 'python') {
         const codeFile = path.join(tmpDir, 'solution.py');
         fs.writeFileSync(codeFile, code);
-        output = execSync(`python3 ${codeFile} < ${inputFile}`, { timeout: 5000 }).toString().trim();
+        output = execSync(`python3 ${codeFile} < ${inputFile}`, { timeout: 15000 }).toString().trim();
       } else if (language === 'cpp') {
         const codeFile = path.join(tmpDir, 'solution.cpp');
         const outFile = path.join(tmpDir, 'solution');
         fs.writeFileSync(codeFile, code);
-        execSync(`g++ -o ${outFile} ${codeFile}`, { timeout: 10000 });
-        output = execSync(`${outFile} < ${inputFile}`, { timeout: 5000 }).toString().trim();
+        execSync(`g++ -o ${outFile} ${codeFile}`, { timeout: 30000 });
+        output = execSync(`${outFile} < ${inputFile}`, { timeout: 15000 }).toString().trim();
       } else if (language === 'c') {
         const codeFile = path.join(tmpDir, 'solution.c');
         const outFile = path.join(tmpDir, 'solutionc');
         fs.writeFileSync(codeFile, code);
-        execSync(`gcc -o ${outFile} ${codeFile}`, { timeout: 10000 });
-        output = execSync(`${outFile} < ${inputFile}`, { timeout: 5000 }).toString().trim();
+        execSync(`gcc -o ${outFile} ${codeFile}`, { timeout: 30000 });
+        output = execSync(`${outFile} < ${inputFile}`, { timeout: 15000 }).toString().trim();
       } else if (language === 'java') {
         const codeFile = path.join(tmpDir, 'Main.java');
         fs.writeFileSync(codeFile, code);
-        execSync(`javac ${codeFile}`, { timeout: 10000, cwd: tmpDir });
-        output = execSync(`java -cp ${tmpDir} Main < ${inputFile}`, { timeout: 5000 }).toString().trim();
+        execSync(`javac ${codeFile}`, { timeout: 30000, cwd: tmpDir });
+        output = execSync(`java -cp ${tmpDir} Main < ${inputFile}`, { timeout: 15000 }).toString().trim();
       }
 
       const expected = tc.output.trim();
