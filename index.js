@@ -21,7 +21,6 @@ app.use(session({
   saveUninitialized: false
 }));
 
-// ─── MONGODB ──────────────────────────────────────────────
 const client = new MongoClient(process.env.MONGODB_URI);
 let db;
 
@@ -40,6 +39,58 @@ function getSubmissions() { return db.collection('submissions'); }
 function requireLogin(req, res, next) {
   if (!req.session.user) return res.redirect('/login');
   next();
+}
+
+function emailTemplate(title, bodyContent) {
+  return `
+  <div style="background:#f4f4f4; padding:40px 20px; font-family:'Segoe UI',Arial,sans-serif;">
+    <div style="max-width:560px; margin:0 auto; background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+      <div style="background:#0f0f23; padding:32px 40px; text-align:center;">
+        <div style="display:inline-flex; align-items:center; justify-content:center; gap:14px;">
+          <svg width="48" height="48" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <rect x="0" y="0" width="100" height="100" rx="22" fill="#1a1a3a"/>
+            <text x="30" y="55" text-anchor="middle" dominant-baseline="central"
+              font-family="'Segoe UI',Arial,sans-serif" font-size="52" font-weight="800"
+              fill="#00e5a0">D</text>
+            <text x="68" y="40" text-anchor="middle" dominant-baseline="central"
+              font-family="'Segoe UI',Arial,sans-serif" font-size="20" font-weight="700"
+              fill="#ffffff">OJ</text>
+            <rect x="50" y="62" width="36" height="3" rx="1.5" fill="#00e5a0"/>
+          </svg>
+          <div style="text-align:left;">
+            <div style="color:#00e5a0; font-size:22px; font-weight:700; letter-spacing:1px;">Dary Online Judge</div>
+            <div style="color:#a0a0b0; font-size:12px; letter-spacing:2px; text-transform:uppercase; margin-top:2px;">Practice · Compete · Improve</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:40px 40px 32px;">
+        ${bodyContent}
+      </div>
+      <div style="background:#f8f9ff; padding:24px 40px; display:flex; gap:20px; justify-content:center;">
+        <div style="text-align:center; flex:1;">
+          <div style="font-size:20px; margin-bottom:4px;">💻</div>
+          <div style="font-size:12px; font-weight:600; color:#0f0f23;">Luyện tập</div>
+          <div style="font-size:11px; color:#888;">Hàng trăm bài tập</div>
+        </div>
+        <div style="text-align:center; flex:1;">
+          <div style="font-size:20px; margin-bottom:4px;">🏆</div>
+          <div style="font-size:12px; font-weight:600; color:#0f0f23;">Thi đấu</div>
+          <div style="font-size:11px; color:#888;">Contest hàng tuần</div>
+        </div>
+        <div style="text-align:center; flex:1;">
+          <div style="font-size:20px; margin-bottom:4px;">📈</div>
+          <div style="font-size:12px; font-weight:600; color:#0f0f23;">Tiến bộ</div>
+          <div style="font-size:11px; color:#888;">Theo dõi kết quả</div>
+        </div>
+      </div>
+      <div style="background:#0f0f23; padding:20px 40px; text-align:center;">
+        <p style="margin:0; color:#a0a0b0; font-size:12px; line-height:1.8;">
+          © 2026 Dary Online Judge · All rights reserved<br>
+          <a href="https://doj-60st.onrender.com" style="color:#00e5a0; text-decoration:none;">doj-60st.onrender.com</a>
+        </p>
+      </div>
+    </div>
+  </div>`;
 }
 
 async function sendEmail(to, subject, htmlContent) {
@@ -186,14 +237,20 @@ app.post('/register', async (req, res) => {
   req.session.verifyCode = verifyCode;
 
   try {
-    await sendEmail(email, 'DOJ - Email Verification Code', `
-      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
-        <h2 style="color: #00e5a0;">Dary Online Judge</h2>
-        <p>Your verification code is:</p>
-        <h1 style="letter-spacing: 8px; color: #0f0f23; background: #00e5a0; padding: 16px; text-align: center; border-radius: 8px;">${verifyCode}</h1>
-        <p>This code will expire in 10 minutes.</p>
+    await sendEmail(email, 'DOJ - Xác nhận email của bạn', emailTemplate('Xác nhận email', `
+      <h2 style="margin:0 0 8px; font-size:22px; font-weight:700; color:#0f0f23;">Xác nhận email của bạn</h2>
+      <p style="margin:0 0 24px; color:#555; font-size:15px; line-height:1.6;">
+        Chào mừng bạn đến với <strong>Dary Online Judge</strong>! Vui lòng nhập mã xác nhận bên dưới để hoàn tất đăng ký tài khoản.
+      </p>
+      <div style="background:#f8f9ff; border:2px dashed #00e5a0; border-radius:10px; padding:24px; text-align:center; margin-bottom:28px;">
+        <div style="color:#888; font-size:12px; letter-spacing:2px; text-transform:uppercase; margin-bottom:10px;">Mã xác nhận của bạn</div>
+        <div style="font-size:42px; font-weight:800; letter-spacing:12px; color:#0f0f23; font-family:'Courier New',monospace;">${verifyCode}</div>
+        <div style="color:#aaa; font-size:12px; margin-top:10px;">Mã có hiệu lực trong <strong>10 phút</strong></div>
       </div>
-    `);
+      <p style="margin:0; color:#777; font-size:13px; line-height:1.6;">
+        Sau khi xác nhận, bạn có thể bắt đầu luyện tập với hàng trăm bài toán lập trình, tham gia các contest và theo dõi tiến trình của mình trên bảng xếp hạng.
+      </p>
+    `));
   } catch (e) {
     console.error('Email error:', e.message);
   }
@@ -249,14 +306,20 @@ app.post('/forgot-password', async (req, res) => {
   req.session.resetCode = resetCode;
 
   try {
-    await sendEmail(email, 'DOJ - Password Reset Code', `
-      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
-        <h2 style="color: #00e5a0;">Dary Online Judge</h2>
-        <p>Your password reset code is:</p>
-        <h1 style="letter-spacing: 8px; color: #0f0f23; background: #00e5a0; padding: 16px; text-align: center; border-radius: 8px;">${resetCode}</h1>
-        <p>This code will expire in 10 minutes.</p>
+    await sendEmail(email, 'DOJ - Đặt lại mật khẩu', emailTemplate('Đặt lại mật khẩu', `
+      <h2 style="margin:0 0 8px; font-size:22px; font-weight:700; color:#0f0f23;">Đặt lại mật khẩu</h2>
+      <p style="margin:0 0 24px; color:#555; font-size:15px; line-height:1.6;">
+        Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản <strong>Dary Online Judge</strong> của bạn. Nhập mã bên dưới để tiếp tục.
+      </p>
+      <div style="background:#f8f9ff; border:2px dashed #00e5a0; border-radius:10px; padding:24px; text-align:center; margin-bottom:28px;">
+        <div style="color:#888; font-size:12px; letter-spacing:2px; text-transform:uppercase; margin-bottom:10px;">Mã đặt lại mật khẩu</div>
+        <div style="font-size:42px; font-weight:800; letter-spacing:12px; color:#0f0f23; font-family:'Courier New',monospace;">${resetCode}</div>
+        <div style="color:#aaa; font-size:12px; margin-top:10px;">Mã có hiệu lực trong <strong>10 phút</strong></div>
       </div>
-    `);
+      <p style="margin:0; color:#777; font-size:13px; line-height:1.6;">
+        Sau khi đặt lại mật khẩu, bạn có thể tiếp tục luyện tập và thi đấu trên Dary Online Judge.
+      </p>
+    `));
   } catch (e) {
     console.error('Email error:', e.message);
   }
@@ -343,7 +406,7 @@ app.post('/problems/create', requireLogin, async (req, res) => {
     input: inp || '', output: tcOutput[i] || ''
   })).filter(tc => tc.input && tc.output);
 
-  const result = await getProblems().insertOne({
+  await getProblems().insertOne({
     title, difficulty, statement, inputFormat, outputFormat, testcases,
     author: req.session.user.username,
     createdAt: new Date().toISOString()
