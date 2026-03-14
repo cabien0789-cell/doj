@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const fs = require('fs');
 const { execSync } = require('child_process');
+const nodemailer = require('nodemailer');
 
 const app = express();
 
@@ -62,6 +63,30 @@ function saveContests(contests) {
 function requireLogin(req, res, next) {
   if (!req.session.user) return res.redirect('/login');
   next();
+}
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASS
+  }
+});
+
+async function sendVerificationEmail(email, code) {
+  await transporter.sendMail({
+    from: `"DOJ - Dary Online Judge" <${process.env.GMAIL_USER}>`,
+    to: email,
+    subject: 'DOJ - Email Verification Code',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
+        <h2 style="color: #00e5a0;">Dary Online Judge</h2>
+        <p>Your verification code is:</p>
+        <h1 style="letter-spacing: 8px; color: #0f0f23; background: #00e5a0; padding: 16px; text-align: center; border-radius: 8px;">${code}</h1>
+        <p>This code will expire in 10 minutes.</p>
+      </div>
+    `
+  });
 }
 
 function judgeCode(code, language, testcases) {
@@ -156,7 +181,12 @@ app.post('/register', async (req, res) => {
   req.session.pendingUser = { username, password: hashedPassword, email };
   req.session.verifyCode = verifyCode;
 
-  console.log(`Verification code for ${email}: ${verifyCode}`);
+  try {
+    await sendVerificationEmail(email, verifyCode);
+  } catch (e) {
+    console.error('Email error:', e.message);
+  }
+
   res.redirect('/verify');
 });
 
