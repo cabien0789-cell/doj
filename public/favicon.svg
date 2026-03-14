@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect x="0" y="0" width="100" height="100" rx="22" fill="#0f0f23"/>
+  <text x="30" y="55" text-anchor="middle" dominant-baseline="central"
+    font-family="'Segoe UI', Arial, sans-serif" font-size="52" font-weight="800"
+    fill="#00e5a0">D</text>
+  <text x="68" y="40" text-anchor="middle" dominant-baseline="central"
+    font-family="'Segoe UI', Arial, sans-serif" font-size="20" font-weight="700"
+    fill="#ffffff">OJ</text>
+  <rect x="50" y="62" width="36" height="3" rx="1.5" fill="#00e5a0"/>
+</svg>
