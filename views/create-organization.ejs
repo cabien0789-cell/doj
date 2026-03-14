@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Organization - DOJ</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">DOJ</a>
+      <a href="/problems" class="nav-link">Problems</a>
+      <a href="/organizations" class="nav-link">Organizations</a>
+    </div>
+    <div class="nav-right">
+      <a href="/problems/create" class="btn-register">+ Create</a>
+      <span class="nav-username"><%= user.username %></span>
+      <a href="/logout" class="btn-logout">Logout</a>
+    </div>
+  </nav>
+
+  <div class="create-container">
+    <h2>Create Organization</h2>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="error-msg"><%= error %></div>
+    <% } %>
+    <form action="/organizations/create" method="POST">
+      <div class="form-group">
+        <label>Organization Name</label>
+        <input type="text" name="name" placeholder="Enter organization name" required />
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea name="description" rows="4" placeholder="Describe your organization..."></textarea>
+      </div>
+      <button type="submit" class="btn-submit">Create Organization</button>
+    </form>
+  </div>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= org.name %> - DOJ</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">DOJ</a>
+      <a href="/problems" class="nav-link">Problems</a>
+      <a href="/organizations" class="nav-link">Organizations</a>
+    </div>
+    <div class="nav-right">
+      <% if (user) { %>
+        <a href="/problems/create" class="btn-register">+ Create</a>
+        <span class="nav-username"><%= user.username %></span>
+        <a href="/logout" class="btn-logout">Logout</a>
+      <% } else { %>
+        <a href="/login" class="btn-login">Log In</a>
+        <a href="/register" class="btn-register">Sign Up</a>
+      <% } %>
+    </div>
+  </nav>
+
+  <div class="problems-container">
+    <div class="org-header">
+      <h2><%= org.name %></h2>
+      <% if (user && org.members.includes(user.username)) { %>
+        <a href="/organizations/<%= org.id %>/leave" class="btn-leave">Leave Organization</a>
+      <% } else if (user) { %>
+        <a href="/organizations/<%= org.id %>/join" class="btn-join">Join Organization</a>
+      <% } %>
+    </div>
+
+    <% if (org.description) { %>
+      <p class="org-desc"><%= org.description %></p>
+    <% } %>
+
+    <div class="org-info">
+      <span>Owner: <strong><%= org.owner %></strong></span>
+      <span>Members: <strong><%= org.members.length %></strong></span>
+    </div>
+
+    <% if (user && org.members.includes(user.username)) { %>
+      <div class="org-section">
+        <div class="org-section-header">
+          <h3>Contests</h3>
+          <% if (user.username === org.owner) { %>
+            <a href="/organizations/<%= org.id %>/contests/create" class="btn-register">+ Create Contest</a>
+          <% } %>
+        </div>
+
+        <table class="problems-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Start</th>
+              <th>End</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (contests.length === 0) { %>
+              <tr>
+                <td colspan="5" class="no-problems">No contests yet.</td>
+              </tr>
+            <% } else { %>
+              <% contests.forEach((contest, index) => { %>
+                <tr>
+                  <td><%= index + 1 %></td>
+                  <td><a href="/contests/<%= contest.id %>"><%= contest.name %></a></td>
+                  <td><%= new Date(contest.startTime).toLocaleString() %></td>
+                  <td><%= new Date(contest.endTime).toLocaleString() %></td>
+                  <td>
+                    <% const now = new Date(); %>
+                    <% if (now < new Date(contest.startTime)) { %>
+                      <span class="status-upcoming">Upcoming</span>
+                    <% } else if (now > new Date(contest.endTime)) { %>
+                      <span class="status-ended">Ended</span>
+                    <% } else { %>
+                      <span class="status-live">Live</span>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="org-section">
+        <h3>Members</h3>
+        <div class="members-list">
+          <% org.members.forEach(member => { %>
+            <div class="member-item">
+              <span><%= member %></span>
+              <% if (member === org.owner) { %>
+                <span class="owner-badge">Owner</span>
+              <% } %>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+    <% } else { %>
+      <div class="join-prompt">
+        <p>Join this organization to see contests and members.</p>
+      </div>
+    <% } %>
+  </div>
+</body>
+</html>

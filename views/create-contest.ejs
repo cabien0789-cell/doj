@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Contest - DOJ</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">DOJ</a>
+      <a href="/problems" class="nav-link">Problems</a>
+      <a href="/organizations" class="nav-link">Organizations</a>
+    </div>
+    <div class="nav-right">
+      <a href="/problems/create" class="btn-register">+ Create</a>
+      <span class="nav-username"><%= user.username %></span>
+      <a href="/logout" class="btn-logout">Logout</a>
+    </div>
+  </nav>
+
+  <div class="create-container">
+    <h2>Create Contest</h2>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="error-msg"><%= error %></div>
+    <% } %>
+    <form action="/organizations/<%= orgId %>/contests/create" method="POST">
+      <div class="form-group">
+        <label>Contest Name</label>
+        <input type="text" name="name" placeholder="Enter contest name" required />
+      </div>
+      <div class="form-group">
+        <label>Start Time</label>
+        <input type="datetime-local" name="startTime" required />
+      </div>
+      <div class="form-group">
+        <label>End Time</label>
+        <input type="datetime-local" name="endTime" required />
+      </div>
+      <div class="form-group">
+        <label>Problems</label>
+        <% problems.forEach(problem => { %>
+          <div class="problem-checkbox">
+            <input type="checkbox" name="problemIds[]" value="<%= problem.id %>" id="p-<%= problem.id %>">
+            <label for="p-<%= problem.id %>"><%= problem.title %> (<%= problem.difficulty %>)</label>
+          </div>
+        <% }) %>
+      </div>
+      <button type="submit" class="btn-submit">Create Contest</button>
+    </form>
+  </div>
+</body>
+</html>

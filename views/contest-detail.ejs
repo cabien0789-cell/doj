@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= contest.name %> - DOJ</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">DOJ</a>
+      <a href="/problems" class="nav-link">Problems</a>
+      <a href="/organizations" class="nav-link">Organizations</a>
+    </div>
+    <div class="nav-right">
+      <% if (user) { %>
+        <a href="/problems/create" class="btn-register">+ Create</a>
+        <span class="nav-username"><%= user.username %></span>
+        <a href="/logout" class="btn-logout">Logout</a>
+      <% } else { %>
+        <a href="/login" class="btn-login">Log In</a>
+        <a href="/register" class="btn-register">Sign Up</a>
+      <% } %>
+    </div>
+  </nav>
+
+  <div class="problems-container">
+    <div class="org-header">
+      <h2><%= contest.name %></h2>
+      <% const now = new Date(); %>
+      <% if (now < new Date(contest.startTime)) { %>
+        <span class="status-upcoming">Upcoming</span>
+      <% } else if (now > new Date(contest.endTime)) { %>
+        <span class="status-ended">Ended</span>
+      <% } else { %>
+        <span class="status-live">Live</span>
+      <% } %>
+    </div>
+
+    <div class="org-info">
+      <span>Start: <strong><%= new Date(contest.startTime).toLocaleString() %></strong></span>
+      <span>End: <strong><%= new Date(contest.endTime).toLocaleString() %></strong></span>
+    </div>
+
+    <div class="org-section">
+      <h3>Problems</h3>
+      <table class="problems-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Title</th>
+            <th>Difficulty</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (problems.length === 0) { %>
+            <tr>
+              <td colspan="3" class="no-problems">No problems in this contest.</td>
+            </tr>
+          <% } else { %>
+            <% problems.forEach((problem, index) => { %>
+              <tr>
+                <td><%= index + 1 %></td>
+                <td><a href="/problems/<%= problem.id %>"><%= problem.title %></a></td>
+                <td class="difficulty-<%= problem.difficulty.toLowerCase() %>"><%= problem.difficulty %></td>
+              </tr>
+            <% }) %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

@@ -21,6 +21,8 @@ app.use(session({
 
 const USERS_FILE = path.join(__dirname, 'data/users.json');
 const PROBLEMS_FILE = path.join(__dirname, 'data/problems.json');
+const ORGS_FILE = path.join(__dirname, 'data/organizations.json');
+const CONTESTS_FILE = path.join(__dirname, 'data/contests.json');
 
 function getUsers() {
   return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
@@ -37,6 +39,24 @@ function getProblems() {
 
 function saveProblems(problems) {
   fs.writeFileSync(PROBLEMS_FILE, JSON.stringify(problems, null, 2));
+}
+
+function getOrgs() {
+  if (!fs.existsSync(ORGS_FILE)) fs.writeFileSync(ORGS_FILE, '[]');
+  return JSON.parse(fs.readFileSync(ORGS_FILE, 'utf8'));
+}
+
+function saveOrgs(orgs) {
+  fs.writeFileSync(ORGS_FILE, JSON.stringify(orgs, null, 2));
+}
+
+function getContests() {
+  if (!fs.existsSync(CONTESTS_FILE)) fs.writeFileSync(CONTESTS_FILE, '[]');
+  return JSON.parse(fs.readFileSync(CONTESTS_FILE, 'utf8'));
+}
+
+function saveContests(contests) {
+  fs.writeFileSync(CONTESTS_FILE, JSON.stringify(contests, null, 2));
 }
 
 function requireLogin(req, res, next) {
@@ -225,6 +245,113 @@ app.post('/problems/:id/submit', requireLogin, (req, res) => {
 
   const result = judgeCode(code, language, problem.testcases);
   res.render('submission-result', { user: req.session.user, result, problemId: problem.id });
+});
+
+app.get('/organizations', (req, res) => {
+  const organizations = getOrgs();
+  res.render('organizations', { user: req.session.user || null, organizations });
+});
+
+app.get('/organizations/create', requireLogin, (req, res) => {
+  res.render('create-organization', { user: req.session.user, error: undefined });
+});
+
+app.post('/organizations/create', requireLogin, (req, res) => {
+  const { name, description } = req.body;
+  const orgs = getOrgs();
+
+  if (!name || name.trim().length < 3)
+    return res.render('create-organization', { user: req.session.user, error: 'Organization name must be at least 3 characters.' });
+  if (orgs.find(o => o.name === name.trim()))
+    return res.render('create-organization', { user: req.session.user, error: 'Organization name already exists.' });
+
+  const newOrg = {
+    id: Date.now().toString(),
+    name: name.trim(),
+    description: description || '',
+    owner: req.session.user.username,
+    members: [req.session.user.username]
+  };
+
+  orgs.push(newOrg);
+  saveOrgs(orgs);
+  res.redirect('/organizations/' + newOrg.id);
+});
+
+app.get('/organizations/:id', (req, res) => {
+  const orgs = getOrgs();
+  const org = orgs.find(o => o.id === req.params.id);
+  if (!org) return res.redirect('/organizations');
+
+  const contests = getContests().filter(c => c.orgId === org.id);
+  res.render('organization-detail', { user: req.session.user || null, org, contests });
+});
+
+app.get('/organizations/:id/join', requireLogin, (req, res) => {
+  const orgs = getOrgs();
+  const org = orgs.find(o => o.id === req.params.id);
+  if (!org) return res.redirect('/organizations');
+
+  if (!org.members.includes(req.session.user.username)) {
+    org.members.push(req.session.user.username);
+    saveOrgs(orgs);
+  }
+  res.redirect('/organizations/' + org.id);
+});
+
+app.get('/organizations/:id/leave', requireLogin, (req, res) => {
+  const orgs = getOrgs();
+  const org = orgs.find(o => o.id === req.params.id);
+  if (!org) return res.redirect('/organizations');
+
+  if (org.owner === req.session.user.username) return res.redirect('/organizations/' + org.id);
+
+  org.members = org.members.filter(m => m !== req.session.user.username);
+  saveOrgs(orgs);
+  res.redirect('/organizations/' + org.id);
+});
+
+app.get('/organizations/:id/contests/create', requireLogin, (req, res) => {
+  const orgs = getOrgs();
+  const org = orgs.find(o => o.id === req.params.id);
+  if (!org || org.owner !== req.session.user.username) return res.redirect('/organizations');
+
+  const problems = getProblems();
+  res.render('create-contest', { user: req.session.user, orgId: org.id, problems, error: undefined });
+});
+
+app.post('/organizations/:id/contests/create', requireLogin, (req, res) => {
+  const orgs = getOrgs();
+  const org = orgs.find(o => o.id === req.params.id);
+  if (!org || org.owner !== req.session.user.username) return res.redirect('/organizations');
+
+  const { name, startTime, endTime } = req.body;
+  let problemIds = req.body['problemIds[]'] || req.body.problemIds || [];
+  if (!Array.isArray(problemIds)) problemIds = [problemIds];
+
+  const contests = getContests();
+  const newContest = {
+    id: Date.now().toString(),
+    name,
+    orgId: org.id,
+    startTime,
+    endTime,
+    problemIds
+  };
+
+  contests.push(newContest);
+  saveContests(contests);
+  res.redirect('/organizations/' + org.id);
+});
+
+app.get('/contests/:id', (req, res) => {
+  const contests = getContests();
+  const contest = contests.find(c => c.id === req.params.id);
+  if (!contest) return res.redirect('/organizations');
+
+  const allProblems = getProblems();
+  const problems = allProblems.filter(p => contest.problemIds.includes(p.id));
+  res.render('contest-detail', { user: req.session.user || null, contest, problems });
 });
 
 app.listen(3000, () => {
