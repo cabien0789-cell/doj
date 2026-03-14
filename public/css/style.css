@@ -896,3 +896,46 @@ body {
   width: auto;
   cursor: pointer;
 }
+
+/* ─── FILTER BAR ──────────────────────────────────────────── */
+.filter-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.filter-input {
+  flex: 1;
+  padding: 10px 14px;
+  background-color: #0f0f23;
+  border: 1px solid #2a2a4a;
+  border-radius: 4px;
+  color: #ffffff;
+  font-size: 14px;
+  outline: none;
+  transition: border 0.2s;
+}
+
+.filter-input:focus {
+  border-color: #00e5a0;
+}
+
+.filter-select {
+  padding: 10px 14px;
+  background-color: #0f0f23;
+  border: 1px solid #2a2a4a;
+  border-radius: 4px;
+  color: #ffffff;
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+  transition: border 0.2s;
+}
+
+.filter-select:focus {
+  border-color: #00e5a0;
+}
+
+.filter-select option {
+  background-color: #0f0f23;
+}
