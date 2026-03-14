@@ -33,6 +33,12 @@
       <div class="problem-header">
         <h2><%= problem.title %></h2>
         <span class="difficulty-<%= problem.difficulty.toLowerCase() %>"><%= problem.difficulty %></span>
+        <% if (user && user.username === problem.author) { %>
+          <a href="/problems/<%= problem.id %>/edit" style="color:#f5a623; font-size:13px; text-decoration:none; margin-left:8px;">✏ Edit</a>
+          <form action="/problems/<%= problem.id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('Delete this problem?')">
+            <button type="submit" style="background:none; border:none; color:#ff4444; font-size:13px; cursor:pointer; margin-left:8px;">🗑 Delete</button>
+          </form>
+        <% } %>
       </div>
       <p class="problem-author">By <strong><%= problem.author %></strong></p>
 

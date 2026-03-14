@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Problem - DOJ</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">DOJ</a>
+      <a href="/problems" class="nav-link">Problems</a>
+      <a href="/organizations" class="nav-link">Organizations</a>
+    </div>
+    <div class="nav-right">
+      <a href="/problems/create" class="btn-register">+ Create</a>
+      <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
+      <a href="/logout" class="btn-logout">Logout</a>
+    </div>
+  </nav>
+
+  <div class="create-container">
+    <h2>Edit Problem</h2>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="error-msg"><%= error %></div>
+    <% } %>
+    <form action="/problems/<%= problem.id %>/edit" method="POST">
+      <div class="form-group">
+        <label>Title</label>
+        <input type="text" name="title" value="<%= problem.title %>" required />
+      </div>
+      <div class="form-group">
+        <label>Difficulty</label>
+        <select name="difficulty">
+          <option value="Easy" <%= problem.difficulty === 'Easy' ? 'selected' : '' %>>Easy</option>
+          <option value="Medium" <%= problem.difficulty === 'Medium' ? 'selected' : '' %>>Medium</option>
+          <option value="Hard" <%= problem.difficulty === 'Hard' ? 'selected' : '' %>>Hard</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Problem Statement</label>
+        <textarea name="statement" rows="8" required><%= problem.statement %></textarea>
+      </div>
+      <div class="form-group">
+        <label>Input Format</label>
+        <textarea name="inputFormat" rows="3" required><%= problem.inputFormat %></textarea>
+      </div>
+      <div class="form-group">
+        <label>Output Format</label>
+        <textarea name="outputFormat" rows="3" required><%= problem.outputFormat %></textarea>
+      </div>
+
+      <div class="testcases-section">
+        <h3>Test Cases</h3>
+        <div id="testcases">
+          <% problem.testcases.forEach((tc, i) => { %>
+            <div class="testcase">
+              <div class="form-group">
+                <label>Input</label>
+                <textarea name="tcInput[]" rows="3"><%= tc.input %></textarea>
+              </div>
+              <div class="form-group">
+                <label>Output</label>
+                <textarea name="tcOutput[]" rows="3"><%= tc.output %></textarea>
+              </div>
+              <% if (i > 0) { %>
+                <button type="button" class="btn-remove-tc" onclick="this.parentElement.remove()">Remove</button>
+              <% } %>
+            </div>
+          <% }) %>
+        </div>
+        <button type="button" class="btn-add-tc" onclick="addTestCase()">+ Add Test Case</button>
+      </div>
+
+      <button type="submit" class="btn-submit">Save Changes</button>
+    </form>
+  </div>
+
+  <script>
+    function addTestCase() {
+      const container = document.getElementById('testcases');
+      const div = document.createElement('div');
+      div.className = 'testcase';
+      div.innerHTML = `
+        <div class="form-group">
+          <label>Input</label>
+          <textarea name="tcInput[]" rows="3" placeholder="Test case input..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Output</label>
+          <textarea name="tcOutput[]" rows="3" placeholder="Expected output..."></textarea>
+        </div>
+        <button type="button" class="btn-remove-tc" onclick="this.parentElement.remove()">Remove</button>
+      `;
+      container.appendChild(div);
+    }
+  </script>
+</body>
+</html>

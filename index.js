@@ -66,7 +66,7 @@ function requireLogin(req, res, next) {
   next();
 }
 
-async function sendVerificationEmail(email, code) {
+async function sendEmail(to, subject, htmlContent) {
   const response = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
@@ -75,16 +75,9 @@ async function sendVerificationEmail(email, code) {
     },
     body: JSON.stringify({
       sender: { name: 'DOJ - Dary Online Judge', email: process.env.GMAIL_USER },
-      to: [{ email }],
-      subject: 'DOJ - Email Verification Code',
-      htmlContent: `
-        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
-          <h2 style="color: #00e5a0;">Dary Online Judge</h2>
-          <p>Your verification code is:</p>
-          <h1 style="letter-spacing: 8px; color: #0f0f23; background: #00e5a0; padding: 16px; text-align: center; border-radius: 8px;">${code}</h1>
-          <p>This code will expire in 10 minutes.</p>
-        </div>
-      `
+      to: [{ email: to }],
+      subject,
+      htmlContent
     })
   });
   if (!response.ok) {
@@ -139,7 +132,6 @@ function judgeCode(code, language, testcases) {
 
     try {
       let output = '';
-
       if (language === 'python') {
         const codeFile = path.join(tmpDir, 'solution.py');
         fs.writeFileSync(codeFile, code);
@@ -219,7 +211,14 @@ app.post('/register', async (req, res) => {
   req.session.verifyCode = verifyCode;
 
   try {
-    await sendVerificationEmail(email, verifyCode);
+    await sendEmail(email, 'DOJ - Email Verification Code', `
+      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
+        <h2 style="color: #00e5a0;">Dary Online Judge</h2>
+        <p>Your verification code is:</p>
+        <h1 style="letter-spacing: 8px; color: #0f0f23; background: #00e5a0; padding: 16px; text-align: center; border-radius: 8px;">${verifyCode}</h1>
+        <p>This code will expire in 10 minutes.</p>
+      </div>
+    `);
   } catch (e) {
     console.error('Email error:', e.message);
   }
@@ -259,6 +258,94 @@ app.post('/login', async (req, res) => {
 app.get('/logout', (req, res) => {
   req.session.destroy();
   res.redirect('/');
+});
+
+// ─── FORGOT PASSWORD ──────────────────────────────────────
+
+app.get('/forgot-password', (req, res) => {
+  res.render('forgot-password', { error: undefined, success: undefined });
+});
+
+app.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  const users = getUsers();
+  const user = users.find(u => u.email === email);
+
+  if (!user) {
+    return res.render('forgot-password', { error: 'No account found with that email.', success: undefined });
+  }
+
+  const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+  req.session.resetEmail = email;
+  req.session.resetCode = resetCode;
+
+  try {
+    await sendEmail(email, 'DOJ - Password Reset Code', `
+      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
+        <h2 style="color: #00e5a0;">Dary Online Judge</h2>
+        <p>Your password reset code is:</p>
+        <h1 style="letter-spacing: 8px; color: #0f0f23; background: #00e5a0; padding: 16px; text-align: center; border-radius: 8px;">${resetCode}</h1>
+        <p>This code will expire in 10 minutes.</p>
+      </div>
+    `);
+  } catch (e) {
+    console.error('Email error:', e.message);
+  }
+
+  res.redirect('/reset-password');
+});
+
+app.get('/reset-password', (req, res) => {
+  if (!req.session.resetEmail) return res.redirect('/forgot-password');
+  res.render('reset-password', { error: undefined });
+});
+
+app.post('/reset-password', async (req, res) => {
+  const { code, password, confirmPassword } = req.body;
+
+  if (code !== req.session.resetCode)
+    return res.render('reset-password', { error: 'Invalid reset code.' });
+  if (password.length < 6)
+    return res.render('reset-password', { error: 'Password must be at least 6 characters.' });
+  if (password !== confirmPassword)
+    return res.render('reset-password', { error: 'Passwords do not match.' });
+
+  const users = getUsers();
+  const userIndex = users.findIndex(u => u.email === req.session.resetEmail);
+  if (userIndex === -1) return res.redirect('/forgot-password');
+
+  users[userIndex].password = await bcrypt.hash(password, 10);
+  saveUsers(users);
+
+  req.session.resetEmail = null;
+  req.session.resetCode = null;
+
+  res.redirect('/login');
+});
+
+// ─── CHANGE PASSWORD ──────────────────────────────────────
+
+app.get('/change-password', requireLogin, (req, res) => {
+  res.render('change-password', { user: req.session.user, error: undefined, success: undefined });
+});
+
+app.post('/change-password', requireLogin, async (req, res) => {
+  const { currentPassword, newPassword, confirmPassword } = req.body;
+  const users = getUsers();
+  const userIndex = users.findIndex(u => u.username === req.session.user.username);
+
+  const match = await bcrypt.compare(currentPassword, users[userIndex].password);
+  if (!match)
+    return res.render('change-password', { user: req.session.user, error: 'Current password is incorrect.', success: undefined });
+  if (newPassword.length < 6)
+    return res.render('change-password', { user: req.session.user, error: 'New password must be at least 6 characters.', success: undefined });
+  if (newPassword !== confirmPassword)
+    return res.render('change-password', { user: req.session.user, error: 'Passwords do not match.', success: undefined });
+
+  users[userIndex].password = await bcrypt.hash(newPassword, 10);
+  saveUsers(users);
+
+  res.render('change-password', { user: req.session.user, error: undefined, success: 'Password changed successfully!' });
 });
 
 // ─── PROBLEMS ─────────────────────────────────────────────
@@ -360,6 +447,51 @@ app.post('/problems/:id/submit', requireLogin, (req, res) => {
   });
 });
 
+// ─── EDIT / DELETE PROBLEM ────────────────────────────────
+
+app.get('/problems/:id/edit', requireLogin, (req, res) => {
+  const problems = getProblems();
+  const problem = problems.find(p => p.id === req.params.id);
+  if (!problem) return res.redirect('/problems');
+  if (problem.author !== req.session.user.username) return res.redirect('/problems/' + req.params.id);
+
+  res.render('edit-problem', { user: req.session.user, problem, error: undefined });
+});
+
+app.post('/problems/:id/edit', requireLogin, (req, res) => {
+  const problems = getProblems();
+  const index = problems.findIndex(p => p.id === req.params.id);
+  if (index === -1) return res.redirect('/problems');
+  if (problems[index].author !== req.session.user.username) return res.redirect('/problems/' + req.params.id);
+
+  const { title, difficulty, statement, inputFormat, outputFormat } = req.body;
+  const tcInputRaw = req.body['tcInput[]'] || req.body.tcInput;
+  const tcOutputRaw = req.body['tcOutput[]'] || req.body.tcOutput;
+
+  let tcInput = Array.isArray(tcInputRaw) ? tcInputRaw : [tcInputRaw];
+  let tcOutput = Array.isArray(tcOutputRaw) ? tcOutputRaw : [tcOutputRaw];
+
+  const testcases = tcInput.map((inp, i) => ({
+    input: inp || '',
+    output: tcOutput[i] || ''
+  })).filter(tc => tc.input && tc.output);
+
+  problems[index] = { ...problems[index], title, difficulty, statement, inputFormat, outputFormat, testcases };
+  saveProblems(problems);
+  res.redirect('/problems/' + req.params.id);
+});
+
+app.post('/problems/:id/delete', requireLogin, (req, res) => {
+  const problems = getProblems();
+  const problem = problems.find(p => p.id === req.params.id);
+  if (!problem) return res.redirect('/problems');
+  if (problem.author !== req.session.user.username) return res.redirect('/problems/' + req.params.id);
+
+  const filtered = problems.filter(p => p.id !== req.params.id);
+  saveProblems(filtered);
+  res.redirect('/problems');
+});
+
 // ─── SUBMISSION DETAIL ────────────────────────────────────
 
 app.get('/submissions/:id', requireLogin, (req, res) => {
@@ -368,10 +500,7 @@ app.get('/submissions/:id', requireLogin, (req, res) => {
   if (!submission) return res.redirect('/');
   if (submission.username !== req.session.user.username) return res.redirect('/');
 
-  res.render('submission-detail', {
-    user: req.session.user,
-    submission
-  });
+  res.render('submission-detail', { user: req.session.user, submission });
 });
 
 // ─── PROFILE ──────────────────────────────────────────────
