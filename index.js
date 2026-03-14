@@ -46,11 +46,12 @@ function emailTemplate(bodyContent) {
   <div style="background:#f4f4f4; padding:40px 20px; font-family:'Segoe UI',Arial,sans-serif;">
     <div style="max-width:520px; margin:0 auto; background:#ffffff; border-radius:12px; overflow:hidden;">
 
-      <div style="background:#0f0f23; padding:24px 32px; text-align:center;">
-        <img src="https://doj-60st.onrender.com/logo.png" alt="DOJ" width="64" height="64" style="display:block; margin:0 auto; border-radius:14px;"/>
+      <div style="background:#0f0f23; padding:28px 32px; text-align:center;">
+        <div style="color:#00e5a0; font-size:28px; font-weight:800; letter-spacing:2px; font-family:'Segoe UI',Arial,sans-serif; line-height:1.2;">Dary</div>
+        <div style="color:#a0a0b0; font-size:13px; font-weight:400; letter-spacing:3px; text-transform:uppercase; font-family:'Segoe UI',Arial,sans-serif; margin-top:4px;">Online Judge</div>
       </div>
 
-      <div style="padding:36px 32px 28px;">
+      <div style="padding:32px 32px 24px;">
         ${bodyContent}
       </div>
 
@@ -236,10 +237,10 @@ app.post('/register', async (req, res) => {
       <p style="margin:0 0 24px; color:#555; font-size:14px; line-height:1.7; font-family:'Segoe UI',Arial,sans-serif;">
         Chào mừng bạn đến với <strong>Dary Online Judge</strong>! Vui lòng nhập mã xác nhận bên dưới để hoàn tất đăng ký tài khoản.
       </p>
-      <div style="text-align:center; padding:20px 0 24px;">
-        <div style="color:#888; font-size:11px; letter-spacing:3px; text-transform:uppercase; margin-bottom:12px; font-family:'Segoe UI',Arial,sans-serif;">Mã xác nhận của bạn</div>
-        <div style="font-size:44px; font-weight:800; letter-spacing:14px; color:#00e5a0; font-family:'Courier New',monospace; text-indent:14px;">${verifyCode}</div>
-        <div style="width:80px; height:3px; background:#00e5a0; margin:14px auto 12px; border-radius:2px;"></div>
+      <div style="text-align:center; padding:16px 0 20px;">
+        <div style="color:#888; font-size:11px; letter-spacing:3px; text-transform:uppercase; margin-bottom:14px; font-family:'Segoe UI',Arial,sans-serif;">Mã xác nhận của bạn</div>
+        <div style="font-size:32px; font-weight:800; letter-spacing:10px; color:#00e5a0; font-family:'Courier New',monospace; text-indent:10px;">${verifyCode}</div>
+        <div style="width:60px; height:3px; background:#00e5a0; margin:12px auto; border-radius:2px;"></div>
         <div style="color:#aaa; font-size:12px; font-family:'Segoe UI',Arial,sans-serif;">Mã có hiệu lực trong <strong style="color:#555;">10 phút</strong></div>
       </div>
       <p style="margin:0; color:#777; font-size:13px; line-height:1.7; font-family:'Segoe UI',Arial,sans-serif;">
@@ -306,10 +307,10 @@ app.post('/forgot-password', async (req, res) => {
       <p style="margin:0 0 24px; color:#555; font-size:14px; line-height:1.7; font-family:'Segoe UI',Arial,sans-serif;">
         Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản <strong>Dary Online Judge</strong> của bạn. Nhập mã bên dưới để tiếp tục.
       </p>
-      <div style="text-align:center; padding:20px 0 24px;">
-        <div style="color:#888; font-size:11px; letter-spacing:3px; text-transform:uppercase; margin-bottom:12px; font-family:'Segoe UI',Arial,sans-serif;">Mã đặt lại mật khẩu</div>
-        <div style="font-size:44px; font-weight:800; letter-spacing:14px; color:#00e5a0; font-family:'Courier New',monospace; text-indent:14px;">${resetCode}</div>
-        <div style="width:80px; height:3px; background:#00e5a0; margin:14px auto 12px; border-radius:2px;"></div>
+      <div style="text-align:center; padding:16px 0 20px;">
+        <div style="color:#888; font-size:11px; letter-spacing:3px; text-transform:uppercase; margin-bottom:14px; font-family:'Segoe UI',Arial,sans-serif;">Mã đặt lại mật khẩu</div>
+        <div style="font-size:32px; font-weight:800; letter-spacing:10px; color:#00e5a0; font-family:'Courier New',monospace; text-indent:10px;">${resetCode}</div>
+        <div style="width:60px; height:3px; background:#00e5a0; margin:12px auto; border-radius:2px;"></div>
         <div style="color:#aaa; font-size:12px; font-family:'Segoe UI',Arial,sans-serif;">Mã có hiệu lực trong <strong style="color:#555;">10 phút</strong></div>
       </div>
       <p style="margin:0; color:#777; font-size:13px; line-height:1.7; font-family:'Segoe UI',Arial,sans-serif;">
