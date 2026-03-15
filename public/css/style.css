@@ -1282,3 +1282,38 @@ body {
   border-color: #ffffff;
   color: #ffffff;
 }
+
+/* ─── VISIBILITY RADIO ───────────────────────────────────── */
+.visibility-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border: 1px solid #2a2a4a;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 200px;
+  background: #0f0f23;
+}
+
+.visibility-option:hover {
+  border-color: #00e5a0;
+}
+
+.visibility-option input[type="radio"] {
+  accent-color: #00e5a0;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.visibility-option.selected-public {
+  border-color: #00e5a0;
+  background: #00e5a010;
+}
+
+.visibility-option.selected-private {
+  border-color: #f5a623;
+  background: #f5a62310;
+}
