@@ -76,9 +76,16 @@
         <p><%= problem.outputFormat %></p>
       </div>
 
+      <% if (problem.constraints) { %>
+        <div class="problem-section">
+          <h3>Constraints</h3>
+          <p><%= problem.constraints %></p>
+        </div>
+      <% } %>
+
       <div class="problem-section">
         <h3>Sample Test Cases</h3>
-        <% problem.testcases.slice(0, 2).forEach((tc, i) => { %>
+        <% (problem.sampleTestcases || problem.testcases || []).slice(0, 3).forEach((tc, i) => { %>
           <div class="testcase-display">
             <div class="tc-block">
               <div class="tc-label">Input <%= i + 1 %></div>
@@ -91,6 +98,13 @@
           </div>
         <% }) %>
       </div>
+
+      <% if (problem.explanation) { %>
+        <div class="problem-section">
+          <h3>Explanation</h3>
+          <p><%= problem.explanation %></p>
+        </div>
+      <% } %>
 
       <% if (mySubmissions && mySubmissions.length > 0) { %>
         <div class="problem-section">
@@ -139,7 +153,6 @@
           </div>
         </form>
 
-        <!-- Run Code Panel -->
         <div id="runPanel" style="display:none;">
           <div class="run-panel">
             <div class="run-panel-header">

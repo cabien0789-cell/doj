@@ -228,6 +228,15 @@ function runCodeOnce(code, language, input) {
   }
 }
 
+function parseTestcases(inputRaw, outputRaw) {
+  let inputs = Array.isArray(inputRaw) ? inputRaw : (inputRaw ? [inputRaw] : []);
+  let outputs = Array.isArray(outputRaw) ? outputRaw : (outputRaw ? [outputRaw] : []);
+  return inputs.map((inp, i) => ({
+    input: inp || '',
+    output: outputs[i] || ''
+  })).filter(tc => tc.input && tc.output);
+}
+
 // ─── ROUTES ───────────────────────────────────────────────
 
 app.get('/', async (req, res) => {
@@ -468,23 +477,30 @@ app.get('/problems/create', requireLogin, (req, res) => {
 });
 
 app.post('/problems/create', requireLogin, async (req, res) => {
-  const { title, difficulty, statement, inputFormat, outputFormat, timeLimit } = req.body;
+  const { title, difficulty, statement, inputFormat, outputFormat, timeLimit, constraints, explanation } = req.body;
 
-  const tcInputRaw = req.body['tcInput[]'] || req.body.tcInput;
-  const tcOutputRaw = req.body['tcOutput[]'] || req.body.tcOutput;
-  let tcInput = Array.isArray(tcInputRaw) ? tcInputRaw : [tcInputRaw];
-  let tcOutput = Array.isArray(tcOutputRaw) ? tcOutputRaw : [tcOutputRaw];
+  const sampleTestcases = parseTestcases(
+    req.body['sampleInput[]'] || req.body.sampleInput,
+    req.body['sampleOutput[]'] || req.body.sampleOutput
+  );
 
-  const testcases = tcInput.map((inp, i) => ({
-    input: inp || '', output: tcOutput[i] || ''
-  })).filter(tc => tc.input && tc.output);
+  const hiddenTestcases = parseTestcases(
+    req.body['hiddenInput[]'] || req.body.hiddenInput,
+    req.body['hiddenOutput[]'] || req.body.hiddenOutput
+  );
 
   let tags = req.body['tags[]'] || req.body.tags || [];
   if (!Array.isArray(tags)) tags = [tags];
 
   await getProblems().insertOne({
-    title, difficulty, statement, inputFormat, outputFormat, testcases,
-    tags, timeLimit: parseInt(timeLimit) || 2,
+    title, difficulty, statement, inputFormat, outputFormat,
+    constraints: constraints || '',
+    explanation: explanation || '',
+    sampleTestcases,
+    hiddenTestcases,
+    testcases: [...sampleTestcases, ...hiddenTestcases],
+    tags,
+    timeLimit: parseInt(timeLimit) || 2,
     author: req.session.user.username,
     createdAt: new Date().toISOString()
   });
@@ -524,7 +540,14 @@ app.post('/problems/:id/submit', requireLogin, async (req, res) => {
   if (!problem) return res.redirect('/problems');
 
   problem.id = problem._id.toString();
-  const result = judgeCode(code, language, problem.testcases, problem.timeLimit);
+
+  // Judge against all testcases (sample + hidden)
+  const allTestcases = problem.testcases || [
+    ...(problem.sampleTestcases || []),
+    ...(problem.hiddenTestcases || [])
+  ];
+
+  const result = judgeCode(code, language, allTestcases, problem.timeLimit);
 
   const submission = {
     username: req.session.user.username,
@@ -563,14 +586,17 @@ app.get('/problems/:id/edit', requireLogin, async (req, res) => {
 });
 
 app.post('/problems/:id/edit', requireLogin, async (req, res) => {
-  const { title, difficulty, statement, inputFormat, outputFormat, timeLimit } = req.body;
-  const tcInputRaw = req.body['tcInput[]'] || req.body.tcInput;
-  const tcOutputRaw = req.body['tcOutput[]'] || req.body.tcOutput;
-  let tcInput = Array.isArray(tcInputRaw) ? tcInputRaw : [tcInputRaw];
-  let tcOutput = Array.isArray(tcOutputRaw) ? tcOutputRaw : [tcOutputRaw];
-  const testcases = tcInput.map((inp, i) => ({
-    input: inp || '', output: tcOutput[i] || ''
-  })).filter(tc => tc.input && tc.output);
+  const { title, difficulty, statement, inputFormat, outputFormat, timeLimit, constraints, explanation } = req.body;
+
+  const sampleTestcases = parseTestcases(
+    req.body['sampleInput[]'] || req.body.sampleInput,
+    req.body['sampleOutput[]'] || req.body.sampleOutput
+  );
+
+  const hiddenTestcases = parseTestcases(
+    req.body['hiddenInput[]'] || req.body.hiddenInput,
+    req.body['hiddenOutput[]'] || req.body.hiddenOutput
+  );
 
   let tags = req.body['tags[]'] || req.body.tags || [];
   if (!Array.isArray(tags)) tags = [tags];
@@ -578,7 +604,16 @@ app.post('/problems/:id/edit', requireLogin, async (req, res) => {
   try {
     await getProblems().updateOne(
       { _id: new ObjectId(req.params.id) },
-      { $set: { title, difficulty, statement, inputFormat, outputFormat, testcases, tags, timeLimit: parseInt(timeLimit) || 2 } }
+      { $set: {
+        title, difficulty, statement, inputFormat, outputFormat,
+        constraints: constraints || '',
+        explanation: explanation || '',
+        sampleTestcases,
+        hiddenTestcases,
+        testcases: [...sampleTestcases, ...hiddenTestcases],
+        tags,
+        timeLimit: parseInt(timeLimit) || 2
+      }}
     );
   } catch (e) { return res.redirect('/problems'); }
   res.redirect('/problems/' + req.params.id);
@@ -619,7 +654,6 @@ app.get('/profile/:username', async (req, res) => {
     userSubs.filter(s => s.verdict === 'Accepted').map(s => s.problemId)
   );
 
-  // Language stats
   const langStats = {};
   userSubs.forEach(s => {
     langStats[s.language] = (langStats[s.language] || 0) + 1;

@@ -1136,3 +1136,26 @@ body {
   letter-spacing: 4px;
   margin-top: 6px;
 }
+
+/* ─── UPLOAD BTN ─────────────────────────────────────────── */
+.upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #a0a0b0;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 10px;
+  border: 1px solid #2a2a4a;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.upload-btn:hover {
+  border-color: #00e5a0;
+  color: #00e5a0;
+}
+
+.upload-btn input[type="file"] {
+  display: none;
+}

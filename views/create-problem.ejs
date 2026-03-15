@@ -13,6 +13,7 @@
       <a href="/" class="logo">DOJ</a>
       <a href="/problems" class="nav-link">Problems</a>
       <a href="/organizations" class="nav-link">Organizations</a>
+      <a href="/leaderboard" class="nav-link">Leaderboard</a>
     </div>
     <div class="nav-right">
       <a href="/problems/create" class="btn-register">+ Create</a>
@@ -26,7 +27,7 @@
     <% if (typeof error !== 'undefined' && error) { %>
       <div class="error-msg"><%= error %></div>
     <% } %>
-    <form action="/problems/create" method="POST">
+    <form action="/problems/create" method="POST" id="problemForm">
       <div class="form-group">
         <label>Title</label>
         <input type="text" name="title" placeholder="Problem title" required />
@@ -72,22 +73,69 @@
         <label>Output Format</label>
         <textarea name="outputFormat" rows="3" placeholder="Describe the output format..." required></textarea>
       </div>
+      <div class="form-group">
+        <label>Constraints <span style="color:#a0a0b0; font-size:12px;">(không bắt buộc)</span></label>
+        <textarea name="constraints" rows="3" placeholder="e.g. 1 ≤ N ≤ 10^5&#10;1 ≤ A[i] ≤ 10^9"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Explanation <span style="color:#a0a0b0; font-size:12px;">(không bắt buộc — giải thích sample test case)</span></label>
+        <textarea name="explanation" rows="4" placeholder="Explain the sample test cases..."></textarea>
+      </div>
 
+      <!-- Sample Test Cases -->
       <div class="testcases-section">
-        <h3>Test Cases</h3>
-        <div id="testcases">
-          <div class="testcase">
-            <div class="form-group">
-              <label>Input</label>
-              <textarea name="tcInput[]" rows="3" placeholder="Test case input..." required></textarea>
+        <h3>Sample Test Cases <span style="color:#a0a0b0; font-size:13px; font-weight:400;">(hiển thị công khai)</span></h3>
+        <div id="sampleTestcases">
+          <div class="testcase" data-index="0">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <span style="color:#a0a0b0; font-size:13px;">Sample #1</span>
+              <button type="button" class="btn-remove-tc" onclick="removeTestcase(this, 'sample')">Remove</button>
             </div>
             <div class="form-group">
-              <label>Output</label>
-              <textarea name="tcOutput[]" rows="3" placeholder="Expected output..." required></textarea>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <label style="margin:0;">Input</label>
+                <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, 'sample', 0, 'input')"> 📁 Upload .txt</label>
+              </div>
+              <textarea name="sampleInput[]" rows="3" placeholder="Sample input..."></textarea>
+            </div>
+            <div class="form-group">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <label style="margin:0;">Output</label>
+                <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, 'sample', 0, 'output')"> 📁 Upload .txt</label>
+              </div>
+              <textarea name="sampleOutput[]" rows="3" placeholder="Sample output..."></textarea>
             </div>
           </div>
         </div>
-        <button type="button" class="btn-add-tc" onclick="addTestCase()">+ Add Test Case</button>
+        <button type="button" class="btn-add-tc" onclick="addTestcase('sample')">+ Add Sample Test Case</button>
+      </div>
+
+      <!-- Hidden Test Cases -->
+      <div class="testcases-section">
+        <h3>Hidden Test Cases <span style="color:#a0a0b0; font-size:13px; font-weight:400;">(chỉ dùng để chấm, người dùng không thấy)</span></h3>
+        <div id="hiddenTestcases">
+          <div class="testcase" data-index="0">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <span style="color:#a0a0b0; font-size:13px;">Hidden #1</span>
+              <button type="button" class="btn-remove-tc" onclick="removeTestcase(this, 'hidden')">Remove</button>
+            </div>
+            <div class="form-group">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <label style="margin:0;">Input</label>
+                <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, 'hidden', 0, 'input')"> 📁 Upload .txt</label>
+              </div>
+              <textarea name="hiddenInput[]" rows="3" placeholder="Hidden input..."></textarea>
+            </div>
+            <div class="form-group">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <label style="margin:0;">Output</label>
+                <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, 'hidden', 0, 'output')"> 📁 Upload .txt</label>
+              </div>
+              <textarea name="hiddenOutput[]" rows="3" placeholder="Hidden output..."></textarea>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="btn-add-tc" onclick="addTestcase('hidden')">+ Add Hidden Test Case</button>
       </div>
 
       <button type="submit" class="btn-submit">Create Problem</button>
@@ -95,22 +143,71 @@
   </div>
 
   <script>
-    function addTestCase() {
-      const container = document.getElementById('testcases');
+    let sampleCount = 1;
+    let hiddenCount = 1;
+
+    function addTestcase(type) {
+      const container = document.getElementById(type + 'Testcases');
+      const count = type === 'sample' ? ++sampleCount : ++hiddenCount;
+      const label = type === 'sample' ? 'Sample' : 'Hidden';
+      const inputName = type === 'sample' ? 'sampleInput[]' : 'hiddenInput[]';
+      const outputName = type === 'sample' ? 'sampleOutput[]' : 'hiddenOutput[]';
+      const idx = count - 1;
+
       const div = document.createElement('div');
       div.className = 'testcase';
+      div.dataset.index = idx;
       div.innerHTML = `
-        <div class="form-group">
-          <label>Input</label>
-          <textarea name="tcInput[]" rows="3" placeholder="Test case input..."></textarea>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <span style="color:#a0a0b0; font-size:13px;">${label} #${count}</span>
+          <button type="button" class="btn-remove-tc" onclick="removeTestcase(this, '${type}')">Remove</button>
         </div>
         <div class="form-group">
-          <label>Output</label>
-          <textarea name="tcOutput[]" rows="3" placeholder="Expected output..."></textarea>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <label style="margin:0;">Input</label>
+            <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, '${type}', ${idx}, 'input')"> 📁 Upload .txt</label>
+          </div>
+          <textarea name="${inputName}" rows="3" placeholder="${label} input..."></textarea>
         </div>
-        <button type="button" class="btn-remove-tc" onclick="this.parentElement.remove()">Remove</button>
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <label style="margin:0;">Output</label>
+            <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, '${type}', ${idx}, 'output')"> 📁 Upload .txt</label>
+          </div>
+          <textarea name="${outputName}" rows="3" placeholder="${label} output..."></textarea>
+        </div>
       `;
       container.appendChild(div);
+      renumberTestcases(type);
+    }
+
+    function removeTestcase(btn, type) {
+      const container = document.getElementById(type + 'Testcases');
+      if (container.children.length <= 1) return;
+      btn.closest('.testcase').remove();
+      renumberTestcases(type);
+    }
+
+    function renumberTestcases(type) {
+      const container = document.getElementById(type + 'Testcases');
+      const label = type === 'sample' ? 'Sample' : 'Hidden';
+      Array.from(container.children).forEach((div, i) => {
+        const span = div.querySelector('span');
+        if (span) span.textContent = `${label} #${i + 1}`;
+      });
+    }
+
+    function loadFile(input, type, idx, field) {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const tc = input.closest('.testcase');
+        const textareas = tc.querySelectorAll('textarea');
+        if (field === 'input') textareas[0].value = e.target.result;
+        else textareas[1].value = e.target.result;
+      };
+      reader.readAsText(file);
     }
   </script>
 </body>
