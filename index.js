@@ -412,16 +412,13 @@ app.get('/problems', async (req, res) => {
     if (s.verdict === 'Accepted') subsByProblem[s.problemId].accepted++;
   });
 
-  // Get org names for featured problems
   const allOrgs = await getOrgs().find().toArray();
   const allContests = await getContests().find().toArray();
 
   const problems = featuredProblems.map(p => {
     const pid = p._id.toString();
-    // Find which contest this problem belongs to
     const contest = allContests.find(c => c.problemIds && c.problemIds.includes(pid));
-    let orgName = null;
-    let orgId = null;
+    let orgName = null, orgId = null;
     if (contest) {
       const org = allOrgs.find(o => o._id.toString() === contest.orgId);
       if (org) { orgName = org.name; orgId = org._id.toString(); }
@@ -451,8 +448,7 @@ app.post('/problems/create', requireLogin, async (req, res) => {
     constraints: constraints || '', explanation: explanation || '',
     sampleTestcases, hiddenTestcases, testcases: [...sampleTestcases, ...hiddenTestcases],
     tags, timeLimit: parseInt(timeLimit) || 2,
-    author: req.session.user.username, createdAt: new Date().toISOString(),
-    featured: false
+    author: req.session.user.username, createdAt: new Date().toISOString(), featured: false
   });
   res.redirect('/problems');
 });
@@ -668,7 +664,7 @@ app.post('/organizations/:id/contests/create', requireLogin, async (req, res) =>
   let org;
   try { org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
   if (!org || org.owner !== req.session.user.username) return res.redirect('/organizations');
-  const { name, timezone, noTimeLimit } = req.body;
+  const { name, timezone, noTimeLimit, visibility } = req.body;
   let problemIds = req.body['problemIds[]'] || req.body.problemIds || [];
   if (!Array.isArray(problemIds)) problemIds = [problemIds];
   const isNoLimit = noTimeLimit === 'on';
@@ -676,7 +672,7 @@ app.post('/organizations/:id/contests/create', requireLogin, async (req, res) =>
   const endTimeUTC = isNoLimit ? null : toUTC(req.body.endTime, timezone);
   await getContests().insertOne({
     name, orgId: org._id.toString(), timezone: timezone || 'UTC',
-    noTimeLimit: isNoLimit,
+    noTimeLimit: isNoLimit, visibility: visibility || 'public',
     startTime: req.body.startTime || null, endTime: req.body.endTime || null,
     startTimeUTC, endTimeUTC, problemIds
   });
@@ -702,7 +698,7 @@ app.post('/contests/:id/edit', requireLogin, async (req, res) => {
   const orgs = await getOrgs().find().toArray();
   const matchOrg = orgs.find(o => o._id.toString() === contest.orgId);
   if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
-  const { name, timezone, noTimeLimit } = req.body;
+  const { name, timezone, noTimeLimit, visibility } = req.body;
   let problemIds = req.body['problemIds[]'] || req.body.problemIds || [];
   if (!Array.isArray(problemIds)) problemIds = [problemIds];
   const isNoLimit = noTimeLimit === 'on';
@@ -710,6 +706,7 @@ app.post('/contests/:id/edit', requireLogin, async (req, res) => {
   const endTimeUTC = isNoLimit ? null : toUTC(req.body.endTime, timezone);
   await getContests().updateOne({ _id: new ObjectId(req.params.id) }, { $set: {
     name, timezone: timezone || 'UTC', noTimeLimit: isNoLimit,
+    visibility: visibility || 'public',
     startTime: req.body.startTime || null, endTime: req.body.endTime || null,
     startTimeUTC, endTimeUTC, problemIds
   }});
@@ -721,19 +718,31 @@ app.get('/contests/:id', async (req, res) => {
   try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
   if (!contest) return res.redirect('/organizations');
   contest.id = contest._id.toString();
-  const allProblems = await getProblems().find().toArray();
-  const problems = allProblems.filter(p => contest.problemIds.includes(p._id.toString())).map(p => ({ ...p, id: p._id.toString() }));
+
   const orgs = await getOrgs().find().toArray();
   const matchOrg = orgs.find(o => o._id.toString() === contest.orgId);
   const isOwner = req.session.user && matchOrg && matchOrg.owner === req.session.user.username;
+  const isMember = req.session.user && matchOrg && matchOrg.members && matchOrg.members.includes(req.session.user.username);
+
+  // Check private access
+  if (contest.visibility === 'private' && !isMember) {
+    return res.render('contest-detail', {
+      user: req.session.user || null, contest, problems: [], scoreboard: [], isOwner: false, accessDenied: true
+    });
+  }
+
+  const allProblems = await getProblems().find().toArray();
+  const problems = allProblems.filter(p => contest.problemIds.includes(p._id.toString())).map(p => ({ ...p, id: p._id.toString() }));
   const startUTC = contest.startTimeUTC || contest.startTime;
   const endUTC = contest.endTimeUTC || contest.endTime;
+
   let allSubs;
   if (contest.noTimeLimit) {
     allSubs = await getSubmissions().find({ problemId: { $in: contest.problemIds } }).toArray();
   } else {
     allSubs = await getSubmissions().find({ problemId: { $in: contest.problemIds }, submittedAt: { $gte: startUTC, $lte: endUTC } }).toArray();
   }
+
   const scoreMap = {};
   allSubs.forEach(s => {
     if (!scoreMap[s.username]) scoreMap[s.username] = { solved: new Set(), lastAC: null };
@@ -742,10 +751,16 @@ app.get('/contests/:id', async (req, res) => {
       if (!scoreMap[s.username].lastAC || s.submittedAt > scoreMap[s.username].lastAC) scoreMap[s.username].lastAC = s.submittedAt;
     }
   });
+
   const scoreboard = Object.entries(scoreMap)
     .map(([username, data]) => ({ username, solved: data.solved.size, lastAC: data.lastAC }))
     .sort((a, b) => b.solved - a.solved || new Date(a.lastAC) - new Date(b.lastAC));
-  res.render('contest-detail', { user: req.session.user || null, contest: { ...contest, startTimeUTC: startUTC, endTimeUTC: endUTC }, problems, scoreboard, isOwner });
+
+  res.render('contest-detail', {
+    user: req.session.user || null,
+    contest: { ...contest, startTimeUTC: startUTC, endTimeUTC: endUTC },
+    problems, scoreboard, isOwner, accessDenied: false
+  });
 });
 
 // ─── ADMIN ────────────────────────────────────────────────
@@ -753,11 +768,24 @@ app.get('/contests/:id', async (req, res) => {
 app.get('/admin', requireAdmin, async (req, res) => {
   const users = await getUsers().find().toArray();
   const orgs = (await getOrgs().find().toArray()).map(o => ({ ...o, id: o._id.toString() }));
-  const problems = (await getProblems().find().toArray()).map(p => ({ ...p, id: p._id.toString() }));
+  const allProblems = (await getProblems().find().toArray());
+  const allOrgs = await getOrgs().find().toArray();
+  const allContests = await getContests().find().toArray();
+
+  const problems = allProblems.map(p => {
+    const pid = p._id.toString();
+    const contest = allContests.find(c => c.problemIds && c.problemIds.includes(pid));
+    let orgName = null, orgId = null;
+    if (contest) {
+      const org = allOrgs.find(o => o._id.toString() === contest.orgId);
+      if (org) { orgName = org.name; orgId = org._id.toString(); }
+    }
+    return { ...p, id: pid, orgName, orgId };
+  });
+
   res.render('admin', { user: req.session.user, users, orgs, problems });
 });
 
-// Lock/Unlock user
 app.post('/admin/users/:username/lock', requireAdmin, async (req, res) => {
   await getUsers().updateOne({ username: req.params.username }, { $set: { locked: true } });
   await sendNotification(req.params.username, 'Your account has been locked by an administrator. Please contact support.');
@@ -770,7 +798,6 @@ app.post('/admin/users/:username/unlock', requireAdmin, async (req, res) => {
   res.redirect('/admin');
 });
 
-// Lock/Unlock/Delete org
 app.post('/admin/orgs/:id/lock', requireAdmin, async (req, res) => {
   try {
     const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
@@ -804,7 +831,6 @@ app.post('/admin/orgs/:id/delete', requireAdmin, async (req, res) => {
   res.redirect('/admin');
 });
 
-// Feature/Unfeature/Delete problem
 app.post('/admin/problems/:id/feature', requireAdmin, async (req, res) => {
   try { await getProblems().updateOne({ _id: new ObjectId(req.params.id) }, { $set: { featured: true } }); } catch (e) {}
   res.redirect('/admin');

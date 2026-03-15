@@ -28,7 +28,6 @@
   <div class="problems-container">
     <h2>⚙️ Admin Panel</h2>
 
-    <!-- Tabs -->
     <div style="display:flex; gap:8px; margin-bottom:24px; flex-wrap:wrap;">
       <button onclick="showSection('users')" id="tab-users" class="tab-btn tab-active">Users</button>
       <button onclick="showSection('orgs')" id="tab-orgs" class="tab-btn">Organizations</button>
@@ -50,7 +49,7 @@
             <th>Action</th>
           </tr>
         </thead>
-        <tbody id="userTableBody">
+        <tbody>
           <% users.forEach(u => { %>
             <tr class="user-row" data-username="<%= u.username.toLowerCase() %>">
               <td><a href="/profile/<%= u.username %>" style="color:#ffffff; text-decoration:none;"><%= u.username %></a></td>
@@ -99,7 +98,7 @@
             <th>Action</th>
           </tr>
         </thead>
-        <tbody id="orgTableBody">
+        <tbody>
           <% orgs.forEach(org => { %>
             <tr class="org-row" data-name="<%= org.name.toLowerCase() %>">
               <td><a href="/organizations/<%= org.id %>" style="color:#ffffff; text-decoration:none;"><%= org.name %></a></td>
@@ -142,16 +141,24 @@
           <tr>
             <th>Title</th>
             <th>Author</th>
+            <th>Organization</th>
             <th>Difficulty</th>
             <th>Featured</th>
             <th>Action</th>
           </tr>
         </thead>
-        <tbody id="problemTableBody">
+        <tbody>
           <% problems.forEach(problem => { %>
             <tr class="problem-row" data-title="<%= problem.title.toLowerCase() %>">
               <td><a href="/problems/<%= problem.id %>" style="color:#ffffff; text-decoration:none;"><%= problem.title %></a></td>
               <td style="color:#a0a0b0;"><%= problem.author %></td>
+              <td style="color:#a0a0b0; font-size:13px;">
+                <% if (problem.orgName) { %>
+                  <a href="/organizations/<%= problem.orgId %>" style="color:#a0a0c0; text-decoration:none;"><%= problem.orgName %></a>
+                <% } else { %>
+                  —
+                <% } %>
+              </td>
               <td class="difficulty-<%= problem.difficulty.toLowerCase() %>"><%= problem.difficulty %></td>
               <td>
                 <% if (problem.featured) { %>

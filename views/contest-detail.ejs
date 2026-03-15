@@ -17,7 +17,7 @@
     </div>
     <div class="nav-right">
       <% if (user) { %>
-        <a href="/notifications" class="notif-btn" id="notifBtn">
+        <a href="/notifications" class="notif-btn">
           🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
         </a>
         <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
@@ -29,9 +29,23 @@
     </div>
   </nav>
 
+  <% if (accessDenied) { %>
+    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:calc(100vh - 64px); text-align:center;">
+      <div style="font-size:48px; margin-bottom:16px;">🔒</div>
+      <h2 style="color:#ffffff; margin-bottom:12px;">Private Contest</h2>
+      <p style="color:#a0a0b0; margin-bottom:24px;">This contest is private. Only members of the organization can access it.</p>
+      <a href="/organizations" class="btn-hero" style="font-size:15px; padding:10px 28px;">Browse Organizations</a>
+    </div>
+  <% } else { %>
+
   <div class="problems-container">
     <div class="org-header">
       <h2><%= contest.name %></h2>
+      <% if (contest.visibility === 'private') { %>
+        <span style="color:#f5a623; font-size:12px; padding:4px 10px; border:1px solid #f5a623; border-radius:20px;">🔒 Private</span>
+      <% } else { %>
+        <span style="color:#a0a0b0; font-size:12px; padding:4px 10px; border:1px solid #2a2a4a; border-radius:20px;">🌐 Public</span>
+      <% } %>
       <% if (contest.noTimeLimit) { %>
         <span class="status-live">● Live</span>
       <% } else { %>
@@ -61,7 +75,6 @@
       </div>
     <% } %>
 
-    <!-- Timer -->
     <% if (!contest.noTimeLimit) { %>
       <% const nowMs = new Date().getTime(); %>
       <% const startMs = new Date(contest.startTimeUTC).getTime(); %>
@@ -78,7 +91,6 @@
       <% } %>
     <% } %>
 
-    <!-- Problems -->
     <div class="org-section">
       <h3>Problems</h3>
       <table class="problems-table">
@@ -91,9 +103,7 @@
         </thead>
         <tbody>
           <% if (problems.length === 0) { %>
-            <tr>
-              <td colspan="3" class="no-problems">No problems in this contest.</td>
-            </tr>
+            <tr><td colspan="3" class="no-problems">No problems in this contest.</td></tr>
           <% } else { %>
             <% problems.forEach((problem, index) => { %>
               <tr>
@@ -107,7 +117,6 @@
       </table>
     </div>
 
-    <!-- Scoreboard -->
     <div class="org-section">
       <h3>Scoreboard</h3>
       <table class="problems-table">
@@ -121,22 +130,15 @@
         </thead>
         <tbody>
           <% if (scoreboard.length === 0) { %>
-            <tr>
-              <td colspan="4" class="no-problems">No submissions yet.</td>
-            </tr>
+            <tr><td colspan="4" class="no-problems">No submissions yet.</td></tr>
           <% } else { %>
             <% scoreboard.forEach((entry, index) => { %>
               <tr>
                 <td>
-                  <% if (index === 0) { %>
-                    <span style="color:#f5c518; font-weight:700; font-size:18px;">🥇</span>
-                  <% } else if (index === 1) { %>
-                    <span style="color:#a0a0b0; font-weight:700; font-size:18px;">🥈</span>
-                  <% } else if (index === 2) { %>
-                    <span style="color:#cd7f32; font-weight:700; font-size:18px;">🥉</span>
-                  <% } else { %>
-                    <%= index + 1 %>
-                  <% } %>
+                  <% if (index === 0) { %><span style="color:#f5c518; font-weight:700; font-size:18px;">🥇</span>
+                  <% } else if (index === 1) { %><span style="color:#a0a0b0; font-weight:700; font-size:18px;">🥈</span>
+                  <% } else if (index === 2) { %><span style="color:#cd7f32; font-weight:700; font-size:18px;">🥉</span>
+                  <% } else { %><%= index + 1 %><% } %>
                 </td>
                 <td><a href="/profile/<%= entry.username %>"><%= entry.username %></a></td>
                 <td style="color:#00e5a0; font-weight:600;"><%= entry.solved %></td>
@@ -149,8 +151,10 @@
     </div>
   </div>
 
+  <% } %>
+
   <script>
-    <% if (!contest.noTimeLimit) { %>
+    <% if (!accessDenied && !contest.noTimeLimit) { %>
     const endTime = new Date('<%= contest.endTimeUTC %>').getTime();
     const startTime = new Date('<%= contest.startTimeUTC %>').getTime();
     const timerEl = document.getElementById('contestTimer');
@@ -160,36 +164,24 @@
       const now = Date.now();
       const target = now < startTime ? startTime : endTime;
       const diff = target - now;
-
-      if (diff <= 0) {
-        timerEl.textContent = '00:00:00';
-        clearInterval(timerInterval);
-        return;
-      }
-
+      if (diff <= 0) { timerEl.textContent = '00:00:00'; clearInterval(timerInterval); return; }
       const h = Math.floor(diff / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
       const s = Math.floor((diff % 60000) / 1000);
-      timerEl.textContent =
-        String(h).padStart(2, '0') + ':' +
-        String(m).padStart(2, '0') + ':' +
-        String(s).padStart(2, '0');
+      timerEl.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
     }
-
     updateTimer();
     const timerInterval = setInterval(updateTimer, 1000);
     <% } %>
 
     <% if (user) { %>
-    fetch('/notifications/count')
-      .then(r => r.json())
-      .then(data => {
-        if (data.count > 0) {
-          const badge = document.getElementById('notifBadge');
-          badge.textContent = data.count;
-          badge.style.display = 'inline-block';
-        }
-      });
+    fetch('/notifications/count').then(r => r.json()).then(data => {
+      if (data.count > 0) {
+        const badge = document.getElementById('notifBadge');
+        badge.textContent = data.count;
+        badge.style.display = 'inline-block';
+      }
+    });
     <% } %>
   </script>
 </body>

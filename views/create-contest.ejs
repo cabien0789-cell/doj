@@ -16,7 +16,7 @@
       <a href="/leaderboard" class="nav-link">Leaderboard</a>
     </div>
     <div class="nav-right">
-      <a href="/notifications" class="notif-btn" id="notifBtn">
+      <a href="/notifications" class="notif-btn">
         🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
       </a>
       <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
@@ -37,6 +37,20 @@
       </div>
 
       <div class="form-group">
+        <label>Visibility</label>
+        <div style="display:flex; gap:12px; margin-top:8px;">
+          <label class="tag-checkbox" style="display:inline-flex;">
+            <input type="radio" name="visibility" value="public" checked>
+            <span>🌐 Public — anyone can view and participate</span>
+          </label>
+          <label class="tag-checkbox" style="display:inline-flex;">
+            <input type="radio" name="visibility" value="private">
+            <span>🔒 Private — members only</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
         <label>Timezone</label>
         <select name="timezone" id="timezoneSelect" onchange="updateTimePlaceholders()">
           <option value="UTC">UTC (Coordinated Universal Time)</option>
@@ -44,7 +58,7 @@
         </select>
       </div>
 
-      <div class="form-group" id="noTimeLimitGroup">
+      <div class="form-group">
         <label class="tag-checkbox" style="display:inline-flex;">
           <input type="checkbox" name="noTimeLimit" id="noTimeLimit" onchange="toggleTimeLimit()">
           <span>No time limit (contest always Live)</span>
@@ -103,42 +117,26 @@
 
       const startVal = document.getElementById('startTime').value;
       const endVal = document.getElementById('endTime').value;
-
       if (!startVal || !endVal) return;
 
       const startDate = new Date(startVal);
       const endDate = new Date(endVal);
-
       const minStart = new Date(nowLocal.getTime() + 60 * 60000);
       const minEnd = new Date(nowLocal.getTime() + 2 * 60 * 60000);
       const minEndFromStart = new Date(startDate.getTime() + 15 * 60000);
 
-      if (startDate < minStart) {
-        e.preventDefault();
-        alert('Start time must be at least 1 hour from now.');
-        return;
-      }
-      if (endDate < minEnd) {
-        e.preventDefault();
-        alert('End time must be at least 2 hours from now.');
-        return;
-      }
-      if (endDate < minEndFromStart) {
-        e.preventDefault();
-        alert('End time must be at least 15 minutes after start time.');
-        return;
-      }
+      if (startDate < minStart) { e.preventDefault(); alert('Start time must be at least 1 hour from now.'); return; }
+      if (endDate < minEnd) { e.preventDefault(); alert('End time must be at least 2 hours from now.'); return; }
+      if (endDate < minEndFromStart) { e.preventDefault(); alert('End time must be at least 15 minutes after start time.'); return; }
     });
 
-    fetch('/notifications/count')
-      .then(r => r.json())
-      .then(data => {
-        if (data.count > 0) {
-          const badge = document.getElementById('notifBadge');
-          badge.textContent = data.count;
-          badge.style.display = 'inline-block';
-        }
-      });
+    fetch('/notifications/count').then(r => r.json()).then(data => {
+      if (data.count > 0) {
+        const badge = document.getElementById('notifBadge');
+        badge.textContent = data.count;
+        badge.style.display = 'inline-block';
+      }
+    });
   </script>
 </body>
 </html>
