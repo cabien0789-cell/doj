@@ -13,6 +13,7 @@
       <a href="/" class="logo">DOJ</a>
       <a href="/problems" class="nav-link">Problems</a>
       <a href="/organizations" class="nav-link">Organizations</a>
+      <a href="/leaderboard" class="nav-link">Leaderboard</a>
     </div>
     <div class="nav-right">
       <% if (user) { %>
@@ -43,6 +44,21 @@
       <span>Start: <strong><%= new Date(contest.startTime).toLocaleString() %></strong></span>
       <span>End: <strong><%= new Date(contest.endTime).toLocaleString() %></strong></span>
     </div>
+
+    <!-- Timer -->
+    <% const nowMs = new Date().getTime(); %>
+    <% const startMs = new Date(contest.startTime).getTime(); %>
+    <% const endMs = new Date(contest.endTime).getTime(); %>
+    <% if (nowMs < endMs) { %>
+      <div class="contest-timer-box">
+        <% if (nowMs < startMs) { %>
+          <span style="color:#a0a0b0; font-size:13px;">Contest starts in</span>
+        <% } else { %>
+          <span style="color:#a0a0b0; font-size:13px;">Time remaining</span>
+        <% } %>
+        <div class="contest-timer" id="contestTimer">--:--:--</div>
+      </div>
+    <% } %>
 
     <!-- Problems -->
     <div class="org-section">
@@ -95,11 +111,11 @@
               <tr>
                 <td>
                   <% if (index === 0) { %>
-                    <span style="color:#f5c518; font-weight:700;">🥇 1</span>
+                    <span style="color:#f5c518; font-weight:700; font-size:18px;">🥇</span>
                   <% } else if (index === 1) { %>
-                    <span style="color:#a0a0b0; font-weight:700;">🥈 2</span>
+                    <span style="color:#a0a0b0; font-weight:700; font-size:18px;">🥈</span>
                   <% } else if (index === 2) { %>
-                    <span style="color:#cd7f32; font-weight:700;">🥉 3</span>
+                    <span style="color:#cd7f32; font-weight:700; font-size:18px;">🥉</span>
                   <% } else { %>
                     <%= index + 1 %>
                   <% } %>
@@ -113,7 +129,36 @@
         </tbody>
       </table>
     </div>
-
   </div>
+
+  <script>
+    const endTime = new Date('<%= contest.endTime %>').getTime();
+    const startTime = new Date('<%= contest.startTime %>').getTime();
+    const timerEl = document.getElementById('contestTimer');
+
+    function updateTimer() {
+      if (!timerEl) return;
+      const now = Date.now();
+      const target = now < startTime ? startTime : endTime;
+      const diff = target - now;
+
+      if (diff <= 0) {
+        timerEl.textContent = '00:00:00';
+        clearInterval(timerInterval);
+        return;
+      }
+
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      timerEl.textContent =
+        String(h).padStart(2, '0') + ':' +
+        String(m).padStart(2, '0') + ':' +
+        String(s).padStart(2, '0');
+    }
+
+    updateTimer();
+    const timerInterval = setInterval(updateTimer, 1000);
+  </script>
 </body>
 </html>

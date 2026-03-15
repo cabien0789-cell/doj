@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>404 - DOJ</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">DOJ</a>
+      <a href="/problems" class="nav-link">Problems</a>
+      <a href="/organizations" class="nav-link">Organizations</a>
+      <a href="/leaderboard" class="nav-link">Leaderboard</a>
+    </div>
+    <div class="nav-right">
+      <% if (user) { %>
+        <a href="/problems/create" class="btn-register">+ Create</a>
+        <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
+        <a href="/logout" class="btn-logout">Logout</a>
+      <% } else { %>
+        <a href="/login" class="btn-login">Log In</a>
+        <a href="/register" class="btn-register">Sign Up</a>
+      <% } %>
+    </div>
+  </nav>
+
+  <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:calc(100vh - 64px); text-align:center;">
+    <div style="font-size:120px; font-weight:800; color:#00e5a0; line-height:1; margin-bottom:16px;">404</div>
+    <h2 style="font-size:28px; font-weight:700; color:#ffffff; margin-bottom:12px;">Page Not Found</h2>
+    <p style="color:#a0a0b0; font-size:16px; margin-bottom:32px;">The page you're looking for doesn't exist or has been moved.</p>
+    <a href="/" class="btn-hero" style="font-size:16px; padding:12px 32px;">Back to Home</a>
+  </div>
+</body>
+</html>

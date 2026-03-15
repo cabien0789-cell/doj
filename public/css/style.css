@@ -998,3 +998,141 @@ body {
   padding: 2px 8px;
   font-size: 11px;
 }
+
+/* ─── RUN CODE ───────────────────────────────────────────── */
+.editor-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.editor-actions .btn-submit {
+  flex: 1;
+  margin-top: 0;
+}
+
+.btn-run {
+  padding: 12px 20px;
+  background-color: transparent;
+  border: 1px solid #00e5a0;
+  color: #00e5a0;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-run:hover {
+  background-color: #00e5a020;
+}
+
+.run-panel {
+  background-color: #0f0f23;
+  border: 1px solid #2a2a4a;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 12px;
+}
+
+.run-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #a0a0b0;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.run-input {
+  width: 100%;
+  min-height: 80px;
+  background-color: #1a1a2e;
+  border: 1px solid #2a2a4a;
+  border-radius: 4px;
+  color: #ffffff;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  padding: 10px;
+  outline: none;
+  resize: vertical;
+  margin-bottom: 10px;
+}
+
+.run-input:focus {
+  border-color: #00e5a0;
+}
+
+.btn-execute {
+  width: 100%;
+  padding: 10px;
+  background-color: #00e5a0;
+  color: #0f0f23;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-bottom: 12px;
+}
+
+.btn-execute:hover {
+  background-color: #00c988;
+}
+
+.btn-execute:disabled {
+  background-color: #a0a0b0;
+  cursor: not-allowed;
+}
+
+.run-output {
+  background-color: #1a1a2e;
+  border: 1px solid #2a2a4a;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.run-output-label {
+  background-color: #16213e;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: #a0a0b0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.run-output pre {
+  padding: 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+}
+
+/* ─── CONTEST TIMER ──────────────────────────────────────── */
+.contest-timer-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #0f0f23;
+  border: 1px solid #2a2a4a;
+  border-radius: 8px;
+  padding: 16px 32px;
+  margin-bottom: 32px;
+  width: fit-content;
+}
+
+.contest-timer {
+  font-size: 42px;
+  font-weight: 800;
+  color: #00e5a0;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 4px;
+  margin-top: 6px;
+}

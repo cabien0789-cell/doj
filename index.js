@@ -190,6 +190,44 @@ function judgeCode(code, language, testcases, timeLimit) {
   return { verdict, passed: allPassed, passedCount, total: testcases.length, details, execTime: maxExecTime };
 }
 
+function runCodeOnce(code, language, input) {
+  const tmpDir = path.join(__dirname, 'tmp');
+  if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
+
+  const inputFile = path.join(tmpDir, 'run_input.txt');
+  fs.writeFileSync(inputFile, input || '');
+
+  try {
+    let output = '';
+    if (language === 'python') {
+      const codeFile = path.join(tmpDir, 'run_solution.py');
+      fs.writeFileSync(codeFile, code);
+      output = execSync(`python3 ${codeFile} < ${inputFile}`, { timeout: 10000 }).toString();
+    } else if (language === 'cpp') {
+      const codeFile = path.join(tmpDir, 'run_solution.cpp');
+      const outFile = path.join(tmpDir, 'run_solution');
+      fs.writeFileSync(codeFile, code);
+      execSync(`g++ -o ${outFile} ${codeFile}`, { timeout: 30000 });
+      output = execSync(`${outFile} < ${inputFile}`, { timeout: 10000 }).toString();
+    } else if (language === 'c') {
+      const codeFile = path.join(tmpDir, 'run_solution.c');
+      const outFile = path.join(tmpDir, 'run_solutionc');
+      fs.writeFileSync(codeFile, code);
+      execSync(`gcc -o ${outFile} ${codeFile}`, { timeout: 30000 });
+      output = execSync(`${outFile} < ${inputFile}`, { timeout: 10000 }).toString();
+    } else if (language === 'java') {
+      const codeFile = path.join(tmpDir, 'RunMain.java');
+      fs.writeFileSync(codeFile, code.replace('public class Main', 'public class RunMain'));
+      execSync(`javac ${codeFile}`, { timeout: 30000, cwd: tmpDir });
+      output = execSync(`java -cp ${tmpDir} RunMain < ${inputFile}`, { timeout: 10000 }).toString();
+    }
+    return { output: output || '(no output)' };
+  } catch (e) {
+    const errMsg = e.stderr ? e.stderr.toString() : (e.message || 'Error');
+    return { error: errMsg };
+  }
+}
+
 // ─── ROUTES ───────────────────────────────────────────────
 
 app.get('/', async (req, res) => {
@@ -362,6 +400,14 @@ app.post('/change-password', requireLogin, async (req, res) => {
   res.render('change-password', { user: req.session.user, error: undefined, success: 'Password changed successfully!' });
 });
 
+// ─── RUN CODE ─────────────────────────────────────────────
+
+app.post('/run', requireLogin, (req, res) => {
+  const { code, language, input } = req.body;
+  const result = runCodeOnce(code, language, input);
+  res.json(result);
+});
+
 // ─── LEADERBOARD ──────────────────────────────────────────
 
 app.get('/leaderboard', async (req, res) => {
@@ -399,7 +445,6 @@ app.get('/problems', async (req, res) => {
            .forEach(s => solvedSet.add(s.problemId));
   }
 
-  // Calculate acceptance rate per problem
   const subsByProblem = {};
   allSubs.forEach(s => {
     if (!subsByProblem[s.problemId]) subsByProblem[s.problemId] = { total: 0, accepted: 0 };
@@ -574,6 +619,12 @@ app.get('/profile/:username', async (req, res) => {
     userSubs.filter(s => s.verdict === 'Accepted').map(s => s.problemId)
   );
 
+  // Language stats
+  const langStats = {};
+  userSubs.forEach(s => {
+    langStats[s.language] = (langStats[s.language] || 0) + 1;
+  });
+
   const stats = {
     totalSubmissions: userSubs.length,
     solved: solvedSet.size,
@@ -582,6 +633,7 @@ app.get('/profile/:username', async (req, res) => {
     tle: userSubs.filter(s => s.verdict === 'Time Limit Exceeded').length,
     re: userSubs.filter(s => s.verdict === 'Runtime Error').length,
     ce: userSubs.filter(s => s.verdict === 'Compilation Error').length,
+    langStats
   };
 
   const recentSubmissions = userSubs.slice(0, 20).map(s => ({
@@ -590,7 +642,11 @@ app.get('/profile/:username', async (req, res) => {
 
   res.render('profile', {
     user: req.session.user || null,
-    targetUser: { username: targetUser.username, email: targetUser.email },
+    targetUser: {
+      username: targetUser.username,
+      email: targetUser.email,
+      createdAt: targetUser._id.getTimestamp().toISOString()
+    },
     stats,
     recentSubmissions
   });
@@ -722,6 +778,12 @@ app.get('/contests/:id', async (req, res) => {
     .sort((a, b) => b.solved - a.solved || new Date(a.lastAC) - new Date(b.lastAC));
 
   res.render('contest-detail', { user: req.session.user || null, contest, problems, scoreboard });
+});
+
+// ─── 404 ──────────────────────────────────────────────────
+
+app.use((req, res) => {
+  res.status(404).render('404', { user: req.session.user || null });
 });
 
 // ─── START ────────────────────────────────────────────────

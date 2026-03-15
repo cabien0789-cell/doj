@@ -15,6 +15,7 @@
       <a href="/" class="logo">DOJ</a>
       <a href="/problems" class="nav-link">Problems</a>
       <a href="/organizations" class="nav-link">Organizations</a>
+      <a href="/leaderboard" class="nav-link">Leaderboard</a>
     </div>
     <div class="nav-right">
       <% if (user) { %>
@@ -42,10 +43,19 @@
         <%= submission.language.toUpperCase() %> &nbsp;·&nbsp;
         <%= new Date(submission.submittedAt).toLocaleString() %> &nbsp;·&nbsp;
         <a href="/problems/<%= submission.problemId %>" style="color:#00e5a0; text-decoration:none;"><%= submission.problemTitle %></a>
+        <% if (submission.execTime !== undefined) { %>
+          &nbsp;·&nbsp; ⏱ <strong style="color:#ffffff;"><%= submission.execTime %>ms</strong>
+        <% } %>
       </p>
     </div>
 
-    <div style="margin-bottom:12px; font-size:14px; color:#a0a0b0;">Your Code</div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <span style="font-size:14px; color:#a0a0b0;">Your Code</span>
+      <button id="copyBtn" onclick="copyCode()" style="background:transparent; border:1px solid #2a2a4a; color:#a0a0b0; padding:6px 14px; border-radius:4px; cursor:pointer; font-size:13px; transition:all 0.2s;">
+        📋 Copy Code
+      </button>
+    </div>
+
     <div style="border:1px solid #2a2a4a; border-radius:4px; overflow:hidden; margin-bottom:24px;">
       <textarea id="codeView"><%= submission.code %></textarea>
     </div>
@@ -70,6 +80,21 @@
       readOnly: true
     });
     editor.setSize('100%', '400px');
+
+    function copyCode() {
+      const code = editor.getValue();
+      navigator.clipboard.writeText(code).then(() => {
+        const btn = document.getElementById('copyBtn');
+        btn.textContent = '✓ Copied!';
+        btn.style.color = '#00e5a0';
+        btn.style.borderColor = '#00e5a0';
+        setTimeout(() => {
+          btn.textContent = '📋 Copy Code';
+          btn.style.color = '#a0a0b0';
+          btn.style.borderColor = '#2a2a4a';
+        }, 2000);
+      });
+    }
   </script>
 </body>
 </html>

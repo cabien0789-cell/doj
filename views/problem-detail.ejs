@@ -15,6 +15,7 @@
       <a href="/" class="logo">DOJ</a>
       <a href="/problems" class="nav-link">Problems</a>
       <a href="/organizations" class="nav-link">Organizations</a>
+      <a href="/leaderboard" class="nav-link">Leaderboard</a>
     </div>
     <div class="nav-right">
       <% if (user) { %>
@@ -42,7 +43,6 @@
       </div>
       <p class="problem-author">By <strong><%= problem.author %></strong></p>
 
-      <!-- Tags -->
       <% if (problem.tags && problem.tags.length > 0) { %>
         <div style="margin-bottom:20px; display:flex; flex-wrap:wrap; gap:8px;">
           <% problem.tags.forEach(tag => { %>
@@ -51,7 +51,6 @@
         </div>
       <% } %>
 
-      <!-- Time limit -->
       <div style="margin-bottom:24px; color:#a0a0b0; font-size:13px;">
         ⏱ Time Limit: <strong style="color:#ffffff;"><%= problem.timeLimit || 2 %>s</strong>
         &nbsp;·&nbsp;
@@ -134,8 +133,28 @@
           <div id="editorWrapper">
             <textarea name="code" id="codeArea"></textarea>
           </div>
-          <button type="submit" class="btn-submit" id="submitBtn">Submit</button>
+          <div class="editor-actions">
+            <button type="button" class="btn-run" id="runBtn" onclick="runCode()">▶ Run Code</button>
+            <button type="submit" class="btn-submit" id="submitBtn">Submit</button>
+          </div>
         </form>
+
+        <!-- Run Code Panel -->
+        <div id="runPanel" style="display:none;">
+          <div class="run-panel">
+            <div class="run-panel-header">
+              <span>Custom Input</span>
+              <button onclick="closeRunPanel()" style="background:none; border:none; color:#a0a0b0; cursor:pointer; font-size:18px;">×</button>
+            </div>
+            <textarea id="customInput" class="run-input" placeholder="Enter your input here..."></textarea>
+            <button onclick="executeRun()" class="btn-execute" id="executeBtn">▶ Execute</button>
+            <div class="run-output" id="runOutput" style="display:none;">
+              <div class="run-output-label">Output</div>
+              <pre id="runOutputText"></pre>
+            </div>
+          </div>
+        </div>
+
       <% } else { %>
         <div class="login-to-submit">
           <p>Please <a href="/login">log in</a> to submit your solution.</p>
@@ -189,6 +208,45 @@
       document.getElementById('submitBtn').textContent = 'Judging...';
       document.getElementById('submitBtn').disabled = true;
     });
+
+    function runCode() {
+      document.getElementById('runPanel').style.display = 'block';
+      document.getElementById('runOutput').style.display = 'none';
+    }
+
+    function closeRunPanel() {
+      document.getElementById('runPanel').style.display = 'none';
+    }
+
+    async function executeRun() {
+      editor.save();
+      const code = document.getElementById('codeArea').value;
+      const language = document.getElementById('languageSelect').value;
+      const input = document.getElementById('customInput').value;
+      const btn = document.getElementById('executeBtn');
+
+      btn.textContent = 'Running...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, language, input })
+        });
+        const data = await res.json();
+        document.getElementById('runOutput').style.display = 'block';
+        document.getElementById('runOutputText').textContent = data.output || data.error || 'No output';
+        document.getElementById('runOutputText').style.color = data.error ? '#ff4444' : '#00e5a0';
+      } catch (e) {
+        document.getElementById('runOutput').style.display = 'block';
+        document.getElementById('runOutputText').textContent = 'Error: ' + e.message;
+        document.getElementById('runOutputText').style.color = '#ff4444';
+      }
+
+      btn.textContent = '▶ Execute';
+      btn.disabled = false;
+    }
   </script>
 </body>
 </html>

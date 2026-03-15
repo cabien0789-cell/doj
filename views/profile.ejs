@@ -13,6 +13,7 @@
       <a href="/" class="logo">DOJ</a>
       <a href="/problems" class="nav-link">Problems</a>
       <a href="/organizations" class="nav-link">Organizations</a>
+      <a href="/leaderboard" class="nav-link">Leaderboard</a>
     </div>
     <div class="nav-right">
       <% if (user) { %>
@@ -33,9 +34,12 @@
       <div class="profile-avatar"><%= targetUser.username.charAt(0).toUpperCase() %></div>
       <div class="profile-info">
         <h2><%= targetUser.username %></h2>
-        <p style="color:#a0a0b0; font-size:14px;"><%= targetUser.email %></p>
+        <p style="color:#a0a0b0; font-size:14px; margin-bottom:4px;"><%= targetUser.email %></p>
+        <p style="color:#a0a0b0; font-size:13px;">
+          Member since <strong style="color:#ffffff;"><%= new Date(targetUser.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) %></strong>
+        </p>
         <% if (user && user.username === targetUser.username) { %>
-          <a href="/change-password" style="display:inline-block; margin-top:10px; color:#a0a0b0; font-size:13px; text-decoration:none; border:1px solid #2a2a4a; padding:5px 12px; border-radius:4px; transition: all 0.2s;">🔒 Change Password</a>
+          <a href="/change-password" style="display:inline-block; margin-top:10px; color:#a0a0b0; font-size:13px; text-decoration:none; border:1px solid #2a2a4a; padding:5px 12px; border-radius:4px;">🔒 Change Password</a>
         <% } %>
       </div>
     </div>
@@ -68,8 +72,26 @@
       </div>
     </div>
 
+    <!-- Language Stats -->
+    <% if (stats.totalSubmissions > 0 && stats.langStats) { %>
+      <div style="background-color:#0f0f23; border:1px solid #2a2a4a; border-radius:8px; padding:20px 24px; margin-bottom:32px;">
+        <div style="font-size:14px; font-weight:600; color:#a0a0b0; text-transform:uppercase; letter-spacing:1px; margin-bottom:16px;">Languages Used</div>
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+          <% const langColors = { cpp: '#60a5fa', c: '#a78bfa', java: '#f97316', python: '#facc15' }; %>
+          <% Object.entries(stats.langStats).sort((a,b) => b[1]-a[1]).forEach(([lang, count]) => { %>
+            <div style="display:flex; align-items:center; gap:8px; background:#1a1a2e; padding:8px 16px; border-radius:20px; border:1px solid #2a2a4a;">
+              <span style="width:10px; height:10px; border-radius:50%; background:<%= langColors[lang] || '#00e5a0' %>; display:inline-block;"></span>
+              <span style="color:#ffffff; font-size:14px; font-weight:600;"><%= lang.toUpperCase() %></span>
+              <span style="color:#a0a0b0; font-size:13px;"><%= count %> submissions</span>
+              <span style="color:#a0a0b0; font-size:12px;">(<%= Math.round(count / stats.totalSubmissions * 100) %>%)</span>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+    <% } %>
+
     <!-- Recent Submissions -->
-    <div class="problems-header" style="margin-top:40px;">
+    <div class="problems-header" style="margin-top:8px;">
       <h2>Recent Submissions</h2>
     </div>
 
