@@ -14,10 +14,15 @@
       <a href="/problems" class="nav-link active">Problems</a>
       <a href="/organizations" class="nav-link">Organizations</a>
       <a href="/leaderboard" class="nav-link">Leaderboard</a>
+      <% if (user && user.role === 'admin') { %>
+        <a href="/admin" class="nav-link">Admin</a>
+      <% } %>
     </div>
     <div class="nav-right">
       <% if (user) { %>
-        <a href="/problems/create" class="btn-register">+ Create</a>
+        <a href="/notifications" class="notif-btn">
+          🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+        </a>
         <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
         <a href="/logout" class="btn-logout">Logout</a>
       <% } else { %>
@@ -48,23 +53,27 @@
       </select>
     </div>
 
-    <table class="problems-table" id="problemsTable">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Title</th>
-          <th>Tags</th>
-          <th>Difficulty</th>
-          <th>Acceptance</th>
-          <% if (user) { %><th>Status</th><% } %>
-        </tr>
-      </thead>
-      <tbody id="problemsBody">
-        <% if (problems.length === 0) { %>
+    <% if (problems.length === 0) { %>
+      <div style="text-align:center; color:#a0a0b0; padding:60px 0;">
+        <p>No featured problems yet.</p>
+        <% if (user && user.role === 'admin') { %>
+          <p style="font-size:13px;">Go to <a href="/admin" style="color:#00e5a0;">Admin Panel</a> to feature problems.</p>
+        <% } %>
+      </div>
+    <% } else { %>
+      <table class="problems-table" id="problemsTable">
+        <thead>
           <tr>
-            <td colspan="6" class="no-problems">No problems yet.</td>
+            <th>#</th>
+            <th>Title</th>
+            <th>Organization</th>
+            <th>Tags</th>
+            <th>Difficulty</th>
+            <th>Acceptance</th>
+            <% if (user) { %><th>Status</th><% } %>
           </tr>
-        <% } else { %>
+        </thead>
+        <tbody id="problemsBody">
           <% problems.forEach((problem, index) => { %>
             <tr class="problem-row"
                 data-title="<%= problem.title.toLowerCase() %>"
@@ -72,6 +81,13 @@
                 data-tags="<%= (problem.tags || []).join(',').toLowerCase() %>">
               <td><%= index + 1 %></td>
               <td><a href="/problems/<%= problem.id %>"><%= problem.title %></a></td>
+              <td style="color:#a0a0b0; font-size:13px;">
+                <% if (problem.orgName) { %>
+                  <a href="/organizations/<%= problem.orgId %>" style="color:#a0a0c0; text-decoration:none; font-size:13px;"><%= problem.orgName %></a>
+                <% } else { %>
+                  —
+                <% } %>
+              </td>
               <td>
                 <% if (problem.tags && problem.tags.length > 0) { %>
                   <% problem.tags.slice(0, 2).forEach(tag => { %>
@@ -103,13 +119,13 @@
               <% } %>
             </tr>
           <% }) %>
-        <% } %>
-      </tbody>
-    </table>
+        </tbody>
+      </table>
 
-    <div id="noResults" style="display:none; text-align:center; color:#a0a0b0; padding:40px;">
-      No problems match your search.
-    </div>
+      <div id="noResults" style="display:none; text-align:center; color:#a0a0b0; padding:40px;">
+        No problems match your search.
+      </div>
+    <% } %>
   </div>
 
   <script>
@@ -121,34 +137,34 @@
     const table = document.getElementById('problemsTable');
 
     function filterProblems() {
-      const search = searchInput.value.toLowerCase();
-      const difficulty = difficultyFilter.value;
-      const tag = tagFilter.value.toLowerCase();
+      const search = searchInput ? searchInput.value.toLowerCase() : '';
+      const difficulty = difficultyFilter ? difficultyFilter.value : '';
+      const tag = tagFilter ? tagFilter.value.toLowerCase() : '';
       let visible = 0;
-
       rows.forEach(row => {
-        const title = row.dataset.title;
-        const diff = row.dataset.difficulty;
-        const tags = row.dataset.tags;
-        const matchSearch = title.includes(search);
-        const matchDiff = difficulty === '' || diff === difficulty;
-        const matchTag = tag === '' || tags.includes(tag);
-
-        if (matchSearch && matchDiff && matchTag) {
-          row.style.display = '';
-          visible++;
-        } else {
-          row.style.display = 'none';
-        }
+        const matchSearch = row.dataset.title.includes(search);
+        const matchDiff = difficulty === '' || row.dataset.difficulty === difficulty;
+        const matchTag = tag === '' || row.dataset.tags.includes(tag);
+        if (matchSearch && matchDiff && matchTag) { row.style.display = ''; visible++; }
+        else row.style.display = 'none';
       });
-
-      noResults.style.display = visible === 0 ? 'block' : 'none';
-      table.style.display = visible === 0 ? 'none' : '';
+      if (noResults) noResults.style.display = visible === 0 && rows.length > 0 ? 'block' : 'none';
+      if (table) table.style.display = visible === 0 ? 'none' : '';
     }
 
-    searchInput.addEventListener('input', filterProblems);
-    difficultyFilter.addEventListener('change', filterProblems);
-    tagFilter.addEventListener('change', filterProblems);
+    if (searchInput) searchInput.addEventListener('input', filterProblems);
+    if (difficultyFilter) difficultyFilter.addEventListener('change', filterProblems);
+    if (tagFilter) tagFilter.addEventListener('change', filterProblems);
+
+    <% if (user) { %>
+    fetch('/notifications/count').then(r => r.json()).then(data => {
+      if (data.count > 0) {
+        const badge = document.getElementById('notifBadge');
+        badge.textContent = data.count;
+        badge.style.display = 'inline-block';
+      }
+    });
+    <% } %>
   </script>
 </body>
 </html>

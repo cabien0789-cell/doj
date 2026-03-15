@@ -14,11 +14,13 @@
       <a href="/problems" class="nav-link">Problems</a>
       <a href="/organizations" class="nav-link">Organizations</a>
       <a href="/leaderboard" class="nav-link">Leaderboard</a>
+      <% if (user && user.role === 'admin') { %>
+        <a href="/admin" class="nav-link">Admin</a>
+      <% } %>
     </div>
     <div class="nav-right">
       <% if (user) { %>
-        <a href="/problems/create" class="btn-register">+ Create</a>
-        <a href="/notifications" class="notif-btn" id="notifBtn">
+        <a href="/notifications" class="notif-btn">
           🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
         </a>
         <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
@@ -61,26 +63,24 @@
       <p>Challenge yourself with algorithmic problems of all difficulty levels.</p>
     </div>
     <div class="feature-card">
-      <h3>Create Problems</h3>
-      <p>Create and share your own problems with the community.</p>
+      <h3>Organizations</h3>
+      <p>Create or join organizations and compete in contests.</p>
     </div>
     <div class="feature-card">
-      <h3>Compete</h3>
-      <p>Join organizations and participate in contests.</p>
+      <h3>Leaderboard</h3>
+      <p>Track your progress and compete with others globally.</p>
     </div>
   </div>
 
   <% if (user) { %>
   <script>
-    fetch('/notifications/count')
-      .then(r => r.json())
-      .then(data => {
-        if (data.count > 0) {
-          const badge = document.getElementById('notifBadge');
-          badge.textContent = data.count;
-          badge.style.display = 'inline-block';
-        }
-      });
+    fetch('/notifications/count').then(r => r.json()).then(data => {
+      if (data.count > 0) {
+        const badge = document.getElementById('notifBadge');
+        badge.textContent = data.count;
+        badge.style.display = 'inline-block';
+      }
+    });
   </script>
   <% } %>
 </body>

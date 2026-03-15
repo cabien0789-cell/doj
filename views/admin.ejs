@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel - DOJ</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">DOJ</a>
+      <a href="/problems" class="nav-link">Problems</a>
+      <a href="/organizations" class="nav-link">Organizations</a>
+      <a href="/leaderboard" class="nav-link">Leaderboard</a>
+      <a href="/admin" class="nav-link active">Admin</a>
+    </div>
+    <div class="nav-right">
+      <a href="/notifications" class="notif-btn">
+        🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+      </a>
+      <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
+      <a href="/logout" class="btn-logout">Logout</a>
+    </div>
+  </nav>
+
+  <div class="problems-container">
+    <h2>⚙️ Admin Panel</h2>
+
+    <!-- Tabs -->
+    <div style="display:flex; gap:8px; margin-bottom:24px; flex-wrap:wrap;">
+      <button onclick="showSection('users')" id="tab-users" class="tab-btn tab-active">Users</button>
+      <button onclick="showSection('orgs')" id="tab-orgs" class="tab-btn">Organizations</button>
+      <button onclick="showSection('problems')" id="tab-problems" class="tab-btn">Problems</button>
+    </div>
+
+    <!-- USERS -->
+    <div id="section-users">
+      <div style="margin-bottom:16px;">
+        <input type="text" id="userSearch" placeholder="Search users..." class="filter-input" oninput="filterUsers()" />
+      </div>
+      <table class="problems-table">
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="userTableBody">
+          <% users.forEach(u => { %>
+            <tr class="user-row" data-username="<%= u.username.toLowerCase() %>">
+              <td><a href="/profile/<%= u.username %>" style="color:#ffffff; text-decoration:none;"><%= u.username %></a></td>
+              <td style="color:#a0a0b0; font-size:13px;"><%= u.email %></td>
+              <td style="color:<%= u.role === 'admin' ? '#00e5a0' : '#a0a0b0' %>; font-size:13px;"><%= u.role || 'user' %></td>
+              <td>
+                <% if (u.locked) { %>
+                  <span style="color:#ff4444; font-size:13px;">🔒 Locked</span>
+                <% } else { %>
+                  <span style="color:#00e5a0; font-size:13px;">✓ Active</span>
+                <% } %>
+              </td>
+              <td>
+                <% if (u.role !== 'admin') { %>
+                  <% if (u.locked) { %>
+                    <form action="/admin/users/<%= u.username %>/unlock" method="POST" style="display:inline;">
+                      <button type="submit" onclick="return confirm('Unlock account of <%= u.username %>?')" style="background:#00e5a0; color:#0f0f23; border:none; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:600;">Unlock</button>
+                    </form>
+                  <% } else { %>
+                    <form action="/admin/users/<%= u.username %>/lock" method="POST" style="display:inline;">
+                      <button type="submit" onclick="return confirm('Lock account of <%= u.username %>?')" style="background:transparent; color:#ff4444; border:1px solid #ff4444; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px;">Lock</button>
+                    </form>
+                  <% } %>
+                <% } else { %>
+                  <span style="color:#a0a0b0; font-size:12px;">—</span>
+                <% } %>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ORGANIZATIONS -->
+    <div id="section-orgs" style="display:none;">
+      <div style="margin-bottom:16px;">
+        <input type="text" id="orgSearch" placeholder="Search organizations..." class="filter-input" oninput="filterOrgs()" />
+      </div>
+      <table class="problems-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Owner</th>
+            <th>Members</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="orgTableBody">
+          <% orgs.forEach(org => { %>
+            <tr class="org-row" data-name="<%= org.name.toLowerCase() %>">
+              <td><a href="/organizations/<%= org.id %>" style="color:#ffffff; text-decoration:none;"><%= org.name %></a></td>
+              <td style="color:#a0a0b0;"><%= org.owner %></td>
+              <td style="color:#a0a0b0;"><%= org.members ? org.members.length : 0 %></td>
+              <td>
+                <% if (org.locked) { %>
+                  <span style="color:#ff4444; font-size:13px;">🔒 Locked</span>
+                <% } else { %>
+                  <span style="color:#00e5a0; font-size:13px;">✓ Active</span>
+                <% } %>
+              </td>
+              <td style="display:flex; gap:6px; flex-wrap:wrap;">
+                <% if (org.locked) { %>
+                  <form action="/admin/orgs/<%= org.id %>/unlock" method="POST">
+                    <button type="submit" onclick="return confirm('Unlock organization <%= org.name %>?')" style="background:#00e5a0; color:#0f0f23; border:none; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:600;">Unlock</button>
+                  </form>
+                <% } else { %>
+                  <form action="/admin/orgs/<%= org.id %>/lock" method="POST">
+                    <button type="submit" onclick="return confirm('Lock organization <%= org.name %>?')" style="background:transparent; color:#f5a623; border:1px solid #f5a623; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px;">Lock</button>
+                  </form>
+                <% } %>
+                <form action="/admin/orgs/<%= org.id %>/delete" method="POST">
+                  <button type="submit" onclick="return confirm('Delete organization <%= org.name %>? This cannot be undone.')" style="background:transparent; color:#ff4444; border:1px solid #ff4444; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px;">Delete</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- PROBLEMS -->
+    <div id="section-problems" style="display:none;">
+      <div style="margin-bottom:16px;">
+        <input type="text" id="problemSearch" placeholder="Search problems..." class="filter-input" oninput="filterProblems()" />
+      </div>
+      <table class="problems-table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Author</th>
+            <th>Difficulty</th>
+            <th>Featured</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="problemTableBody">
+          <% problems.forEach(problem => { %>
+            <tr class="problem-row" data-title="<%= problem.title.toLowerCase() %>">
+              <td><a href="/problems/<%= problem.id %>" style="color:#ffffff; text-decoration:none;"><%= problem.title %></a></td>
+              <td style="color:#a0a0b0;"><%= problem.author %></td>
+              <td class="difficulty-<%= problem.difficulty.toLowerCase() %>"><%= problem.difficulty %></td>
+              <td>
+                <% if (problem.featured) { %>
+                  <span style="color:#00e5a0; font-size:13px;">✓ Featured</span>
+                <% } else { %>
+                  <span style="color:#a0a0b0; font-size:13px;">—</span>
+                <% } %>
+              </td>
+              <td style="display:flex; gap:6px; flex-wrap:wrap;">
+                <% if (problem.featured) { %>
+                  <form action="/admin/problems/<%= problem.id %>/unfeature" method="POST">
+                    <button type="submit" onclick="return confirm('Remove <%= problem.title %> from featured?')" style="background:transparent; color:#f5a623; border:1px solid #f5a623; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px;">Unfeature</button>
+                  </form>
+                <% } else { %>
+                  <form action="/admin/problems/<%= problem.id %>/feature" method="POST">
+                    <button type="submit" onclick="return confirm('Feature <%= problem.title %>?')" style="background:#00e5a020; color:#00e5a0; border:1px solid #00e5a0; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px;">Feature</button>
+                  </form>
+                <% } %>
+                <form action="/admin/problems/<%= problem.id %>/delete" method="POST">
+                  <button type="submit" onclick="return confirm('Delete problem <%= problem.title %>? This cannot be undone.')" style="background:transparent; color:#ff4444; border:1px solid #ff4444; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px;">Delete</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    function showSection(section) {
+      ['users', 'orgs', 'problems'].forEach(s => {
+        document.getElementById('section-' + s).style.display = s === section ? 'block' : 'none';
+        document.getElementById('tab-' + s).className = s === section ? 'tab-btn tab-active' : 'tab-btn';
+      });
+    }
+
+    function filterUsers() {
+      const search = document.getElementById('userSearch').value.toLowerCase();
+      document.querySelectorAll('.user-row').forEach(row => {
+        row.style.display = row.dataset.username.includes(search) ? '' : 'none';
+      });
+    }
+
+    function filterOrgs() {
+      const search = document.getElementById('orgSearch').value.toLowerCase();
+      document.querySelectorAll('.org-row').forEach(row => {
+        row.style.display = row.dataset.name.includes(search) ? '' : 'none';
+      });
+    }
+
+    function filterProblems() {
+      const search = document.getElementById('problemSearch').value.toLowerCase();
+      document.querySelectorAll('.problem-row').forEach(row => {
+        row.style.display = row.dataset.title.includes(search) ? '' : 'none';
+      });
+    }
+
+    fetch('/notifications/count').then(r => r.json()).then(data => {
+      if (data.count > 0) {
+        const badge = document.getElementById('notifBadge');
+        badge.textContent = data.count;
+        badge.style.display = 'inline-block';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -102,9 +102,7 @@ async function sendEmail(to, subject, htmlContent) {
 }
 
 async function sendNotification(username, message) {
-  await getNotifications().insertOne({
-    username, message, read: false, createdAt: new Date().toISOString()
-  });
+  await getNotifications().insertOne({ username, message, read: false, createdAt: new Date().toISOString() });
 }
 
 function toUTC(datetimeLocal, timezone) {
@@ -230,7 +228,7 @@ function parseTestcases(inputRaw, outputRaw) {
 // ─── ROUTES ───────────────────────────────────────────────
 
 app.get('/', async (req, res) => {
-  const problemCount = await getProblems().countDocuments();
+  const problemCount = await getProblems().countDocuments({ featured: true });
   const userCount = await getUsers().countDocuments();
   const submissionCount = await getSubmissions().countDocuments();
   res.render('index', { user: req.session.user || null, stats: { problems: problemCount, users: userCount, submissions: submissionCount } });
@@ -292,6 +290,7 @@ app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   const user = await getUsers().findOne({ username });
   if (!user) return res.render('login', { error: 'Username does not exist.' });
+  if (user.locked) return res.render('login', { error: 'This account has been locked. Please contact admin.' });
   const match = await bcrypt.compare(password, user.password);
   if (!match) return res.render('login', { error: 'Incorrect password.' });
   req.session.user = { username: user.username, email: user.email, role: user.role || 'user' };
@@ -401,8 +400,8 @@ app.get('/leaderboard', async (req, res) => {
 // ─── PROBLEMS ─────────────────────────────────────────────
 
 app.get('/problems', async (req, res) => {
-  const problems = await getProblems().find().toArray();
   const user = req.session.user || null;
+  const featuredProblems = await getProblems().find({ featured: true }).toArray();
   const allSubs = await getSubmissions().find().toArray();
   const solvedSet = new Set();
   if (user) allSubs.filter(s => s.username === user.username && s.verdict === 'Accepted').forEach(s => solvedSet.add(s.problemId));
@@ -412,13 +411,31 @@ app.get('/problems', async (req, res) => {
     subsByProblem[s.problemId].total++;
     if (s.verdict === 'Accepted') subsByProblem[s.problemId].accepted++;
   });
-  const problemsWithStatus = problems.map(p => ({
-    ...p, id: p._id.toString(),
-    solved: solvedSet.has(p._id.toString()),
-    totalSubmissions: (subsByProblem[p._id.toString()] || {}).total || 0,
-    acceptedSubmissions: (subsByProblem[p._id.toString()] || {}).accepted || 0
-  }));
-  res.render('problems', { user, problems: problemsWithStatus });
+
+  // Get org names for featured problems
+  const allOrgs = await getOrgs().find().toArray();
+  const allContests = await getContests().find().toArray();
+
+  const problems = featuredProblems.map(p => {
+    const pid = p._id.toString();
+    // Find which contest this problem belongs to
+    const contest = allContests.find(c => c.problemIds && c.problemIds.includes(pid));
+    let orgName = null;
+    let orgId = null;
+    if (contest) {
+      const org = allOrgs.find(o => o._id.toString() === contest.orgId);
+      if (org) { orgName = org.name; orgId = org._id.toString(); }
+    }
+    return {
+      ...p, id: pid,
+      solved: solvedSet.has(pid),
+      totalSubmissions: (subsByProblem[pid] || {}).total || 0,
+      acceptedSubmissions: (subsByProblem[pid] || {}).accepted || 0,
+      orgName, orgId
+    };
+  });
+
+  res.render('problems', { user, problems });
 });
 
 app.get('/problems/create', requireLogin, (req, res) => res.render('create-problem', { user: req.session.user, error: undefined }));
@@ -434,7 +451,8 @@ app.post('/problems/create', requireLogin, async (req, res) => {
     constraints: constraints || '', explanation: explanation || '',
     sampleTestcases, hiddenTestcases, testcases: [...sampleTestcases, ...hiddenTestcases],
     tags, timeLimit: parseInt(timeLimit) || 2,
-    author: req.session.user.username, createdAt: new Date().toISOString()
+    author: req.session.user.username, createdAt: new Date().toISOString(),
+    featured: false
   });
   res.redirect('/problems');
 });
@@ -571,7 +589,6 @@ app.get('/organizations/:id', async (req, res) => {
   res.render('organization-detail', { user: req.session.user || null, org, contests });
 });
 
-// Request to join
 app.post('/organizations/:id/request', requireLogin, async (req, res) => {
   try {
     const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
@@ -583,29 +600,21 @@ app.post('/organizations/:id/request', requireLogin, async (req, res) => {
   res.redirect('/organizations/' + req.params.id);
 });
 
-// Cancel request
 app.post('/organizations/:id/cancel-request', requireLogin, async (req, res) => {
-  try {
-    await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, { $pull: { pendingMembers: req.session.user.username } });
-  } catch (e) {}
+  try { await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, { $pull: { pendingMembers: req.session.user.username } }); } catch (e) {}
   res.redirect('/organizations/' + req.params.id);
 });
 
-// Approve member
 app.post('/organizations/:id/approve/:username', requireLogin, async (req, res) => {
   try {
     const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
     if (!org || org.owner !== req.session.user.username) return res.redirect('/organizations/' + req.params.id);
-    await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, {
-      $pull: { pendingMembers: req.params.username },
-      $addToSet: { members: req.params.username }
-    });
+    await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, { $pull: { pendingMembers: req.params.username }, $addToSet: { members: req.params.username } });
     await sendNotification(req.params.username, `Your request to join "${org.name}" has been approved!`);
   } catch (e) {}
   res.redirect('/organizations/' + req.params.id);
 });
 
-// Reject member
 app.post('/organizations/:id/reject/:username', requireLogin, async (req, res) => {
   try {
     const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
@@ -616,7 +625,6 @@ app.post('/organizations/:id/reject/:username', requireLogin, async (req, res) =
   res.redirect('/organizations/' + req.params.id);
 });
 
-// Kick member
 app.post('/organizations/:id/kick/:username', requireLogin, async (req, res) => {
   try {
     const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
@@ -627,7 +635,6 @@ app.post('/organizations/:id/kick/:username', requireLogin, async (req, res) => 
   res.redirect('/organizations/' + req.params.id);
 });
 
-// Leave org
 app.post('/organizations/:id/leave', requireLogin, async (req, res) => {
   try {
     const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
@@ -637,7 +644,6 @@ app.post('/organizations/:id/leave', requireLogin, async (req, res) => {
   res.redirect('/organizations');
 });
 
-// Delete org
 app.post('/organizations/:id/delete', requireLogin, async (req, res) => {
   try {
     const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
@@ -740,6 +746,84 @@ app.get('/contests/:id', async (req, res) => {
     .map(([username, data]) => ({ username, solved: data.solved.size, lastAC: data.lastAC }))
     .sort((a, b) => b.solved - a.solved || new Date(a.lastAC) - new Date(b.lastAC));
   res.render('contest-detail', { user: req.session.user || null, contest: { ...contest, startTimeUTC: startUTC, endTimeUTC: endUTC }, problems, scoreboard, isOwner });
+});
+
+// ─── ADMIN ────────────────────────────────────────────────
+
+app.get('/admin', requireAdmin, async (req, res) => {
+  const users = await getUsers().find().toArray();
+  const orgs = (await getOrgs().find().toArray()).map(o => ({ ...o, id: o._id.toString() }));
+  const problems = (await getProblems().find().toArray()).map(p => ({ ...p, id: p._id.toString() }));
+  res.render('admin', { user: req.session.user, users, orgs, problems });
+});
+
+// Lock/Unlock user
+app.post('/admin/users/:username/lock', requireAdmin, async (req, res) => {
+  await getUsers().updateOne({ username: req.params.username }, { $set: { locked: true } });
+  await sendNotification(req.params.username, 'Your account has been locked by an administrator. Please contact support.');
+  res.redirect('/admin');
+});
+
+app.post('/admin/users/:username/unlock', requireAdmin, async (req, res) => {
+  await getUsers().updateOne({ username: req.params.username }, { $set: { locked: false } });
+  await sendNotification(req.params.username, 'Your account has been unlocked by an administrator.');
+  res.redirect('/admin');
+});
+
+// Lock/Unlock/Delete org
+app.post('/admin/orgs/:id/lock', requireAdmin, async (req, res) => {
+  try {
+    const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
+    if (org) {
+      await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, { $set: { locked: true } });
+      await sendNotification(org.owner, `Your organization "${org.name}" has been locked by an administrator.`);
+    }
+  } catch (e) {}
+  res.redirect('/admin');
+});
+
+app.post('/admin/orgs/:id/unlock', requireAdmin, async (req, res) => {
+  try {
+    const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
+    if (org) {
+      await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, { $set: { locked: false } });
+      await sendNotification(org.owner, `Your organization "${org.name}" has been unlocked by an administrator.`);
+    }
+  } catch (e) {}
+  res.redirect('/admin');
+});
+
+app.post('/admin/orgs/:id/delete', requireAdmin, async (req, res) => {
+  try {
+    const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
+    if (org) {
+      await getOrgs().deleteOne({ _id: new ObjectId(req.params.id) });
+      await sendNotification(org.owner, `Your organization "${org.name}" has been deleted by an administrator.`);
+    }
+  } catch (e) {}
+  res.redirect('/admin');
+});
+
+// Feature/Unfeature/Delete problem
+app.post('/admin/problems/:id/feature', requireAdmin, async (req, res) => {
+  try { await getProblems().updateOne({ _id: new ObjectId(req.params.id) }, { $set: { featured: true } }); } catch (e) {}
+  res.redirect('/admin');
+});
+
+app.post('/admin/problems/:id/unfeature', requireAdmin, async (req, res) => {
+  try { await getProblems().updateOne({ _id: new ObjectId(req.params.id) }, { $set: { featured: false } }); } catch (e) {}
+  res.redirect('/admin');
+});
+
+app.post('/admin/problems/:id/delete', requireAdmin, async (req, res) => {
+  try {
+    const problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) });
+    if (problem) {
+      await getProblems().deleteOne({ _id: new ObjectId(req.params.id) });
+      await sendNotification(problem.author, `Your problem "${problem.title}" has been deleted by an administrator.`);
+    }
+  } catch (e) {}
+  res.redirect('/admin');
 });
 
 // ─── 404 ──────────────────────────────────────────────────
