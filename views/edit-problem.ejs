@@ -40,6 +40,28 @@
         </select>
       </div>
       <div class="form-group">
+        <label>Tags <span style="color:#a0a0b0; font-size:12px;">(chọn một hoặc nhiều)</span></label>
+        <div class="tags-grid">
+          <% ['Arrays', 'Strings', 'Math', 'Sorting', 'Searching', 'Dynamic Programming', 'Greedy', 'Graph', 'Tree', 'Recursion', 'Stack', 'Queue', 'Linked List', 'Binary Search', 'Two Pointers', 'Bit Manipulation', 'Geometry', 'Number Theory'].forEach(tag => { %>
+            <label class="tag-checkbox">
+              <input type="checkbox" name="tags[]" value="<%= tag %>"
+                <%= (problem.tags && problem.tags.includes(tag)) ? 'checked' : '' %>>
+              <span><%= tag %></span>
+            </label>
+          <% }) %>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Time Limit (seconds)</label>
+        <select name="timeLimit">
+          <option value="1" <%= problem.timeLimit == 1 ? 'selected' : '' %>>1 second</option>
+          <option value="2" <%= (!problem.timeLimit || problem.timeLimit == 2) ? 'selected' : '' %>>2 seconds</option>
+          <option value="3" <%= problem.timeLimit == 3 ? 'selected' : '' %>>3 seconds</option>
+          <option value="5" <%= problem.timeLimit == 5 ? 'selected' : '' %>>5 seconds</option>
+          <option value="10" <%= problem.timeLimit == 10 ? 'selected' : '' %>>10 seconds</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label>Problem Statement</label>
         <textarea name="statement" rows="8" required><%= problem.statement %></textarea>
       </div>

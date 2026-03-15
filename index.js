@@ -45,16 +45,11 @@ function emailTemplate(bodyContent) {
   return `
   <div style="background:#f4f4f4; padding:40px 20px; font-family:'Segoe UI',Arial,sans-serif;">
     <div style="max-width:520px; margin:0 auto; background:#ffffff; border-radius:12px; overflow:hidden;">
-
       <div style="background:#0f0f23; padding:28px 32px; text-align:center;">
         <div style="color:#00e5a0; font-size:28px; font-weight:800; letter-spacing:2px; font-family:'Segoe UI',Arial,sans-serif; line-height:1.2;">Dary</div>
         <div style="color:#a0a0b0; font-size:13px; font-weight:400; letter-spacing:3px; text-transform:uppercase; font-family:'Segoe UI',Arial,sans-serif; margin-top:4px;">Online Judge</div>
       </div>
-
-      <div style="padding:32px 32px 24px;">
-        ${bodyContent}
-      </div>
-
+      <div style="padding:32px 32px 24px;">${bodyContent}</div>
       <div style="background:#f8f9ff; padding:20px 32px;">
         <table cellpadding="0" cellspacing="0" border="0" width="100%">
           <tr>
@@ -76,14 +71,12 @@ function emailTemplate(bodyContent) {
           </tr>
         </table>
       </div>
-
       <div style="background:#0f0f23; padding:18px 32px; text-align:center;">
         <p style="margin:0; color:#a0a0b0; font-size:12px; line-height:1.8; font-family:'Segoe UI',Arial,sans-serif;">
           © 2026 Dary Online Judge · All rights reserved<br>
           <a href="https://doj-60st.onrender.com" style="color:#00e5a0; text-decoration:none;">doj-60st.onrender.com</a>
         </p>
       </div>
-
     </div>
   </div>`;
 }
@@ -108,10 +101,11 @@ async function sendEmail(to, subject, htmlContent) {
   }
 }
 
-function judgeCode(code, language, testcases) {
+function judgeCode(code, language, testcases, timeLimit) {
   const tmpDir = path.join(__dirname, 'tmp');
   if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
 
+  const timeLimitMs = (timeLimit || 2) * 1000;
   const details = [];
   let passedCount = 0;
   let compiledPath = null;
@@ -152,30 +146,33 @@ function judgeCode(code, language, testcases) {
     const inputFile = path.join(tmpDir, 'input.txt');
     fs.writeFileSync(inputFile, tc.input);
 
+    const startTime = Date.now();
     try {
       let output = '';
       if (language === 'python') {
         const codeFile = path.join(tmpDir, 'solution.py');
         fs.writeFileSync(codeFile, code);
-        output = execSync(`python3 ${codeFile} < ${inputFile}`, { timeout: 5000 }).toString().trim();
+        output = execSync(`python3 ${codeFile} < ${inputFile}`, { timeout: timeLimitMs }).toString().trim();
       } else if (language === 'cpp' || language === 'c') {
-        output = execSync(`${compiledPath} < ${inputFile}`, { timeout: 5000 }).toString().trim();
+        output = execSync(`${compiledPath} < ${inputFile}`, { timeout: timeLimitMs }).toString().trim();
       } else if (language === 'java') {
-        output = execSync(`java -cp ${tmpDir} Main < ${inputFile}`, { timeout: 10000 }).toString().trim();
+        output = execSync(`java -cp ${tmpDir} Main < ${inputFile}`, { timeout: timeLimitMs + 5000 }).toString().trim();
       }
 
+      const execTime = Date.now() - startTime;
       const expected = tc.output.trim();
       const passed = output === expected;
       if (passed) passedCount++;
-      details.push({ status: passed ? 'AC' : 'WA', passed, output, expected });
+      details.push({ status: passed ? 'AC' : 'WA', passed, output, expected, execTime });
 
     } catch (e) {
+      const execTime = Date.now() - startTime;
       const isTimeout = e.signal === 'SIGTERM' || (e.message && e.message.includes('ETIMEDOUT'));
       if (isTimeout) {
-        details.push({ status: 'TLE', passed: false, output: 'Time Limit Exceeded', expected: tc.output.trim() });
+        details.push({ status: 'TLE', passed: false, output: 'Time Limit Exceeded', expected: tc.output.trim(), execTime });
       } else {
         const errMsg = e.stderr ? e.stderr.toString().split('\n')[0] : (e.message || 'Runtime Error');
-        details.push({ status: 'RE', passed: false, output: errMsg, expected: tc.output.trim() });
+        details.push({ status: 'RE', passed: false, output: errMsg, expected: tc.output.trim(), execTime });
       }
     }
   }
@@ -189,7 +186,8 @@ function judgeCode(code, language, testcases) {
                            : 'Wrong Answer';
   }
 
-  return { verdict, passed: allPassed, passedCount, total: testcases.length, details };
+  const maxExecTime = Math.max(...details.map(d => d.execTime || 0));
+  return { verdict, passed: allPassed, passedCount, total: testcases.length, details, execTime: maxExecTime };
 }
 
 // ─── ROUTES ───────────────────────────────────────────────
@@ -233,17 +231,17 @@ app.post('/register', async (req, res) => {
 
   try {
     await sendEmail(email, 'DOJ - Xác nhận email của bạn', emailTemplate(`
-      <h2 style="margin:0 0 10px; font-size:20px; font-weight:700; color:#0f0f23; font-family:'Segoe UI',Arial,sans-serif;">Xác nhận email của bạn</h2>
-      <p style="margin:0 0 24px; color:#555; font-size:14px; line-height:1.7; font-family:'Segoe UI',Arial,sans-serif;">
+      <h2 style="margin:0 0 10px; font-size:20px; font-weight:700; color:#0f0f23;">Xác nhận email của bạn</h2>
+      <p style="margin:0 0 24px; color:#555; font-size:14px; line-height:1.7;">
         Chào mừng bạn đến với <strong>Dary Online Judge</strong>! Vui lòng nhập mã xác nhận bên dưới để hoàn tất đăng ký tài khoản.
       </p>
       <div style="text-align:center; padding:16px 0 20px;">
-        <div style="color:#888; font-size:11px; letter-spacing:3px; text-transform:uppercase; margin-bottom:14px; font-family:'Segoe UI',Arial,sans-serif;">Mã xác nhận của bạn</div>
+        <div style="color:#888; font-size:11px; letter-spacing:3px; text-transform:uppercase; margin-bottom:14px;">Mã xác nhận của bạn</div>
         <div style="font-size:32px; font-weight:800; letter-spacing:10px; color:#00e5a0; font-family:'Courier New',monospace; text-indent:10px;">${verifyCode}</div>
         <div style="width:60px; height:3px; background:#00e5a0; margin:12px auto; border-radius:2px;"></div>
-        <div style="color:#aaa; font-size:12px; font-family:'Segoe UI',Arial,sans-serif;">Mã có hiệu lực trong <strong style="color:#555;">10 phút</strong></div>
+        <div style="color:#aaa; font-size:12px;">Mã có hiệu lực trong <strong style="color:#555;">10 phút</strong></div>
       </div>
-      <p style="margin:0; color:#777; font-size:13px; line-height:1.7; font-family:'Segoe UI',Arial,sans-serif;">
+      <p style="margin:0; color:#777; font-size:13px; line-height:1.7;">
         Sau khi xác nhận, bạn có thể bắt đầu luyện tập với hàng trăm bài toán lập trình, tham gia các contest và theo dõi tiến trình của mình trên bảng xếp hạng.
       </p>
     `));
@@ -285,7 +283,7 @@ app.get('/logout', (req, res) => {
   res.redirect('/');
 });
 
-// ─── FORGOT PASSWORD ──────────────────────────────────────
+// ─── FORGOT / RESET / CHANGE PASSWORD ────────────────────
 
 app.get('/forgot-password', (req, res) => {
   res.render('forgot-password', { error: undefined, success: undefined });
@@ -303,17 +301,17 @@ app.post('/forgot-password', async (req, res) => {
 
   try {
     await sendEmail(email, 'DOJ - Đặt lại mật khẩu', emailTemplate(`
-      <h2 style="margin:0 0 10px; font-size:20px; font-weight:700; color:#0f0f23; font-family:'Segoe UI',Arial,sans-serif;">Đặt lại mật khẩu</h2>
-      <p style="margin:0 0 24px; color:#555; font-size:14px; line-height:1.7; font-family:'Segoe UI',Arial,sans-serif;">
-        Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản <strong>Dary Online Judge</strong> của bạn. Nhập mã bên dưới để tiếp tục.
+      <h2 style="margin:0 0 10px; font-size:20px; font-weight:700; color:#0f0f23;">Đặt lại mật khẩu</h2>
+      <p style="margin:0 0 24px; color:#555; font-size:14px; line-height:1.7;">
+        Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản <strong>Dary Online Judge</strong> của bạn.
       </p>
       <div style="text-align:center; padding:16px 0 20px;">
-        <div style="color:#888; font-size:11px; letter-spacing:3px; text-transform:uppercase; margin-bottom:14px; font-family:'Segoe UI',Arial,sans-serif;">Mã đặt lại mật khẩu</div>
+        <div style="color:#888; font-size:11px; letter-spacing:3px; text-transform:uppercase; margin-bottom:14px;">Mã đặt lại mật khẩu</div>
         <div style="font-size:32px; font-weight:800; letter-spacing:10px; color:#00e5a0; font-family:'Courier New',monospace; text-indent:10px;">${resetCode}</div>
         <div style="width:60px; height:3px; background:#00e5a0; margin:12px auto; border-radius:2px;"></div>
-        <div style="color:#aaa; font-size:12px; font-family:'Segoe UI',Arial,sans-serif;">Mã có hiệu lực trong <strong style="color:#555;">10 phút</strong></div>
+        <div style="color:#aaa; font-size:12px;">Mã có hiệu lực trong <strong style="color:#555;">10 phút</strong></div>
       </div>
-      <p style="margin:0; color:#777; font-size:13px; line-height:1.7; font-family:'Segoe UI',Arial,sans-serif;">
+      <p style="margin:0; color:#777; font-size:13px; line-height:1.7;">
         Sau khi đặt lại mật khẩu, bạn có thể tiếp tục luyện tập và thi đấu trên Dary Online Judge.
       </p>
     `));
@@ -344,8 +342,6 @@ app.post('/reset-password', async (req, res) => {
   res.redirect('/login');
 });
 
-// ─── CHANGE PASSWORD ──────────────────────────────────────
-
 app.get('/change-password', requireLogin, (req, res) => {
   res.render('change-password', { user: req.session.user, error: undefined, success: undefined });
 });
@@ -366,22 +362,57 @@ app.post('/change-password', requireLogin, async (req, res) => {
   res.render('change-password', { user: req.session.user, error: undefined, success: 'Password changed successfully!' });
 });
 
+// ─── LEADERBOARD ──────────────────────────────────────────
+
+app.get('/leaderboard', async (req, res) => {
+  const allSubs = await getSubmissions().find().toArray();
+
+  const userMap = {};
+  allSubs.forEach(s => {
+    if (!userMap[s.username]) {
+      userMap[s.username] = { username: s.username, solved: new Set(), totalSubmissions: 0, accepted: 0 };
+    }
+    userMap[s.username].totalSubmissions++;
+    if (s.verdict === 'Accepted') {
+      userMap[s.username].solved.add(s.problemId);
+      userMap[s.username].accepted++;
+    }
+  });
+
+  const leaderboard = Object.values(userMap)
+    .map(u => ({ ...u, solved: u.solved.size }))
+    .sort((a, b) => b.solved - a.solved || b.accepted - a.accepted);
+
+  res.render('leaderboard', { user: req.session.user || null, leaderboard });
+});
+
 // ─── PROBLEMS ─────────────────────────────────────────────
 
 app.get('/problems', async (req, res) => {
   const problems = await getProblems().find().toArray();
   const user = req.session.user || null;
+  const allSubs = await getSubmissions().find().toArray();
 
   const solvedSet = new Set();
   if (user) {
-    const solvedSubs = await getSubmissions().find({ username: user.username, verdict: 'Accepted' }).toArray();
-    solvedSubs.forEach(s => solvedSet.add(s.problemId));
+    allSubs.filter(s => s.username === user.username && s.verdict === 'Accepted')
+           .forEach(s => solvedSet.add(s.problemId));
   }
+
+  // Calculate acceptance rate per problem
+  const subsByProblem = {};
+  allSubs.forEach(s => {
+    if (!subsByProblem[s.problemId]) subsByProblem[s.problemId] = { total: 0, accepted: 0 };
+    subsByProblem[s.problemId].total++;
+    if (s.verdict === 'Accepted') subsByProblem[s.problemId].accepted++;
+  });
 
   const problemsWithStatus = problems.map(p => ({
     ...p,
     id: p._id.toString(),
-    solved: solvedSet.has(p._id.toString())
+    solved: solvedSet.has(p._id.toString()),
+    totalSubmissions: (subsByProblem[p._id.toString()] || {}).total || 0,
+    acceptedSubmissions: (subsByProblem[p._id.toString()] || {}).accepted || 0
   }));
 
   res.render('problems', { user, problems: problemsWithStatus });
@@ -392,7 +423,7 @@ app.get('/problems/create', requireLogin, (req, res) => {
 });
 
 app.post('/problems/create', requireLogin, async (req, res) => {
-  const { title, difficulty, statement, inputFormat, outputFormat } = req.body;
+  const { title, difficulty, statement, inputFormat, outputFormat, timeLimit } = req.body;
 
   const tcInputRaw = req.body['tcInput[]'] || req.body.tcInput;
   const tcOutputRaw = req.body['tcOutput[]'] || req.body.tcOutput;
@@ -403,8 +434,12 @@ app.post('/problems/create', requireLogin, async (req, res) => {
     input: inp || '', output: tcOutput[i] || ''
   })).filter(tc => tc.input && tc.output);
 
+  let tags = req.body['tags[]'] || req.body.tags || [];
+  if (!Array.isArray(tags)) tags = [tags];
+
   await getProblems().insertOne({
     title, difficulty, statement, inputFormat, outputFormat, testcases,
+    tags, timeLimit: parseInt(timeLimit) || 2,
     author: req.session.user.username,
     createdAt: new Date().toISOString()
   });
@@ -422,9 +457,14 @@ app.get('/problems/:id', async (req, res) => {
   problem.id = problem._id.toString();
   const user = req.session.user || null;
 
+  const allProblemSubs = await getSubmissions().find({ problemId: problem.id }).toArray();
+  problem.totalSubmissions = allProblemSubs.length;
+  problem.acceptedSubmissions = allProblemSubs.filter(s => s.verdict === 'Accepted').length;
+
   const mySubmissions = user
-    ? await getSubmissions().find({ username: user.username, problemId: problem.id })
-        .sort({ submittedAt: -1 }).limit(5).toArray()
+    ? allProblemSubs.filter(s => s.username === user.username)
+        .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt))
+        .slice(0, 5)
     : [];
 
   res.render('problem-detail', { user, problem, mySubmissions });
@@ -439,7 +479,7 @@ app.post('/problems/:id/submit', requireLogin, async (req, res) => {
   if (!problem) return res.redirect('/problems');
 
   problem.id = problem._id.toString();
-  const result = judgeCode(code, language, problem.testcases);
+  const result = judgeCode(code, language, problem.testcases, problem.timeLimit);
 
   const submission = {
     username: req.session.user.username,
@@ -449,6 +489,7 @@ app.post('/problems/:id/submit', requireLogin, async (req, res) => {
     verdict: result.verdict,
     passedCount: result.passedCount,
     total: result.total,
+    execTime: result.execTime,
     code,
     submittedAt: new Date().toISOString()
   };
@@ -477,7 +518,7 @@ app.get('/problems/:id/edit', requireLogin, async (req, res) => {
 });
 
 app.post('/problems/:id/edit', requireLogin, async (req, res) => {
-  const { title, difficulty, statement, inputFormat, outputFormat } = req.body;
+  const { title, difficulty, statement, inputFormat, outputFormat, timeLimit } = req.body;
   const tcInputRaw = req.body['tcInput[]'] || req.body.tcInput;
   const tcOutputRaw = req.body['tcOutput[]'] || req.body.tcOutput;
   let tcInput = Array.isArray(tcInputRaw) ? tcInputRaw : [tcInputRaw];
@@ -486,10 +527,13 @@ app.post('/problems/:id/edit', requireLogin, async (req, res) => {
     input: inp || '', output: tcOutput[i] || ''
   })).filter(tc => tc.input && tc.output);
 
+  let tags = req.body['tags[]'] || req.body.tags || [];
+  if (!Array.isArray(tags)) tags = [tags];
+
   try {
     await getProblems().updateOne(
       { _id: new ObjectId(req.params.id) },
-      { $set: { title, difficulty, statement, inputFormat, outputFormat, testcases } }
+      { $set: { title, difficulty, statement, inputFormat, outputFormat, testcases, tags, timeLimit: parseInt(timeLimit) || 2 } }
     );
   } catch (e) { return res.redirect('/problems'); }
   res.redirect('/problems/' + req.params.id);
@@ -541,8 +585,7 @@ app.get('/profile/:username', async (req, res) => {
   };
 
   const recentSubmissions = userSubs.slice(0, 20).map(s => ({
-    ...s,
-    id: s._id.toString()
+    ...s, id: s._id.toString()
   }));
 
   res.render('profile', {
@@ -641,11 +684,7 @@ app.post('/organizations/:id/contests/create', requireLogin, async (req, res) =>
   if (!Array.isArray(problemIds)) problemIds = [problemIds];
 
   await getContests().insertOne({
-    name,
-    orgId: org._id.toString(),
-    startTime,
-    endTime,
-    problemIds
+    name, orgId: org._id.toString(), startTime, endTime, problemIds
   });
   res.redirect('/organizations/' + org._id.toString());
 });

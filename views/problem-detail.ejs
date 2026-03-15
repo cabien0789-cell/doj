@@ -29,7 +29,6 @@
   </nav>
 
   <div class="problem-layout">
-    <!-- LEFT: Problem statement -->
     <div class="problem-left">
       <div class="problem-header">
         <h2><%= problem.title %></h2>
@@ -42,6 +41,26 @@
         <% } %>
       </div>
       <p class="problem-author">By <strong><%= problem.author %></strong></p>
+
+      <!-- Tags -->
+      <% if (problem.tags && problem.tags.length > 0) { %>
+        <div style="margin-bottom:20px; display:flex; flex-wrap:wrap; gap:8px;">
+          <% problem.tags.forEach(tag => { %>
+            <span class="tag-badge"><%= tag %></span>
+          <% }) %>
+        </div>
+      <% } %>
+
+      <!-- Time limit -->
+      <div style="margin-bottom:24px; color:#a0a0b0; font-size:13px;">
+        ⏱ Time Limit: <strong style="color:#ffffff;"><%= problem.timeLimit || 2 %>s</strong>
+        &nbsp;·&nbsp;
+        📊 Acceptance: <strong style="color:<%= problem.totalSubmissions > 0 ? '#00e5a0' : '#a0a0b0' %>;">
+          <%= problem.totalSubmissions > 0 ? Math.round(problem.acceptedSubmissions / problem.totalSubmissions * 100) + '%' : 'N/A' %>
+        </strong>
+        &nbsp;·&nbsp;
+        📝 Submissions: <strong style="color:#ffffff;"><%= problem.totalSubmissions || 0 %></strong>
+      </div>
 
       <div class="problem-section">
         <h3>Problem Statement</h3>
@@ -101,7 +120,6 @@
       <% } %>
     </div>
 
-    <!-- RIGHT: Code editor -->
     <div class="problem-right">
       <% if (user) { %>
         <form action="/problems/<%= problem.id %>/submit" method="POST" id="submitForm">
@@ -131,7 +149,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
-
   <script>
     const defaultCode = {
       cpp: `#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    \n    return 0;\n}`,

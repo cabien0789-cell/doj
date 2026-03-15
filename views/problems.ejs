@@ -13,6 +13,7 @@
       <a href="/" class="logo">DOJ</a>
       <a href="/problems" class="nav-link active">Problems</a>
       <a href="/organizations" class="nav-link">Organizations</a>
+      <a href="/leaderboard" class="nav-link">Leaderboard</a>
     </div>
     <div class="nav-right">
       <% if (user) { %>
@@ -31,7 +32,6 @@
       <h2>Problems</h2>
     </div>
 
-    <!-- Filter & Search -->
     <div class="filter-bar">
       <input type="text" id="searchInput" placeholder="Search problems..." class="filter-input" />
       <select id="difficultyFilter" class="filter-select">
@@ -40,6 +40,12 @@
         <option value="Medium">Medium</option>
         <option value="Hard">Hard</option>
       </select>
+      <select id="tagFilter" class="filter-select">
+        <option value="">All Tags</option>
+        <% ['Arrays', 'Strings', 'Math', 'Sorting', 'Searching', 'Dynamic Programming', 'Greedy', 'Graph', 'Tree', 'Recursion', 'Stack', 'Queue', 'Linked List', 'Binary Search', 'Two Pointers', 'Bit Manipulation', 'Geometry', 'Number Theory'].forEach(tag => { %>
+          <option value="<%= tag %>"><%= tag %></option>
+        <% }) %>
+      </select>
     </div>
 
     <table class="problems-table" id="problemsTable">
@@ -47,25 +53,45 @@
         <tr>
           <th>#</th>
           <th>Title</th>
+          <th>Tags</th>
           <th>Difficulty</th>
-          <th>Author</th>
+          <th>Acceptance</th>
           <% if (user) { %><th>Status</th><% } %>
         </tr>
       </thead>
       <tbody id="problemsBody">
         <% if (problems.length === 0) { %>
           <tr>
-            <td colspan="5" class="no-problems">No problems yet.</td>
+            <td colspan="6" class="no-problems">No problems yet.</td>
           </tr>
         <% } else { %>
           <% problems.forEach((problem, index) => { %>
             <tr class="problem-row"
                 data-title="<%= problem.title.toLowerCase() %>"
-                data-difficulty="<%= problem.difficulty %>">
+                data-difficulty="<%= problem.difficulty %>"
+                data-tags="<%= (problem.tags || []).join(',').toLowerCase() %>">
               <td><%= index + 1 %></td>
               <td><a href="/problems/<%= problem.id %>"><%= problem.title %></a></td>
+              <td>
+                <% if (problem.tags && problem.tags.length > 0) { %>
+                  <% problem.tags.slice(0, 2).forEach(tag => { %>
+                    <span class="tag-badge tag-badge-sm"><%= tag %></span>
+                  <% }) %>
+                  <% if (problem.tags.length > 2) { %>
+                    <span style="color:#a0a0b0; font-size:12px;">+<%= problem.tags.length - 2 %></span>
+                  <% } %>
+                <% } else { %>
+                  <span style="color:#a0a0b0; font-size:12px;">—</span>
+                <% } %>
+              </td>
               <td class="difficulty-<%= problem.difficulty.toLowerCase() %>"><%= problem.difficulty %></td>
-              <td><%= problem.author %></td>
+              <td style="color:#a0a0b0; font-size:13px;">
+                <% if (problem.totalSubmissions > 0) { %>
+                  <span style="color:#00e5a0;"><%= Math.round(problem.acceptedSubmissions / problem.totalSubmissions * 100) %>%</span>
+                <% } else { %>
+                  —
+                <% } %>
+              </td>
               <% if (user) { %>
                 <td>
                   <% if (problem.solved) { %>
@@ -89,6 +115,7 @@
   <script>
     const searchInput = document.getElementById('searchInput');
     const difficultyFilter = document.getElementById('difficultyFilter');
+    const tagFilter = document.getElementById('tagFilter');
     const rows = document.querySelectorAll('.problem-row');
     const noResults = document.getElementById('noResults');
     const table = document.getElementById('problemsTable');
@@ -96,15 +123,18 @@
     function filterProblems() {
       const search = searchInput.value.toLowerCase();
       const difficulty = difficultyFilter.value;
+      const tag = tagFilter.value.toLowerCase();
       let visible = 0;
 
       rows.forEach(row => {
         const title = row.dataset.title;
         const diff = row.dataset.difficulty;
+        const tags = row.dataset.tags;
         const matchSearch = title.includes(search);
         const matchDiff = difficulty === '' || diff === difficulty;
+        const matchTag = tag === '' || tags.includes(tag);
 
-        if (matchSearch && matchDiff) {
+        if (matchSearch && matchDiff && matchTag) {
           row.style.display = '';
           visible++;
         } else {
@@ -118,6 +148,7 @@
 
     searchInput.addEventListener('input', filterProblems);
     difficultyFilter.addEventListener('change', filterProblems);
+    tagFilter.addEventListener('change', filterProblems);
   </script>
 </body>
 </html>

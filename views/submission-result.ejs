@@ -13,6 +13,7 @@
       <a href="/" class="logo">DOJ</a>
       <a href="/problems" class="nav-link">Problems</a>
       <a href="/organizations" class="nav-link">Organizations</a>
+      <a href="/leaderboard" class="nav-link">Leaderboard</a>
     </div>
     <div class="nav-right">
       <% if (user) { %>
@@ -34,6 +35,11 @@
         <%= result.verdict %>
       </div>
       <p class="result-score">Passed: <%= result.passedCount %> / <%= result.total %> test cases</p>
+      <% if (result.execTime !== undefined) { %>
+        <p style="color:#a0a0b0; font-size:13px; margin-top:8px;">
+          ⏱ Runtime: <strong style="color:#ffffff;"><%= result.execTime %>ms</strong>
+        </p>
+      <% } %>
     </div>
 
     <div class="result-details">
@@ -48,6 +54,9 @@
             <% } else if (tc.status === 'CE') { %>🔧 Compilation Error
             <% } %>
           </span>
+          <% if (tc.execTime !== undefined) { %>
+            <span style="color:#a0a0b0; font-size:12px;"><%= tc.execTime %>ms</span>
+          <% } %>
           <% if (!tc.passed && tc.status === 'WA') { %>
             <span style="color:#a0a0b0; font-size:12px;">Got: <%= tc.output %></span>
           <% } %>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leaderboard - DOJ</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">DOJ</a>
+      <a href="/problems" class="nav-link">Problems</a>
+      <a href="/organizations" class="nav-link">Organizations</a>
+      <a href="/leaderboard" class="nav-link active">Leaderboard</a>
+    </div>
+    <div class="nav-right">
+      <% if (user) { %>
+        <a href="/problems/create" class="btn-register">+ Create</a>
+        <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
+        <a href="/logout" class="btn-logout">Logout</a>
+      <% } else { %>
+        <a href="/login" class="btn-login">Log In</a>
+        <a href="/register" class="btn-register">Sign Up</a>
+      <% } %>
+    </div>
+  </nav>
+
+  <div class="problems-container">
+    <div class="problems-header">
+      <h2>🏆 Leaderboard</h2>
+    </div>
+
+    <table class="problems-table">
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Username</th>
+          <th>Problems Solved</th>
+          <th>Total Submissions</th>
+          <th>Acceptance Rate</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (leaderboard.length === 0) { %>
+          <tr>
+            <td colspan="5" class="no-problems">No data yet.</td>
+          </tr>
+        <% } else { %>
+          <% leaderboard.forEach((entry, index) => { %>
+            <tr>
+              <td>
+                <% if (index === 0) { %>
+                  <span style="color:#f5c518; font-weight:700; font-size:18px;">🥇</span>
+                <% } else if (index === 1) { %>
+                  <span style="color:#a0a0b0; font-weight:700; font-size:18px;">🥈</span>
+                <% } else if (index === 2) { %>
+                  <span style="color:#cd7f32; font-weight:700; font-size:18px;">🥉</span>
+                <% } else { %>
+                  <span style="color:#a0a0b0;"><%= index + 1 %></span>
+                <% } %>
+              </td>
+              <td>
+                <a href="/profile/<%= entry.username %>" style="color:#ffffff; text-decoration:none; font-weight:600;">
+                  <% if (user && user.username === entry.username) { %>
+                    <span style="color:#00e5a0;"><%= entry.username %></span>
+                    <span style="color:#a0a0b0; font-size:12px;">(you)</span>
+                  <% } else { %>
+                    <%= entry.username %>
+                  <% } %>
+                </a>
+              </td>
+              <td style="color:#00e5a0; font-weight:700; font-size:16px;"><%= entry.solved %></td>
+              <td style="color:#a0a0b0;"><%= entry.totalSubmissions %></td>
+              <td style="color:#f5a623;">
+                <%= entry.totalSubmissions > 0 ? Math.round(entry.accepted / entry.totalSubmissions * 100) + '%' : '—' %>
+              </td>
+            </tr>
+          <% }) %>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

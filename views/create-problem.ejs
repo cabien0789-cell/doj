@@ -12,10 +12,11 @@
     <div class="nav-left">
       <a href="/" class="logo">DOJ</a>
       <a href="/problems" class="nav-link">Problems</a>
+      <a href="/organizations" class="nav-link">Organizations</a>
     </div>
     <div class="nav-right">
       <a href="/problems/create" class="btn-register">+ Create</a>
-      <span class="nav-username"><%= user.username %></span>
+      <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
       <a href="/logout" class="btn-logout">Logout</a>
     </div>
   </nav>
@@ -36,6 +37,27 @@
           <option value="Easy">Easy</option>
           <option value="Medium">Medium</option>
           <option value="Hard">Hard</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Tags <span style="color:#a0a0b0; font-size:12px;">(chọn một hoặc nhiều)</span></label>
+        <div class="tags-grid">
+          <% ['Arrays', 'Strings', 'Math', 'Sorting', 'Searching', 'Dynamic Programming', 'Greedy', 'Graph', 'Tree', 'Recursion', 'Stack', 'Queue', 'Linked List', 'Binary Search', 'Two Pointers', 'Bit Manipulation', 'Geometry', 'Number Theory'].forEach(tag => { %>
+            <label class="tag-checkbox">
+              <input type="checkbox" name="tags[]" value="<%= tag %>">
+              <span><%= tag %></span>
+            </label>
+          <% }) %>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Time Limit (seconds)</label>
+        <select name="timeLimit">
+          <option value="1">1 second</option>
+          <option value="2" selected>2 seconds</option>
+          <option value="3">3 seconds</option>
+          <option value="5">5 seconds</option>
+          <option value="10">10 seconds</option>
         </select>
       </div>
       <div class="form-group">
@@ -80,11 +102,11 @@
       div.innerHTML = `
         <div class="form-group">
           <label>Input</label>
-          <textarea name="tcInput[]" rows="3" placeholder="Test case input..." required></textarea>
+          <textarea name="tcInput[]" rows="3" placeholder="Test case input..."></textarea>
         </div>
         <div class="form-group">
           <label>Output</label>
-          <textarea name="tcOutput[]" rows="3" placeholder="Expected output..." required></textarea>
+          <textarea name="tcOutput[]" rows="3" placeholder="Expected output..."></textarea>
         </div>
         <button type="button" class="btn-remove-tc" onclick="this.parentElement.remove()">Remove</button>
       `;
