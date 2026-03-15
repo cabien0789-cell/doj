@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Create Contest - DOJ</title>
+  <title>Edit Contest - DOJ</title>
   <link rel="stylesheet" href="/css/style.css">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 </head>
@@ -25,40 +25,46 @@
   </nav>
 
   <div class="create-container">
-    <h2>Create Contest</h2>
+    <h2>Edit Contest</h2>
     <% if (typeof error !== 'undefined' && error) { %>
       <div class="error-msg"><%= error %></div>
     <% } %>
-    <form action="/organizations/<%= orgId %>/contests/create" method="POST" id="contestForm">
+    <form action="/contests/<%= contest.id %>/edit" method="POST" id="contestForm">
 
       <div class="form-group">
         <label>Contest Name</label>
-        <input type="text" name="name" placeholder="Enter contest name" required />
+        <input type="text" name="name" value="<%= contest.name %>" required />
       </div>
 
       <div class="form-group">
         <label>Timezone</label>
         <select name="timezone" id="timezoneSelect" onchange="updateTimePlaceholders()">
-          <option value="UTC">UTC (Coordinated Universal Time)</option>
-          <option value="Vietnam">Vietnam (UTC+7)</option>
+          <option value="UTC" <%= (contest.timezone === 'UTC' || !contest.timezone) ? 'selected' : '' %>>UTC (Coordinated Universal Time)</option>
+          <option value="Vietnam" <%= contest.timezone === 'Vietnam' ? 'selected' : '' %>>Vietnam (UTC+7)</option>
         </select>
       </div>
 
-      <div class="form-group" id="noTimeLimitGroup">
+      <div class="form-group">
         <label class="tag-checkbox" style="display:inline-flex;">
-          <input type="checkbox" name="noTimeLimit" id="noTimeLimit" onchange="toggleTimeLimit()">
+          <input type="checkbox" name="noTimeLimit" id="noTimeLimit"
+            <%= contest.noTimeLimit ? 'checked' : '' %>
+            onchange="toggleTimeLimit()">
           <span>No time limit (contest always Live)</span>
         </label>
       </div>
 
-      <div id="timeLimitFields">
+      <div id="timeLimitFields" style="<%= contest.noTimeLimit ? 'display:none' : '' %>">
         <div class="form-group">
-          <label>Start Time <span id="tzLabel" style="color:#a0a0b0; font-size:12px;">(UTC)</span></label>
-          <input type="datetime-local" name="startTime" id="startTime" required />
+          <label>Start Time <span id="tzLabel" style="color:#a0a0b0; font-size:12px;">(<%= contest.timezone || 'UTC' %>)</span></label>
+          <input type="datetime-local" name="startTime" id="startTime"
+            value="<%= contest.startTime ? contest.startTime.slice(0,16) : '' %>"
+            <%= contest.noTimeLimit ? '' : 'required' %> />
         </div>
         <div class="form-group">
-          <label>End Time <span id="tzLabel2" style="color:#a0a0b0; font-size:12px;">(UTC)</span></label>
-          <input type="datetime-local" name="endTime" id="endTime" required />
+          <label>End Time <span id="tzLabel2" style="color:#a0a0b0; font-size:12px;">(<%= contest.timezone || 'UTC' %>)</span></label>
+          <input type="datetime-local" name="endTime" id="endTime"
+            value="<%= contest.endTime ? contest.endTime.slice(0,16) : '' %>"
+            <%= contest.noTimeLimit ? '' : 'required' %> />
         </div>
       </div>
 
@@ -66,13 +72,15 @@
         <label>Problems</label>
         <% problems.forEach(problem => { %>
           <div class="problem-checkbox">
-            <input type="checkbox" name="problemIds[]" value="<%= problem.id %>" id="p-<%= problem.id %>">
+            <input type="checkbox" name="problemIds[]" value="<%= problem.id %>"
+              id="p-<%= problem.id %>"
+              <%= contest.problemIds.includes(problem.id) ? 'checked' : '' %>>
             <label for="p-<%= problem.id %>"><%= problem.title %> (<%= problem.difficulty %>)</label>
           </div>
         <% }) %>
       </div>
 
-      <button type="submit" class="btn-submit">Create Contest</button>
+      <button type="submit" class="btn-submit">Save Changes</button>
     </form>
   </div>
 
@@ -103,7 +111,6 @@
 
       const startVal = document.getElementById('startTime').value;
       const endVal = document.getElementById('endTime').value;
-
       if (!startVal || !endVal) return;
 
       const startDate = new Date(startVal);

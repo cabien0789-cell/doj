@@ -17,7 +17,9 @@
     </div>
     <div class="nav-right">
       <% if (user) { %>
-        <a href="/problems/create" class="btn-register">+ Create</a>
+        <a href="/notifications" class="notif-btn" id="notifBtn">
+          🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+        </a>
         <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
         <a href="/logout" class="btn-logout">Logout</a>
       <% } else { %>
@@ -30,34 +32,50 @@
   <div class="problems-container">
     <div class="org-header">
       <h2><%= contest.name %></h2>
-      <% const now = new Date(); %>
-      <% if (now < new Date(contest.startTime)) { %>
-        <span class="status-upcoming">Upcoming</span>
-      <% } else if (now > new Date(contest.endTime)) { %>
-        <span class="status-ended">Ended</span>
-      <% } else { %>
+      <% if (contest.noTimeLimit) { %>
         <span class="status-live">● Live</span>
+      <% } else { %>
+        <% const now = new Date(); %>
+        <% if (now < new Date(contest.startTimeUTC)) { %>
+          <span class="status-upcoming">Upcoming</span>
+        <% } else if (now > new Date(contest.endTimeUTC)) { %>
+          <span class="status-ended">Ended</span>
+        <% } else { %>
+          <span class="status-live">● Live</span>
+        <% } %>
+      <% } %>
+      <% if (user && isOwner) { %>
+        <a href="/contests/<%= contest.id %>/edit" style="color:#f5a623; font-size:13px; text-decoration:none; margin-left:8px;">✏ Edit Contest</a>
       <% } %>
     </div>
 
-    <div class="org-info">
-      <span>Start: <strong><%= new Date(contest.startTime).toLocaleString() %></strong></span>
-      <span>End: <strong><%= new Date(contest.endTime).toLocaleString() %></strong></span>
-    </div>
+    <% if (!contest.noTimeLimit) { %>
+      <div class="org-info">
+        <span>Start: <strong><%= new Date(contest.startTimeUTC).toLocaleString() %></strong></span>
+        <span>End: <strong><%= new Date(contest.endTimeUTC).toLocaleString() %></strong></span>
+        <span>Time: <strong><%= contest.timezone === 'Vietnam' ? 'Vietnam (UTC+7)' : 'UTC' %></strong></span>
+      </div>
+    <% } else { %>
+      <div class="org-info">
+        <span style="color:#00e5a0; font-weight:600;">No time limit — always open</span>
+      </div>
+    <% } %>
 
     <!-- Timer -->
-    <% const nowMs = new Date().getTime(); %>
-    <% const startMs = new Date(contest.startTime).getTime(); %>
-    <% const endMs = new Date(contest.endTime).getTime(); %>
-    <% if (nowMs < endMs) { %>
-      <div class="contest-timer-box">
-        <% if (nowMs < startMs) { %>
-          <span style="color:#a0a0b0; font-size:13px;">Contest starts in</span>
-        <% } else { %>
-          <span style="color:#a0a0b0; font-size:13px;">Time remaining</span>
-        <% } %>
-        <div class="contest-timer" id="contestTimer">--:--:--</div>
-      </div>
+    <% if (!contest.noTimeLimit) { %>
+      <% const nowMs = new Date().getTime(); %>
+      <% const startMs = new Date(contest.startTimeUTC).getTime(); %>
+      <% const endMs = new Date(contest.endTimeUTC).getTime(); %>
+      <% if (nowMs < endMs) { %>
+        <div class="contest-timer-box">
+          <% if (nowMs < startMs) { %>
+            <span style="color:#a0a0b0; font-size:13px;">Contest starts in</span>
+          <% } else { %>
+            <span style="color:#a0a0b0; font-size:13px;">Time remaining</span>
+          <% } %>
+          <div class="contest-timer" id="contestTimer">--:--:--</div>
+        </div>
+      <% } %>
     <% } %>
 
     <!-- Problems -->
@@ -132,8 +150,9 @@
   </div>
 
   <script>
-    const endTime = new Date('<%= contest.endTime %>').getTime();
-    const startTime = new Date('<%= contest.startTime %>').getTime();
+    <% if (!contest.noTimeLimit) { %>
+    const endTime = new Date('<%= contest.endTimeUTC %>').getTime();
+    const startTime = new Date('<%= contest.startTimeUTC %>').getTime();
     const timerEl = document.getElementById('contestTimer');
 
     function updateTimer() {
@@ -159,6 +178,19 @@
 
     updateTimer();
     const timerInterval = setInterval(updateTimer, 1000);
+    <% } %>
+
+    <% if (user) { %>
+    fetch('/notifications/count')
+      .then(r => r.json())
+      .then(data => {
+        if (data.count > 0) {
+          const badge = document.getElementById('notifBadge');
+          badge.textContent = data.count;
+          badge.style.display = 'inline-block';
+        }
+      });
+    <% } %>
   </script>
 </body>
 </html>

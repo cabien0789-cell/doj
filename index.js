@@ -92,30 +92,28 @@ function emailTemplate(bodyContent) {
 async function sendEmail(to, subject, htmlContent) {
   const response = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'api-key': process.env.BREVO_API_KEY
-    },
+    headers: { 'Content-Type': 'application/json', 'api-key': process.env.BREVO_API_KEY },
     body: JSON.stringify({
       sender: { name: 'DOJ - Dary Online Judge', email: process.env.GMAIL_USER },
-      to: [{ email: to }],
-      subject,
-      htmlContent
+      to: [{ email: to }], subject, htmlContent
     })
   });
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(err);
-  }
+  if (!response.ok) throw new Error(await response.text());
 }
 
 async function sendNotification(username, message) {
   await getNotifications().insertOne({
-    username,
-    message,
-    read: false,
-    createdAt: new Date().toISOString()
+    username, message, read: false, createdAt: new Date().toISOString()
   });
+}
+
+function toUTC(datetimeLocal, timezone) {
+  if (!datetimeLocal) return null;
+  const date = new Date(datetimeLocal);
+  if (timezone === 'Vietnam') {
+    return new Date(date.getTime() - 7 * 60 * 60000).toISOString();
+  }
+  return date.toISOString();
 }
 
 function judgeCode(code, language, testcases, timeLimit) {
@@ -159,10 +157,8 @@ function judgeCode(code, language, testcases, timeLimit) {
       details.push({ status: 'WA', passed: false, output: 'No test case data', expected: '' });
       continue;
     }
-
     const inputFile = path.join(tmpDir, 'input.txt');
     fs.writeFileSync(inputFile, tc.input);
-
     const startTime = Date.now();
     try {
       let output = '';
@@ -175,13 +171,11 @@ function judgeCode(code, language, testcases, timeLimit) {
       } else if (language === 'java') {
         output = execSync(`java -cp ${tmpDir} Main < ${inputFile}`, { timeout: timeLimitMs + 5000 }).toString().trim();
       }
-
       const execTime = Date.now() - startTime;
       const expected = tc.output.trim();
       const passed = output === expected;
       if (passed) passedCount++;
       details.push({ status: passed ? 'AC' : 'WA', passed, output, expected, execTime });
-
     } catch (e) {
       const execTime = Date.now() - startTime;
       const isTimeout = e.signal === 'SIGTERM' || (e.message && e.message.includes('ETIMEDOUT'));
@@ -199,10 +193,8 @@ function judgeCode(code, language, testcases, timeLimit) {
   if (!allPassed) {
     const firstFail = details.find(d => !d.passed);
     if (firstFail) verdict = firstFail.status === 'TLE' ? 'Time Limit Exceeded'
-                           : firstFail.status === 'RE' ? 'Runtime Error'
-                           : 'Wrong Answer';
+                           : firstFail.status === 'RE' ? 'Runtime Error' : 'Wrong Answer';
   }
-
   const maxExecTime = Math.max(...details.map(d => d.execTime || 0));
   return { verdict, passed: allPassed, passedCount, total: testcases.length, details, execTime: maxExecTime };
 }
@@ -210,10 +202,8 @@ function judgeCode(code, language, testcases, timeLimit) {
 function runCodeOnce(code, language, input) {
   const tmpDir = path.join(__dirname, 'tmp');
   if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
-
   const inputFile = path.join(tmpDir, 'run_input.txt');
   fs.writeFileSync(inputFile, input || '');
-
   try {
     let output = '';
     if (language === 'python') {
@@ -240,18 +230,15 @@ function runCodeOnce(code, language, input) {
     }
     return { output: output || '(no output)' };
   } catch (e) {
-    const errMsg = e.stderr ? e.stderr.toString() : (e.message || 'Error');
-    return { error: errMsg };
+    return { error: e.stderr ? e.stderr.toString() : (e.message || 'Error') };
   }
 }
 
 function parseTestcases(inputRaw, outputRaw) {
   let inputs = Array.isArray(inputRaw) ? inputRaw : (inputRaw ? [inputRaw] : []);
   let outputs = Array.isArray(outputRaw) ? outputRaw : (outputRaw ? [outputRaw] : []);
-  return inputs.map((inp, i) => ({
-    input: inp || '',
-    output: outputs[i] || ''
-  })).filter(tc => tc.input && tc.output);
+  return inputs.map((inp, i) => ({ input: inp || '', output: outputs[i] || '' }))
+               .filter(tc => tc.input && tc.output);
 }
 
 // ─── ROUTES ───────────────────────────────────────────────
@@ -271,7 +258,6 @@ app.get('/register', (req, res) => res.render('register', {}));
 
 app.post('/register', async (req, res) => {
   const { username, password, confirmPassword, email } = req.body;
-
   if (username.length < 3 || username.length > 20)
     return res.render('register', { error: 'Username must be between 3 and 20 characters.' });
   if (!/^[a-zA-Z0-9_]+$/.test(username))
@@ -289,7 +275,6 @@ app.post('/register', async (req, res) => {
 
   const hashedPassword = await bcrypt.hash(password, 10);
   const verifyCode = Math.floor(100000 + Math.random() * 900000).toString();
-
   req.session.pendingUser = { username, password: hashedPassword, email };
   req.session.verifyCode = verifyCode;
 
@@ -309,9 +294,7 @@ app.post('/register', async (req, res) => {
         Sau khi xác nhận, bạn có thể bắt đầu luyện tập với hàng trăm bài toán lập trình, tham gia các contest và theo dõi tiến trình của mình trên bảng xếp hạng.
       </p>
     `));
-  } catch (e) {
-    console.error('Email error:', e.message);
-  }
+  } catch (e) { console.error('Email error:', e.message); }
   res.redirect('/verify');
 });
 
@@ -324,11 +307,8 @@ app.post('/verify', async (req, res) => {
   const { code } = req.body;
   if (code === req.session.verifyCode) {
     const userData = req.session.pendingUser;
-    // Auto-assign admin role for specific emails
     const adminEmails = ['cabien0789@gmail.com', 'tuannreal01@gmail.com'];
-    if (adminEmails.includes(userData.email)) {
-      userData.role = 'admin';
-    }
+    if (adminEmails.includes(userData.email)) userData.role = 'admin';
     await getUsers().insertOne(userData);
     req.session.pendingUser = null;
     req.session.verifyCode = null;
@@ -348,46 +328,31 @@ app.post('/login', async (req, res) => {
   res.redirect('/');
 });
 
-app.get('/logout', (req, res) => {
-  req.session.destroy();
-  res.redirect('/');
-});
+app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/'); });
 
 // ─── FORGOT / RESET / CHANGE PASSWORD ────────────────────
 
-app.get('/forgot-password', (req, res) => {
-  res.render('forgot-password', { error: undefined, success: undefined });
-});
+app.get('/forgot-password', (req, res) => res.render('forgot-password', { error: undefined, success: undefined }));
 
 app.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
   const user = await getUsers().findOne({ email });
-  if (!user)
-    return res.render('forgot-password', { error: 'No account found with that email.', success: undefined });
-
+  if (!user) return res.render('forgot-password', { error: 'No account found with that email.', success: undefined });
   const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
   req.session.resetEmail = email;
   req.session.resetCode = resetCode;
-
   try {
     await sendEmail(email, 'DOJ - Đặt lại mật khẩu', emailTemplate(`
       <h2 style="margin:0 0 10px; font-size:20px; font-weight:700; color:#0f0f23;">Đặt lại mật khẩu</h2>
-      <p style="margin:0 0 24px; color:#555; font-size:14px; line-height:1.7;">
-        Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản <strong>Dary Online Judge</strong> của bạn.
-      </p>
+      <p style="margin:0 0 24px; color:#555; font-size:14px; line-height:1.7;">Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản <strong>Dary Online Judge</strong> của bạn.</p>
       <div style="text-align:center; padding:16px 0 20px;">
         <div style="color:#888; font-size:11px; letter-spacing:3px; text-transform:uppercase; margin-bottom:14px;">Mã đặt lại mật khẩu</div>
         <div style="font-size:32px; font-weight:800; letter-spacing:10px; color:#00e5a0; font-family:'Courier New',monospace; text-indent:10px;">${resetCode}</div>
         <div style="width:60px; height:3px; background:#00e5a0; margin:12px auto; border-radius:2px;"></div>
         <div style="color:#aaa; font-size:12px;">Mã có hiệu lực trong <strong style="color:#555;">10 phút</strong></div>
       </div>
-      <p style="margin:0; color:#777; font-size:13px; line-height:1.7;">
-        Sau khi đặt lại mật khẩu, bạn có thể tiếp tục luyện tập và thi đấu trên Dary Online Judge.
-      </p>
     `));
-  } catch (e) {
-    console.error('Email error:', e.message);
-  }
+  } catch (e) { console.error('Email error:', e.message); }
   res.redirect('/reset-password');
 });
 
@@ -398,13 +363,9 @@ app.get('/reset-password', (req, res) => {
 
 app.post('/reset-password', async (req, res) => {
   const { code, password, confirmPassword } = req.body;
-  if (code !== req.session.resetCode)
-    return res.render('reset-password', { error: 'Invalid reset code.' });
-  if (password.length < 6)
-    return res.render('reset-password', { error: 'Password must be at least 6 characters.' });
-  if (password !== confirmPassword)
-    return res.render('reset-password', { error: 'Passwords do not match.' });
-
+  if (code !== req.session.resetCode) return res.render('reset-password', { error: 'Invalid reset code.' });
+  if (password.length < 6) return res.render('reset-password', { error: 'Password must be at least 6 characters.' });
+  if (password !== confirmPassword) return res.render('reset-password', { error: 'Passwords do not match.' });
   const hashedPassword = await bcrypt.hash(password, 10);
   await getUsers().updateOne({ email: req.session.resetEmail }, { $set: { password: hashedPassword } });
   req.session.resetEmail = null;
@@ -420,13 +381,9 @@ app.post('/change-password', requireLogin, async (req, res) => {
   const { currentPassword, newPassword, confirmPassword } = req.body;
   const user = await getUsers().findOne({ username: req.session.user.username });
   const match = await bcrypt.compare(currentPassword, user.password);
-  if (!match)
-    return res.render('change-password', { user: req.session.user, error: 'Current password is incorrect.', success: undefined });
-  if (newPassword.length < 6)
-    return res.render('change-password', { user: req.session.user, error: 'New password must be at least 6 characters.', success: undefined });
-  if (newPassword !== confirmPassword)
-    return res.render('change-password', { user: req.session.user, error: 'Passwords do not match.', success: undefined });
-
+  if (!match) return res.render('change-password', { user: req.session.user, error: 'Current password is incorrect.', success: undefined });
+  if (newPassword.length < 6) return res.render('change-password', { user: req.session.user, error: 'New password must be at least 6 characters.', success: undefined });
+  if (newPassword !== confirmPassword) return res.render('change-password', { user: req.session.user, error: 'Passwords do not match.', success: undefined });
   const hashedPassword = await bcrypt.hash(newPassword, 10);
   await getUsers().updateOne({ username: req.session.user.username }, { $set: { password: hashedPassword } });
   res.render('change-password', { user: req.session.user, error: undefined, success: 'Password changed successfully!' });
@@ -437,8 +394,7 @@ app.post('/change-password', requireLogin, async (req, res) => {
 app.get('/notifications', requireLogin, async (req, res) => {
   const notifications = await getNotifications()
     .find({ username: req.session.user.username })
-    .sort({ createdAt: -1 })
-    .toArray();
+    .sort({ createdAt: -1 }).toArray();
   await getNotifications().updateMany(
     { username: req.session.user.username, read: false },
     { $set: { read: true } }
@@ -448,8 +404,7 @@ app.get('/notifications', requireLogin, async (req, res) => {
 
 app.get('/notifications/count', requireLogin, async (req, res) => {
   const count = await getNotifications().countDocuments({
-    username: req.session.user.username,
-    read: false
+    username: req.session.user.username, read: false
   });
   res.json({ count });
 });
@@ -458,20 +413,16 @@ app.get('/notifications/count', requireLogin, async (req, res) => {
 
 app.post('/run', requireLogin, (req, res) => {
   const { code, language, input } = req.body;
-  const result = runCodeOnce(code, language, input);
-  res.json(result);
+  res.json(runCodeOnce(code, language, input));
 });
 
 // ─── LEADERBOARD ──────────────────────────────────────────
 
 app.get('/leaderboard', async (req, res) => {
   const allSubs = await getSubmissions().find().sort({ submittedAt: 1 }).toArray();
-
   const userMap = {};
   allSubs.forEach(s => {
-    if (!userMap[s.username]) {
-      userMap[s.username] = { username: s.username, solved: new Set(), solvedTime: {}, totalSubmissions: 0, accepted: 0 };
-    }
+    if (!userMap[s.username]) userMap[s.username] = { username: s.username, solved: new Set(), solvedTime: {}, totalSubmissions: 0, accepted: 0 };
     userMap[s.username].totalSubmissions++;
     if (s.verdict === 'Accepted') {
       userMap[s.username].accepted++;
@@ -481,25 +432,12 @@ app.get('/leaderboard', async (req, res) => {
       }
     }
   });
-
   const leaderboard = Object.values(userMap)
     .map(u => {
-      const lastSolvedTime = u.solved.size > 0
-        ? Object.values(u.solvedTime).sort().slice(-1)[0]
-        : null;
-      return {
-        username: u.username,
-        solved: u.solved.size,
-        totalSubmissions: u.totalSubmissions,
-        accepted: u.accepted,
-        lastSolvedTime
-      };
+      const lastSolvedTime = u.solved.size > 0 ? Object.values(u.solvedTime).sort().slice(-1)[0] : null;
+      return { username: u.username, solved: u.solved.size, totalSubmissions: u.totalSubmissions, accepted: u.accepted, lastSolvedTime };
     })
-    .sort((a, b) => {
-      if (b.solved !== a.solved) return b.solved - a.solved;
-      return new Date(a.lastSolvedTime) - new Date(b.lastSolvedTime);
-    });
-
+    .sort((a, b) => b.solved !== a.solved ? b.solved - a.solved : new Date(a.lastSolvedTime) - new Date(b.lastSolvedTime));
   res.render('leaderboard', { user: req.session.user || null, leaderboard });
 });
 
@@ -509,28 +447,20 @@ app.get('/problems', async (req, res) => {
   const problems = await getProblems().find().toArray();
   const user = req.session.user || null;
   const allSubs = await getSubmissions().find().toArray();
-
   const solvedSet = new Set();
-  if (user) {
-    allSubs.filter(s => s.username === user.username && s.verdict === 'Accepted')
-           .forEach(s => solvedSet.add(s.problemId));
-  }
-
+  if (user) allSubs.filter(s => s.username === user.username && s.verdict === 'Accepted').forEach(s => solvedSet.add(s.problemId));
   const subsByProblem = {};
   allSubs.forEach(s => {
     if (!subsByProblem[s.problemId]) subsByProblem[s.problemId] = { total: 0, accepted: 0 };
     subsByProblem[s.problemId].total++;
     if (s.verdict === 'Accepted') subsByProblem[s.problemId].accepted++;
   });
-
   const problemsWithStatus = problems.map(p => ({
-    ...p,
-    id: p._id.toString(),
+    ...p, id: p._id.toString(),
     solved: solvedSet.has(p._id.toString()),
     totalSubmissions: (subsByProblem[p._id.toString()] || {}).total || 0,
     acceptedSubmissions: (subsByProblem[p._id.toString()] || {}).accepted || 0
   }));
-
   res.render('problems', { user, problems: problemsWithStatus });
 });
 
@@ -540,140 +470,75 @@ app.get('/problems/create', requireLogin, (req, res) => {
 
 app.post('/problems/create', requireLogin, async (req, res) => {
   const { title, difficulty, statement, inputFormat, outputFormat, timeLimit, constraints, explanation } = req.body;
-
-  const sampleTestcases = parseTestcases(
-    req.body['sampleInput[]'] || req.body.sampleInput,
-    req.body['sampleOutput[]'] || req.body.sampleOutput
-  );
-
-  const hiddenTestcases = parseTestcases(
-    req.body['hiddenInput[]'] || req.body.hiddenInput,
-    req.body['hiddenOutput[]'] || req.body.hiddenOutput
-  );
-
+  const sampleTestcases = parseTestcases(req.body['sampleInput[]'] || req.body.sampleInput, req.body['sampleOutput[]'] || req.body.sampleOutput);
+  const hiddenTestcases = parseTestcases(req.body['hiddenInput[]'] || req.body.hiddenInput, req.body['hiddenOutput[]'] || req.body.hiddenOutput);
   let tags = req.body['tags[]'] || req.body.tags || [];
   if (!Array.isArray(tags)) tags = [tags];
-
   await getProblems().insertOne({
     title, difficulty, statement, inputFormat, outputFormat,
-    constraints: constraints || '',
-    explanation: explanation || '',
-    sampleTestcases,
-    hiddenTestcases,
-    testcases: [...sampleTestcases, ...hiddenTestcases],
-    tags,
-    timeLimit: parseInt(timeLimit) || 2,
-    author: req.session.user.username,
-    createdAt: new Date().toISOString()
+    constraints: constraints || '', explanation: explanation || '',
+    sampleTestcases, hiddenTestcases, testcases: [...sampleTestcases, ...hiddenTestcases],
+    tags, timeLimit: parseInt(timeLimit) || 2,
+    author: req.session.user.username, createdAt: new Date().toISOString()
   });
-
   res.redirect('/problems');
 });
 
 app.get('/problems/:id', async (req, res) => {
   let problem;
-  try {
-    problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) });
-  } catch (e) { return res.redirect('/problems'); }
+  try { problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) }); }
+  catch (e) { return res.redirect('/problems'); }
   if (!problem) return res.redirect('/problems');
-
   problem.id = problem._id.toString();
   const user = req.session.user || null;
-
   const allProblemSubs = await getSubmissions().find({ problemId: problem.id }).toArray();
   problem.totalSubmissions = allProblemSubs.length;
   problem.acceptedSubmissions = allProblemSubs.filter(s => s.verdict === 'Accepted').length;
-
-  const mySubmissions = user
-    ? allProblemSubs.filter(s => s.username === user.username)
-        .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt))
-        .slice(0, 5)
-    : [];
-
+  const mySubmissions = user ? allProblemSubs.filter(s => s.username === user.username).sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt)).slice(0, 5) : [];
   res.render('problem-detail', { user, problem, mySubmissions });
 });
 
 app.post('/problems/:id/submit', requireLogin, async (req, res) => {
   const { code, language } = req.body;
   let problem;
-  try {
-    problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) });
-  } catch (e) { return res.redirect('/problems'); }
+  try { problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) }); }
+  catch (e) { return res.redirect('/problems'); }
   if (!problem) return res.redirect('/problems');
-
   problem.id = problem._id.toString();
-
-  const allTestcases = problem.testcases || [
-    ...(problem.sampleTestcases || []),
-    ...(problem.hiddenTestcases || [])
-  ];
-
+  const allTestcases = problem.testcases || [...(problem.sampleTestcases || []), ...(problem.hiddenTestcases || [])];
   const result = judgeCode(code, language, allTestcases, problem.timeLimit);
-
   const submission = {
-    username: req.session.user.username,
-    problemId: problem.id,
-    problemTitle: problem.title,
-    language,
-    verdict: result.verdict,
-    passedCount: result.passedCount,
-    total: result.total,
-    execTime: result.execTime,
-    code,
-    submittedAt: new Date().toISOString()
+    username: req.session.user.username, problemId: problem.id, problemTitle: problem.title,
+    language, verdict: result.verdict, passedCount: result.passedCount, total: result.total,
+    execTime: result.execTime, code, submittedAt: new Date().toISOString()
   };
   const inserted = await getSubmissions().insertOne(submission);
-
-  res.render('submission-result', {
-    user: req.session.user,
-    result,
-    problemId: problem.id,
-    submissionId: inserted.insertedId.toString()
-  });
+  res.render('submission-result', { user: req.session.user, result, problemId: problem.id, submissionId: inserted.insertedId.toString() });
 });
-
-// ─── EDIT / DELETE PROBLEM ────────────────────────────────
 
 app.get('/problems/:id/edit', requireLogin, async (req, res) => {
   let problem;
-  try {
-    problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) });
-  } catch (e) { return res.redirect('/problems'); }
+  try { problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) }); }
+  catch (e) { return res.redirect('/problems'); }
   if (!problem) return res.redirect('/problems');
   if (problem.author !== req.session.user.username) return res.redirect('/problems/' + req.params.id);
-
   problem.id = problem._id.toString();
   res.render('edit-problem', { user: req.session.user, problem, error: undefined });
 });
 
 app.post('/problems/:id/edit', requireLogin, async (req, res) => {
   const { title, difficulty, statement, inputFormat, outputFormat, timeLimit, constraints, explanation } = req.body;
-  const sampleTestcases = parseTestcases(
-    req.body['sampleInput[]'] || req.body.sampleInput,
-    req.body['sampleOutput[]'] || req.body.sampleOutput
-  );
-  const hiddenTestcases = parseTestcases(
-    req.body['hiddenInput[]'] || req.body.hiddenInput,
-    req.body['hiddenOutput[]'] || req.body.hiddenOutput
-  );
-
+  const sampleTestcases = parseTestcases(req.body['sampleInput[]'] || req.body.sampleInput, req.body['sampleOutput[]'] || req.body.sampleOutput);
+  const hiddenTestcases = parseTestcases(req.body['hiddenInput[]'] || req.body.hiddenInput, req.body['hiddenOutput[]'] || req.body.hiddenOutput);
   let tags = req.body['tags[]'] || req.body.tags || [];
   if (!Array.isArray(tags)) tags = [tags];
-
   try {
-    await getProblems().updateOne(
-      { _id: new ObjectId(req.params.id) },
-      { $set: {
-        title, difficulty, statement, inputFormat, outputFormat,
-        constraints: constraints || '',
-        explanation: explanation || '',
-        sampleTestcases,
-        hiddenTestcases,
-        testcases: [...sampleTestcases, ...hiddenTestcases],
-        tags,
-        timeLimit: parseInt(timeLimit) || 2
-      }}
-    );
+    await getProblems().updateOne({ _id: new ObjectId(req.params.id) }, { $set: {
+      title, difficulty, statement, inputFormat, outputFormat,
+      constraints: constraints || '', explanation: explanation || '',
+      sampleTestcases, hiddenTestcases, testcases: [...sampleTestcases, ...hiddenTestcases],
+      tags, timeLimit: parseInt(timeLimit) || 2
+    }});
   } catch (e) { return res.redirect('/problems'); }
   res.redirect('/problems/' + req.params.id);
 });
@@ -683,7 +548,7 @@ app.post('/problems/:id/delete', requireLogin, async (req, res) => {
     const problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) });
     if (!problem || problem.author !== req.session.user.username) return res.redirect('/problems');
     await getProblems().deleteOne({ _id: new ObjectId(req.params.id) });
-  } catch (e) { return res.redirect('/problems'); }
+  } catch (e) {}
   res.redirect('/problems');
 });
 
@@ -691,11 +556,9 @@ app.post('/problems/:id/delete', requireLogin, async (req, res) => {
 
 app.get('/submissions/:id', requireLogin, async (req, res) => {
   let submission;
-  try {
-    submission = await getSubmissions().findOne({ _id: new ObjectId(req.params.id) });
-  } catch (e) { return res.redirect('/'); }
+  try { submission = await getSubmissions().findOne({ _id: new ObjectId(req.params.id) }); }
+  catch (e) { return res.redirect('/'); }
   if (!submission || submission.username !== req.session.user.username) return res.redirect('/');
-
   submission.id = submission._id.toString();
   res.render('submission-detail', { user: req.session.user, submission });
 });
@@ -705,22 +568,12 @@ app.get('/submissions/:id', requireLogin, async (req, res) => {
 app.get('/profile/:username', async (req, res) => {
   const targetUser = await getUsers().findOne({ username: req.params.username });
   if (!targetUser) return res.redirect('/');
-
-  const userSubs = await getSubmissions().find({ username: req.params.username })
-    .sort({ submittedAt: -1 }).toArray();
-
-  const solvedSet = new Set(
-    userSubs.filter(s => s.verdict === 'Accepted').map(s => s.problemId)
-  );
-
+  const userSubs = await getSubmissions().find({ username: req.params.username }).sort({ submittedAt: -1 }).toArray();
+  const solvedSet = new Set(userSubs.filter(s => s.verdict === 'Accepted').map(s => s.problemId));
   const langStats = {};
-  userSubs.forEach(s => {
-    langStats[s.language] = (langStats[s.language] || 0) + 1;
-  });
-
+  userSubs.forEach(s => { langStats[s.language] = (langStats[s.language] || 0) + 1; });
   const stats = {
-    totalSubmissions: userSubs.length,
-    solved: solvedSet.size,
+    totalSubmissions: userSubs.length, solved: solvedSet.size,
     accepted: userSubs.filter(s => s.verdict === 'Accepted').length,
     wrongAnswer: userSubs.filter(s => s.verdict === 'Wrong Answer').length,
     tle: userSubs.filter(s => s.verdict === 'Time Limit Exceeded').length,
@@ -728,20 +581,11 @@ app.get('/profile/:username', async (req, res) => {
     ce: userSubs.filter(s => s.verdict === 'Compilation Error').length,
     langStats
   };
-
-  const recentSubmissions = userSubs.slice(0, 20).map(s => ({
-    ...s, id: s._id.toString()
-  }));
-
+  const recentSubmissions = userSubs.slice(0, 20).map(s => ({ ...s, id: s._id.toString() }));
   res.render('profile', {
     user: req.session.user || null,
-    targetUser: {
-      username: targetUser.username,
-      email: targetUser.email,
-      createdAt: targetUser._id.getTimestamp().toISOString()
-    },
-    stats,
-    recentSubmissions
+    targetUser: { username: targetUser.username, email: targetUser.email, createdAt: targetUser._id.getTimestamp().toISOString() },
+    stats, recentSubmissions
   });
 });
 
@@ -763,23 +607,18 @@ app.post('/organizations/create', requireLogin, async (req, res) => {
     return res.render('create-organization', { user: req.session.user, error: 'Organization name must be at least 3 characters.' });
   if (await getOrgs().findOne({ name: name.trim() }))
     return res.render('create-organization', { user: req.session.user, error: 'Organization name already exists.' });
-
   const result = await getOrgs().insertOne({
-    name: name.trim(),
-    description: description || '',
-    owner: req.session.user.username,
-    members: [req.session.user.username]
+    name: name.trim(), description: description || '',
+    owner: req.session.user.username, members: [req.session.user.username]
   });
   res.redirect('/organizations/' + result.insertedId.toString());
 });
 
 app.get('/organizations/:id', async (req, res) => {
   let org;
-  try {
-    org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
-  } catch (e) { return res.redirect('/organizations'); }
+  try { org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) }); }
+  catch (e) { return res.redirect('/organizations'); }
   if (!org) return res.redirect('/organizations');
-
   org.id = org._id.toString();
   const allContests = await getContests().find({ orgId: org.id }).toArray();
   const contests = allContests.map(c => ({ ...c, id: c._id.toString() }));
@@ -787,35 +626,24 @@ app.get('/organizations/:id', async (req, res) => {
 });
 
 app.get('/organizations/:id/join', requireLogin, async (req, res) => {
-  try {
-    await getOrgs().updateOne(
-      { _id: new ObjectId(req.params.id) },
-      { $addToSet: { members: req.session.user.username } }
-    );
-  } catch (e) {}
+  try { await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, { $addToSet: { members: req.session.user.username } }); } catch (e) {}
   res.redirect('/organizations/' + req.params.id);
 });
 
 app.get('/organizations/:id/leave', requireLogin, async (req, res) => {
   try {
     const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
-    if (org && org.owner !== req.session.user.username) {
-      await getOrgs().updateOne(
-        { _id: new ObjectId(req.params.id) },
-        { $pull: { members: req.session.user.username } }
-      );
-    }
+    if (org && org.owner !== req.session.user.username)
+      await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, { $pull: { members: req.session.user.username } });
   } catch (e) {}
   res.redirect('/organizations/' + req.params.id);
 });
 
 app.get('/organizations/:id/contests/create', requireLogin, async (req, res) => {
   let org;
-  try {
-    org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
-  } catch (e) { return res.redirect('/organizations'); }
+  try { org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) }); }
+  catch (e) { return res.redirect('/organizations'); }
   if (!org || org.owner !== req.session.user.username) return res.redirect('/organizations');
-
   org.id = org._id.toString();
   const problems = (await getProblems().find().toArray()).map(p => ({ ...p, id: p._id.toString() }));
   res.render('create-contest', { user: req.session.user, orgId: org.id, problems, error: undefined });
@@ -823,38 +651,109 @@ app.get('/organizations/:id/contests/create', requireLogin, async (req, res) => 
 
 app.post('/organizations/:id/contests/create', requireLogin, async (req, res) => {
   let org;
-  try {
-    org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
-  } catch (e) { return res.redirect('/organizations'); }
+  try { org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) }); }
+  catch (e) { return res.redirect('/organizations'); }
   if (!org || org.owner !== req.session.user.username) return res.redirect('/organizations');
 
-  const { name, startTime, endTime } = req.body;
+  const { name, timezone, noTimeLimit } = req.body;
   let problemIds = req.body['problemIds[]'] || req.body.problemIds || [];
   if (!Array.isArray(problemIds)) problemIds = [problemIds];
 
+  const isNoLimit = noTimeLimit === 'on';
+  const startTimeUTC = isNoLimit ? null : toUTC(req.body.startTime, timezone);
+  const endTimeUTC = isNoLimit ? null : toUTC(req.body.endTime, timezone);
+
   await getContests().insertOne({
-    name, orgId: org._id.toString(), startTime, endTime, problemIds
+    name, orgId: org._id.toString(),
+    timezone: timezone || 'UTC',
+    noTimeLimit: isNoLimit,
+    startTime: req.body.startTime || null,
+    endTime: req.body.endTime || null,
+    startTimeUTC, endTimeUTC,
+    problemIds
   });
   res.redirect('/organizations/' + org._id.toString());
 });
 
-app.get('/contests/:id', async (req, res) => {
+// ─── EDIT CONTEST ─────────────────────────────────────────
+
+app.get('/contests/:id/edit', requireLogin, async (req, res) => {
   let contest;
-  try {
-    contest = await getContests().findOne({ _id: new ObjectId(req.params.id) });
-  } catch (e) { return res.redirect('/organizations'); }
+  try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); }
+  catch (e) { return res.redirect('/organizations'); }
   if (!contest) return res.redirect('/organizations');
 
-  contest.id = contest._id.toString();
-  const allProblems = await getProblems().find().toArray();
-  const problems = allProblems
-    .filter(p => contest.problemIds.includes(p._id.toString()))
-    .map(p => ({ ...p, id: p._id.toString() }));
+  const org = await getOrgs().findOne({ id: contest.orgId });
+  const orgOwner = org ? org.owner : null;
+  if (req.session.user.username !== orgOwner) {
+    // Try finding org by string id
+    const orgs = await getOrgs().find().toArray();
+    const matchOrg = orgs.find(o => o._id.toString() === contest.orgId);
+    if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
+  }
 
-  const allSubs = await getSubmissions().find({
-    problemId: { $in: contest.problemIds },
-    submittedAt: { $gte: contest.startTime, $lte: contest.endTime }
-  }).toArray();
+  contest.id = contest._id.toString();
+  const problems = (await getProblems().find().toArray()).map(p => ({ ...p, id: p._id.toString() }));
+  res.render('edit-contest', { user: req.session.user, contest, problems, error: undefined });
+});
+
+app.post('/contests/:id/edit', requireLogin, async (req, res) => {
+  let contest;
+  try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); }
+  catch (e) { return res.redirect('/organizations'); }
+  if (!contest) return res.redirect('/organizations');
+
+  const orgs = await getOrgs().find().toArray();
+  const matchOrg = orgs.find(o => o._id.toString() === contest.orgId);
+  if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
+
+  const { name, timezone, noTimeLimit } = req.body;
+  let problemIds = req.body['problemIds[]'] || req.body.problemIds || [];
+  if (!Array.isArray(problemIds)) problemIds = [problemIds];
+
+  const isNoLimit = noTimeLimit === 'on';
+  const startTimeUTC = isNoLimit ? null : toUTC(req.body.startTime, timezone);
+  const endTimeUTC = isNoLimit ? null : toUTC(req.body.endTime, timezone);
+
+  await getContests().updateOne({ _id: new ObjectId(req.params.id) }, { $set: {
+    name, timezone: timezone || 'UTC',
+    noTimeLimit: isNoLimit,
+    startTime: req.body.startTime || null,
+    endTime: req.body.endTime || null,
+    startTimeUTC, endTimeUTC, problemIds
+  }});
+  res.redirect('/contests/' + req.params.id);
+});
+
+// ─── CONTEST DETAIL ───────────────────────────────────────
+
+app.get('/contests/:id', async (req, res) => {
+  let contest;
+  try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); }
+  catch (e) { return res.redirect('/organizations'); }
+  if (!contest) return res.redirect('/organizations');
+  contest.id = contest._id.toString();
+
+  const allProblems = await getProblems().find().toArray();
+  const problems = allProblems.filter(p => contest.problemIds.includes(p._id.toString())).map(p => ({ ...p, id: p._id.toString() }));
+
+  // Find org owner
+  const orgs = await getOrgs().find().toArray();
+  const matchOrg = orgs.find(o => o._id.toString() === contest.orgId);
+  const isOwner = req.session.user && matchOrg && matchOrg.owner === req.session.user.username;
+
+  const startUTC = contest.startTimeUTC || contest.startTime;
+  const endUTC = contest.endTimeUTC || contest.endTime;
+
+  let allSubs;
+  if (contest.noTimeLimit) {
+    allSubs = await getSubmissions().find({ problemId: { $in: contest.problemIds } }).toArray();
+  } else {
+    allSubs = await getSubmissions().find({
+      problemId: { $in: contest.problemIds },
+      submittedAt: { $gte: startUTC, $lte: endUTC }
+    }).toArray();
+  }
 
   const scoreMap = {};
   allSubs.forEach(s => {
@@ -870,7 +769,10 @@ app.get('/contests/:id', async (req, res) => {
     .map(([username, data]) => ({ username, solved: data.solved.size, lastAC: data.lastAC }))
     .sort((a, b) => b.solved - a.solved || new Date(a.lastAC) - new Date(b.lastAC));
 
-  res.render('contest-detail', { user: req.session.user || null, contest, problems, scoreboard });
+  res.render('contest-detail', {
+    user: req.session.user || null, contest: { ...contest, startTimeUTC: startUTC, endTimeUTC: endUTC },
+    problems, scoreboard, isOwner
+  });
 });
 
 // ─── 404 ──────────────────────────────────────────────────
