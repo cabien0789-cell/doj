@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notifications - DOJ</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">DOJ</a>
+      <a href="/problems" class="nav-link">Problems</a>
+      <a href="/organizations" class="nav-link">Organizations</a>
+      <a href="/leaderboard" class="nav-link">Leaderboard</a>
+    </div>
+    <div class="nav-right">
+      <% if (user) { %>
+        <a href="/problems/create" class="btn-register">+ Create</a>
+        <a href="/notifications" class="nav-link active">🔔 Notifications</a>
+        <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
+        <a href="/logout" class="btn-logout">Logout</a>
+      <% } %>
+    </div>
+  </nav>
+
+  <div class="problems-container">
+    <div class="problems-header">
+      <h2>🔔 Notifications</h2>
+    </div>
+
+    <% if (notifications.length === 0) { %>
+      <div style="text-align:center; color:#a0a0b0; padding:60px 0;">
+        <div style="font-size:48px; margin-bottom:16px;">🔔</div>
+        <p>No notifications yet.</p>
+      </div>
+    <% } else { %>
+      <div style="background:#0f0f23; border:1px solid #2a2a4a; border-radius:8px; overflow:hidden;">
+        <% notifications.forEach((n, i) => { %>
+          <div style="padding:16px 20px; border-bottom:<%= i < notifications.length-1 ? '1px solid #2a2a4a' : 'none' %>; display:flex; justify-content:space-between; align-items:flex-start; gap:16px;">
+            <div>
+              <p style="margin:0 0 6px; color:#ffffff; font-size:14px; line-height:1.6;"><%= n.message %></p>
+              <p style="margin:0; color:#a0a0b0; font-size:12px;"><%= new Date(n.createdAt).toLocaleString() %></p>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+</body>
+</html>

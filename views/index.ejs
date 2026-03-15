@@ -13,10 +13,14 @@
       <a href="/" class="logo">DOJ</a>
       <a href="/problems" class="nav-link">Problems</a>
       <a href="/organizations" class="nav-link">Organizations</a>
+      <a href="/leaderboard" class="nav-link">Leaderboard</a>
     </div>
     <div class="nav-right">
       <% if (user) { %>
         <a href="/problems/create" class="btn-register">+ Create</a>
+        <a href="/notifications" class="notif-btn" id="notifBtn">
+          🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+        </a>
         <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
         <a href="/logout" class="btn-logout">Logout</a>
       <% } else { %>
@@ -65,5 +69,19 @@
       <p>Join organizations and participate in contests.</p>
     </div>
   </div>
+
+  <% if (user) { %>
+  <script>
+    fetch('/notifications/count')
+      .then(r => r.json())
+      .then(data => {
+        if (data.count > 0) {
+          const badge = document.getElementById('notifBadge');
+          badge.textContent = data.count;
+          badge.style.display = 'inline-block';
+        }
+      });
+  </script>
+  <% } %>
 </body>
 </html>

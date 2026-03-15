@@ -35,9 +35,17 @@ function getProblems() { return db.collection('problems'); }
 function getOrgs() { return db.collection('organizations'); }
 function getContests() { return db.collection('contests'); }
 function getSubmissions() { return db.collection('submissions'); }
+function getNotifications() { return db.collection('notifications'); }
 
 function requireLogin(req, res, next) {
   if (!req.session.user) return res.redirect('/login');
+  next();
+}
+
+async function requireAdmin(req, res, next) {
+  if (!req.session.user) return res.redirect('/login');
+  const user = await getUsers().findOne({ username: req.session.user.username });
+  if (!user || user.role !== 'admin') return res.redirect('/');
   next();
 }
 
@@ -99,6 +107,15 @@ async function sendEmail(to, subject, htmlContent) {
     const err = await response.text();
     throw new Error(err);
   }
+}
+
+async function sendNotification(username, message) {
+  await getNotifications().insertOne({
+    username,
+    message,
+    read: false,
+    createdAt: new Date().toISOString()
+  });
 }
 
 function judgeCode(code, language, testcases, timeLimit) {
@@ -306,7 +323,13 @@ app.get('/verify', (req, res) => {
 app.post('/verify', async (req, res) => {
   const { code } = req.body;
   if (code === req.session.verifyCode) {
-    await getUsers().insertOne(req.session.pendingUser);
+    const userData = req.session.pendingUser;
+    // Auto-assign admin role for specific emails
+    const adminEmails = ['cabien0789@gmail.com', 'tuannreal01@gmail.com'];
+    if (adminEmails.includes(userData.email)) {
+      userData.role = 'admin';
+    }
+    await getUsers().insertOne(userData);
     req.session.pendingUser = null;
     req.session.verifyCode = null;
     res.render('register-success');
@@ -321,7 +344,7 @@ app.post('/login', async (req, res) => {
   if (!user) return res.render('login', { error: 'Username does not exist.' });
   const match = await bcrypt.compare(password, user.password);
   if (!match) return res.render('login', { error: 'Incorrect password.' });
-  req.session.user = { username: user.username, email: user.email };
+  req.session.user = { username: user.username, email: user.email, role: user.role || 'user' };
   res.redirect('/');
 });
 
@@ -409,6 +432,28 @@ app.post('/change-password', requireLogin, async (req, res) => {
   res.render('change-password', { user: req.session.user, error: undefined, success: 'Password changed successfully!' });
 });
 
+// ─── NOTIFICATIONS ────────────────────────────────────────
+
+app.get('/notifications', requireLogin, async (req, res) => {
+  const notifications = await getNotifications()
+    .find({ username: req.session.user.username })
+    .sort({ createdAt: -1 })
+    .toArray();
+  await getNotifications().updateMany(
+    { username: req.session.user.username, read: false },
+    { $set: { read: true } }
+  );
+  res.render('notifications', { user: req.session.user, notifications });
+});
+
+app.get('/notifications/count', requireLogin, async (req, res) => {
+  const count = await getNotifications().countDocuments({
+    username: req.session.user.username,
+    read: false
+  });
+  res.json({ count });
+});
+
 // ─── RUN CODE ─────────────────────────────────────────────
 
 app.post('/run', requireLogin, (req, res) => {
@@ -420,23 +465,40 @@ app.post('/run', requireLogin, (req, res) => {
 // ─── LEADERBOARD ──────────────────────────────────────────
 
 app.get('/leaderboard', async (req, res) => {
-  const allSubs = await getSubmissions().find().toArray();
+  const allSubs = await getSubmissions().find().sort({ submittedAt: 1 }).toArray();
 
   const userMap = {};
   allSubs.forEach(s => {
     if (!userMap[s.username]) {
-      userMap[s.username] = { username: s.username, solved: new Set(), totalSubmissions: 0, accepted: 0 };
+      userMap[s.username] = { username: s.username, solved: new Set(), solvedTime: {}, totalSubmissions: 0, accepted: 0 };
     }
     userMap[s.username].totalSubmissions++;
     if (s.verdict === 'Accepted') {
-      userMap[s.username].solved.add(s.problemId);
       userMap[s.username].accepted++;
+      if (!userMap[s.username].solved.has(s.problemId)) {
+        userMap[s.username].solved.add(s.problemId);
+        userMap[s.username].solvedTime[s.problemId] = s.submittedAt;
+      }
     }
   });
 
   const leaderboard = Object.values(userMap)
-    .map(u => ({ ...u, solved: u.solved.size }))
-    .sort((a, b) => b.solved - a.solved || b.accepted - a.accepted);
+    .map(u => {
+      const lastSolvedTime = u.solved.size > 0
+        ? Object.values(u.solvedTime).sort().slice(-1)[0]
+        : null;
+      return {
+        username: u.username,
+        solved: u.solved.size,
+        totalSubmissions: u.totalSubmissions,
+        accepted: u.accepted,
+        lastSolvedTime
+      };
+    })
+    .sort((a, b) => {
+      if (b.solved !== a.solved) return b.solved - a.solved;
+      return new Date(a.lastSolvedTime) - new Date(b.lastSolvedTime);
+    });
 
   res.render('leaderboard', { user: req.session.user || null, leaderboard });
 });
@@ -541,7 +603,6 @@ app.post('/problems/:id/submit', requireLogin, async (req, res) => {
 
   problem.id = problem._id.toString();
 
-  // Judge against all testcases (sample + hidden)
   const allTestcases = problem.testcases || [
     ...(problem.sampleTestcases || []),
     ...(problem.hiddenTestcases || [])
@@ -587,12 +648,10 @@ app.get('/problems/:id/edit', requireLogin, async (req, res) => {
 
 app.post('/problems/:id/edit', requireLogin, async (req, res) => {
   const { title, difficulty, statement, inputFormat, outputFormat, timeLimit, constraints, explanation } = req.body;
-
   const sampleTestcases = parseTestcases(
     req.body['sampleInput[]'] || req.body.sampleInput,
     req.body['sampleOutput[]'] || req.body.sampleOutput
   );
-
   const hiddenTestcases = parseTestcases(
     req.body['hiddenInput[]'] || req.body.hiddenInput,
     req.body['hiddenOutput[]'] || req.body.hiddenOutput
