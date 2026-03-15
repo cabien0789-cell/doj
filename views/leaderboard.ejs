@@ -14,10 +14,15 @@
       <a href="/problems" class="nav-link">Problems</a>
       <a href="/organizations" class="nav-link">Organizations</a>
       <a href="/leaderboard" class="nav-link active">Leaderboard</a>
+      <% if (user && user.role === 'admin') { %>
+        <a href="/admin" class="nav-link">Admin</a>
+      <% } %>
     </div>
     <div class="nav-right">
       <% if (user) { %>
-        <a href="/problems/create" class="btn-register">+ Create</a>
+        <a href="/notifications" class="notif-btn">
+          🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+        </a>
         <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
         <a href="/logout" class="btn-logout">Logout</a>
       <% } else { %>
@@ -44,22 +49,15 @@
       </thead>
       <tbody>
         <% if (leaderboard.length === 0) { %>
-          <tr>
-            <td colspan="5" class="no-problems">No data yet.</td>
-          </tr>
+          <tr><td colspan="5" class="no-problems">No data yet.</td></tr>
         <% } else { %>
           <% leaderboard.forEach((entry, index) => { %>
             <tr>
               <td>
-                <% if (index === 0) { %>
-                  <span style="color:#f5c518; font-weight:700; font-size:18px;">🥇</span>
-                <% } else if (index === 1) { %>
-                  <span style="color:#a0a0b0; font-weight:700; font-size:18px;">🥈</span>
-                <% } else if (index === 2) { %>
-                  <span style="color:#cd7f32; font-weight:700; font-size:18px;">🥉</span>
-                <% } else { %>
-                  <span style="color:#a0a0b0;"><%= index + 1 %></span>
-                <% } %>
+                <% if (index === 0) { %><span style="color:#f5c518; font-weight:700; font-size:18px;">🥇</span>
+                <% } else if (index === 1) { %><span style="color:#a0a0b0; font-weight:700; font-size:18px;">🥈</span>
+                <% } else if (index === 2) { %><span style="color:#cd7f32; font-weight:700; font-size:18px;">🥉</span>
+                <% } else { %><span style="color:#a0a0b0;"><%= index + 1 %></span><% } %>
               </td>
               <td>
                 <a href="/profile/<%= entry.username %>" style="color:#ffffff; text-decoration:none; font-weight:600;">
@@ -82,5 +80,17 @@
       </tbody>
     </table>
   </div>
+
+  <% if (user) { %>
+  <script>
+    fetch('/notifications/count').then(r => r.json()).then(data => {
+      if (data.count > 0) {
+        const badge = document.getElementById('notifBadge');
+        badge.textContent = data.count;
+        badge.style.display = 'inline-block';
+      }
+    });
+  </script>
+  <% } %>
 </body>
 </html>

@@ -411,10 +411,8 @@ app.get('/problems', async (req, res) => {
     subsByProblem[s.problemId].total++;
     if (s.verdict === 'Accepted') subsByProblem[s.problemId].accepted++;
   });
-
   const allOrgs = await getOrgs().find().toArray();
   const allContests = await getContests().find().toArray();
-
   const problems = featuredProblems.map(p => {
     const pid = p._id.toString();
     const contest = allContests.find(c => c.problemIds && c.problemIds.includes(pid));
@@ -423,15 +421,8 @@ app.get('/problems', async (req, res) => {
       const org = allOrgs.find(o => o._id.toString() === contest.orgId);
       if (org) { orgName = org.name; orgId = org._id.toString(); }
     }
-    return {
-      ...p, id: pid,
-      solved: solvedSet.has(pid),
-      totalSubmissions: (subsByProblem[pid] || {}).total || 0,
-      acceptedSubmissions: (subsByProblem[pid] || {}).accepted || 0,
-      orgName, orgId
-    };
+    return { ...p, id: pid, solved: solvedSet.has(pid), totalSubmissions: (subsByProblem[pid] || {}).total || 0, acceptedSubmissions: (subsByProblem[pid] || {}).accepted || 0, orgName, orgId };
   });
-
   res.render('problems', { user, problems });
 });
 
@@ -723,9 +714,10 @@ app.get('/contests/:id', async (req, res) => {
   const matchOrg = orgs.find(o => o._id.toString() === contest.orgId);
   const isOwner = req.session.user && matchOrg && matchOrg.owner === req.session.user.username;
   const isMember = req.session.user && matchOrg && matchOrg.members && matchOrg.members.includes(req.session.user.username);
+  const isAdmin = req.session.user && req.session.user.role === 'admin';
 
-  // Check private access
-  if (contest.visibility === 'private' && !isMember) {
+  // Admin bypass + member check for private contests
+  if (contest.visibility === 'private' && !isMember && !isAdmin) {
     return res.render('contest-detail', {
       user: req.session.user || null, contest, problems: [], scoreboard: [], isOwner: false, accessDenied: true
     });
@@ -768,10 +760,9 @@ app.get('/contests/:id', async (req, res) => {
 app.get('/admin', requireAdmin, async (req, res) => {
   const users = await getUsers().find().toArray();
   const orgs = (await getOrgs().find().toArray()).map(o => ({ ...o, id: o._id.toString() }));
-  const allProblems = (await getProblems().find().toArray());
+  const allProblems = await getProblems().find().toArray();
   const allOrgs = await getOrgs().find().toArray();
   const allContests = await getContests().find().toArray();
-
   const problems = allProblems.map(p => {
     const pid = p._id.toString();
     const contest = allContests.find(c => c.problemIds && c.problemIds.includes(pid));
@@ -782,7 +773,6 @@ app.get('/admin', requireAdmin, async (req, res) => {
     }
     return { ...p, id: pid, orgName, orgId };
   });
-
   res.render('admin', { user: req.session.user, users, orgs, problems });
 });
 

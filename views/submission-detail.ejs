@@ -16,15 +16,17 @@
       <a href="/problems" class="nav-link">Problems</a>
       <a href="/organizations" class="nav-link">Organizations</a>
       <a href="/leaderboard" class="nav-link">Leaderboard</a>
+      <% if (user && user.role === 'admin') { %>
+        <a href="/admin" class="nav-link">Admin</a>
+      <% } %>
     </div>
     <div class="nav-right">
       <% if (user) { %>
-        <a href="/problems/create" class="btn-register">+ Create</a>
+        <a href="/notifications" class="notif-btn">
+          🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+        </a>
         <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
         <a href="/logout" class="btn-logout">Logout</a>
-      <% } else { %>
-        <a href="/login" class="btn-login">Log In</a>
-        <a href="/register" class="btn-register">Sign Up</a>
       <% } %>
     </div>
   </nav>
@@ -67,23 +69,15 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
   <script>
-    const modeMap = {
-      cpp: 'text/x-c++src',
-      c: 'text/x-csrc',
-      java: 'text/x-java',
-      python: 'text/x-python'
-    };
+    const modeMap = { cpp: 'text/x-c++src', c: 'text/x-csrc', java: 'text/x-java', python: 'text/x-python' };
     const editor = CodeMirror.fromTextArea(document.getElementById('codeView'), {
       mode: modeMap['<%= submission.language %>'] || 'text/x-c++src',
-      theme: 'dracula',
-      lineNumbers: true,
-      readOnly: true
+      theme: 'dracula', lineNumbers: true, readOnly: true
     });
     editor.setSize('100%', '400px');
 
     function copyCode() {
-      const code = editor.getValue();
-      navigator.clipboard.writeText(code).then(() => {
+      navigator.clipboard.writeText(editor.getValue()).then(() => {
         const btn = document.getElementById('copyBtn');
         btn.textContent = '✓ Copied!';
         btn.style.color = '#00e5a0';
@@ -95,6 +89,14 @@
         }, 2000);
       });
     }
+
+    fetch('/notifications/count').then(r => r.json()).then(data => {
+      if (data.count > 0) {
+        const badge = document.getElementById('notifBadge');
+        badge.textContent = data.count;
+        badge.style.display = 'inline-block';
+      }
+    });
   </script>
 </body>
 </html>

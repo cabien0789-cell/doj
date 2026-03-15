@@ -14,10 +14,13 @@
       <a href="/problems" class="nav-link">Problems</a>
       <a href="/organizations" class="nav-link">Organizations</a>
       <a href="/leaderboard" class="nav-link">Leaderboard</a>
+      <% if (user && user.role === 'admin') { %>
+        <a href="/admin" class="nav-link">Admin</a>
+      <% } %>
     </div>
     <div class="nav-right">
       <% if (user) { %>
-        <a href="/notifications" class="notif-btn" id="notifBtn">
+        <a href="/notifications" class="notif-btn">
           🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
         </a>
         <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
@@ -50,7 +53,6 @@
       <span><%= org.members ? org.members.length : 0 %> members</span>
     </div>
 
-    <!-- Action buttons -->
     <% if (user) { %>
       <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:32px;">
         <% if (org.owner === user.username) { %>
@@ -73,7 +75,6 @@
       </div>
     <% } %>
 
-    <!-- Owner: Pending requests -->
     <% if (user && org.owner === user.username && org.pendingMembers && org.pendingMembers.length > 0) { %>
       <div class="org-section">
         <h3>Join Requests (<%= org.pendingMembers.length %>)</h3>
@@ -95,7 +96,6 @@
       </div>
     <% } %>
 
-    <!-- Owner: Members list -->
     <% if (user && org.owner === user.username) { %>
       <div class="org-section">
         <h3>Members (<%= org.members ? org.members.length : 0 %>)</h3>
@@ -121,7 +121,6 @@
       </div>
     <% } %>
 
-    <!-- Contests -->
     <div class="org-section">
       <h3>Contests</h3>
       <% if (contests.length === 0) { %>
@@ -130,7 +129,14 @@
         <% contests.forEach(contest => { %>
           <div style="background:#0f0f23; border:1px solid #2a2a4a; border-radius:6px; padding:16px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <a href="/contests/<%= contest.id %>" style="color:#ffffff; font-weight:600; text-decoration:none; font-size:16px;"><%= contest.name %></a>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <a href="/contests/<%= contest.id %>" style="color:#ffffff; font-weight:600; text-decoration:none; font-size:16px;"><%= contest.name %></a>
+                <% if (contest.visibility === 'private') { %>
+                  <span style="color:#f5a623; font-size:11px; padding:2px 8px; border:1px solid #f5a623; border-radius:20px;">🔒 Private</span>
+                <% } else { %>
+                  <span style="color:#a0a0b0; font-size:11px; padding:2px 8px; border:1px solid #2a2a4a; border-radius:20px;">🌐 Public</span>
+                <% } %>
+              </div>
               <% if (contest.noTimeLimit) { %>
                 <p style="color:#00e5a0; font-size:12px; margin:4px 0 0;">No time limit</p>
               <% } else { %>
@@ -158,9 +164,7 @@
 
   <script>
     function confirmAction(formId, message) {
-      if (confirm(message)) {
-        document.getElementById(formId).submit();
-      }
+      if (confirm(message)) document.getElementById(formId).submit();
     }
 
     function filterMembers() {

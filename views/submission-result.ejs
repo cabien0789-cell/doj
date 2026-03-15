@@ -14,15 +14,17 @@
       <a href="/problems" class="nav-link">Problems</a>
       <a href="/organizations" class="nav-link">Organizations</a>
       <a href="/leaderboard" class="nav-link">Leaderboard</a>
+      <% if (user && user.role === 'admin') { %>
+        <a href="/admin" class="nav-link">Admin</a>
+      <% } %>
     </div>
     <div class="nav-right">
       <% if (user) { %>
-        <a href="/problems/create" class="btn-register">+ Create</a>
+        <a href="/notifications" class="notif-btn">
+          🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+        </a>
         <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
         <a href="/logout" class="btn-logout">Logout</a>
-      <% } else { %>
-        <a href="/login" class="btn-login">Log In</a>
-        <a href="/register" class="btn-register">Sign Up</a>
       <% } %>
     </div>
   </nav>
@@ -67,12 +69,24 @@
       <% }) %>
     </div>
 
-    <div style="margin-top: 20px; display:flex; gap:12px;">
+    <div style="margin-top:20px; display:flex; gap:12px;">
       <a href="/problems/<%= problemId %>" class="btn-submit" style="display:inline-block; text-decoration:none;">Back to Problem</a>
       <% if (user) { %>
         <a href="/profile/<%= user.username %>" style="display:inline-block; text-decoration:none; padding:12px 24px; border:1px solid #a0a0b0; border-radius:4px; color:#a0a0b0; font-size:14px;">My Submissions</a>
       <% } %>
     </div>
   </div>
+
+  <% if (user) { %>
+  <script>
+    fetch('/notifications/count').then(r => r.json()).then(data => {
+      if (data.count > 0) {
+        const badge = document.getElementById('notifBadge');
+        badge.textContent = data.count;
+        badge.style.display = 'inline-block';
+      }
+    });
+  </script>
+  <% } %>
 </body>
 </html>

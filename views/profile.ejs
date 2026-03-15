@@ -14,10 +14,15 @@
       <a href="/problems" class="nav-link">Problems</a>
       <a href="/organizations" class="nav-link">Organizations</a>
       <a href="/leaderboard" class="nav-link">Leaderboard</a>
+      <% if (user && user.role === 'admin') { %>
+        <a href="/admin" class="nav-link">Admin</a>
+      <% } %>
     </div>
     <div class="nav-right">
       <% if (user) { %>
-        <a href="/problems/create" class="btn-register">+ Create</a>
+        <a href="/notifications" class="notif-btn">
+          🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+        </a>
         <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
         <a href="/logout" class="btn-logout">Logout</a>
       <% } else { %>
@@ -28,8 +33,6 @@
   </nav>
 
   <div class="problems-container">
-
-    <!-- Profile Header -->
     <div class="profile-header">
       <div class="profile-avatar"><%= targetUser.username.charAt(0).toUpperCase() %></div>
       <div class="profile-info">
@@ -44,7 +47,6 @@
       </div>
     </div>
 
-    <!-- Stats Cards -->
     <div class="profile-stats">
       <div class="profile-stat-card">
         <span class="profile-stat-number"><%= stats.solved %></span>
@@ -72,7 +74,6 @@
       </div>
     </div>
 
-    <!-- Language Stats -->
     <% if (stats.totalSubmissions > 0 && stats.langStats) { %>
       <div style="background-color:#0f0f23; border:1px solid #2a2a4a; border-radius:8px; padding:20px 24px; margin-bottom:32px;">
         <div style="font-size:14px; font-weight:600; color:#a0a0b0; text-transform:uppercase; letter-spacing:1px; margin-bottom:16px;">Languages Used</div>
@@ -90,7 +91,6 @@
       </div>
     <% } %>
 
-    <!-- Recent Submissions -->
     <div class="problems-header" style="margin-top:8px;">
       <h2>Recent Submissions</h2>
     </div>
@@ -110,9 +110,7 @@
       </thead>
       <tbody>
         <% if (recentSubmissions.length === 0) { %>
-          <tr>
-            <td colspan="6" class="no-problems">No submissions yet.</td>
-          </tr>
+          <tr><td colspan="6" class="no-problems">No submissions yet.</td></tr>
         <% } else { %>
           <% recentSubmissions.forEach(s => { %>
             <tr>
@@ -129,7 +127,18 @@
         <% } %>
       </tbody>
     </table>
-
   </div>
+
+  <% if (user) { %>
+  <script>
+    fetch('/notifications/count').then(r => r.json()).then(data => {
+      if (data.count > 0) {
+        const badge = document.getElementById('notifBadge');
+        badge.textContent = data.count;
+        badge.style.display = 'inline-block';
+      }
+    });
+  </script>
+  <% } %>
 </body>
 </html>

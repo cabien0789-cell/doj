@@ -14,6 +14,9 @@
       <a href="/problems" class="nav-link">Problems</a>
       <a href="/organizations" class="nav-link">Organizations</a>
       <a href="/leaderboard" class="nav-link">Leaderboard</a>
+      <% if (user && user.role === 'admin') { %>
+        <a href="/admin" class="nav-link">Admin</a>
+      <% } %>
     </div>
     <div class="nav-right">
       <% if (user) { %>
@@ -31,7 +34,7 @@
 
   <% if (accessDenied) { %>
     <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:calc(100vh - 64px); text-align:center;">
-      <div style="font-size:48px; margin-bottom:16px;">🔒</div>
+      <div style="font-size:64px; margin-bottom:16px;">🔒</div>
       <h2 style="color:#ffffff; margin-bottom:12px;">Private Contest</h2>
       <p style="color:#a0a0b0; margin-bottom:24px;">This contest is private. Only members of the organization can access it.</p>
       <a href="/organizations" class="btn-hero" style="font-size:15px; padding:10px 28px;">Browse Organizations</a>
@@ -41,26 +44,28 @@
   <div class="problems-container">
     <div class="org-header">
       <h2><%= contest.name %></h2>
-      <% if (contest.visibility === 'private') { %>
-        <span style="color:#f5a623; font-size:12px; padding:4px 10px; border:1px solid #f5a623; border-radius:20px;">🔒 Private</span>
-      <% } else { %>
-        <span style="color:#a0a0b0; font-size:12px; padding:4px 10px; border:1px solid #2a2a4a; border-radius:20px;">🌐 Public</span>
-      <% } %>
-      <% if (contest.noTimeLimit) { %>
-        <span class="status-live">● Live</span>
-      <% } else { %>
-        <% const now = new Date(); %>
-        <% if (now < new Date(contest.startTimeUTC)) { %>
-          <span class="status-upcoming">Upcoming</span>
-        <% } else if (now > new Date(contest.endTimeUTC)) { %>
-          <span class="status-ended">Ended</span>
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <% if (contest.visibility === 'private') { %>
+          <span style="background:#f5a62320; color:#f5a623; font-size:12px; padding:4px 12px; border:1px solid #f5a623; border-radius:20px; font-weight:600;">🔒 Private</span>
         <% } else { %>
-          <span class="status-live">● Live</span>
+          <span style="background:#2a2a4a; color:#a0a0b0; font-size:12px; padding:4px 12px; border:1px solid #3a3a6a; border-radius:20px;">🌐 Public</span>
         <% } %>
-      <% } %>
-      <% if (user && isOwner) { %>
-        <a href="/contests/<%= contest.id %>/edit" style="color:#f5a623; font-size:13px; text-decoration:none; margin-left:8px;">✏ Edit Contest</a>
-      <% } %>
+        <% if (contest.noTimeLimit) { %>
+          <span class="status-live">● Live</span>
+        <% } else { %>
+          <% const now = new Date(); %>
+          <% if (now < new Date(contest.startTimeUTC)) { %>
+            <span class="status-upcoming">Upcoming</span>
+          <% } else if (now > new Date(contest.endTimeUTC)) { %>
+            <span class="status-ended">Ended</span>
+          <% } else { %>
+            <span class="status-live">● Live</span>
+          <% } %>
+        <% } %>
+        <% if (user && isOwner) { %>
+          <a href="/contests/<%= contest.id %>/edit" style="color:#f5a623; font-size:13px; text-decoration:none;">✏ Edit Contest</a>
+        <% } %>
+      </div>
     </div>
 
     <% if (!contest.noTimeLimit) { %>

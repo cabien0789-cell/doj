@@ -14,14 +14,14 @@
       <a href="/problems" class="nav-link">Problems</a>
       <a href="/organizations" class="nav-link">Organizations</a>
       <a href="/leaderboard" class="nav-link">Leaderboard</a>
+      <% if (user && user.role === 'admin') { %>
+        <a href="/admin" class="nav-link">Admin</a>
+      <% } %>
     </div>
     <div class="nav-right">
-      <% if (user) { %>
-        <a href="/problems/create" class="btn-register">+ Create</a>
-        <a href="/notifications" class="nav-link active">🔔 Notifications</a>
-        <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
-        <a href="/logout" class="btn-logout">Logout</a>
-      <% } %>
+      <a href="/notifications" class="nav-link active">🔔 Notifications</a>
+      <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
+      <a href="/logout" class="btn-logout">Logout</a>
     </div>
   </nav>
 

@@ -14,10 +14,13 @@
       <a href="/problems" class="nav-link">Problems</a>
       <a href="/organizations" class="nav-link active">Organizations</a>
       <a href="/leaderboard" class="nav-link">Leaderboard</a>
+      <% if (user && user.role === 'admin') { %>
+        <a href="/admin" class="nav-link">Admin</a>
+      <% } %>
     </div>
     <div class="nav-right">
       <% if (user) { %>
-        <a href="/notifications" class="notif-btn" id="notifBtn">
+        <a href="/notifications" class="notif-btn">
           🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
         </a>
         <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
@@ -37,7 +40,6 @@
       <% } %>
     </div>
 
-    <!-- Search & Tabs -->
     <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
       <input type="text" id="searchInput" placeholder="Search organizations..." class="filter-input" style="flex:1; min-width:200px;" />
       <% if (user) { %>
