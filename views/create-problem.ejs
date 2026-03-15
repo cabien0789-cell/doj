@@ -41,7 +41,7 @@
         </select>
       </div>
       <div class="form-group">
-        <label>Tags <span style="color:#a0a0b0; font-size:12px;">(chọn một hoặc nhiều)</span></label>
+        <label>Tags</label>
         <div class="tags-grid">
           <% ['Arrays', 'Strings', 'Math', 'Sorting', 'Searching', 'Dynamic Programming', 'Greedy', 'Graph', 'Tree', 'Recursion', 'Stack', 'Queue', 'Linked List', 'Binary Search', 'Two Pointers', 'Bit Manipulation', 'Geometry', 'Number Theory'].forEach(tag => { %>
             <label class="tag-checkbox">
@@ -74,17 +74,16 @@
         <textarea name="outputFormat" rows="3" placeholder="Describe the output format..." required></textarea>
       </div>
       <div class="form-group">
-        <label>Constraints <span style="color:#a0a0b0; font-size:12px;">(không bắt buộc)</span></label>
-        <textarea name="constraints" rows="3" placeholder="e.g. 1 ≤ N ≤ 10^5&#10;1 ≤ A[i] ≤ 10^9"></textarea>
+        <label>Constraints</label>
+        <textarea name="constraints" rows="3" placeholder="e.g. 1 ≤ N ≤ 10^5"></textarea>
       </div>
       <div class="form-group">
-        <label>Explanation <span style="color:#a0a0b0; font-size:12px;">(không bắt buộc — giải thích sample test case)</span></label>
+        <label>Explanation</label>
         <textarea name="explanation" rows="4" placeholder="Explain the sample test cases..."></textarea>
       </div>
 
-      <!-- Sample Test Cases -->
       <div class="testcases-section">
-        <h3>Sample Test Cases <span style="color:#a0a0b0; font-size:13px; font-weight:400;">(hiển thị công khai)</span></h3>
+        <h3>Sample Test Cases</h3>
         <div id="sampleTestcases">
           <div class="testcase" data-index="0">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
@@ -94,14 +93,14 @@
             <div class="form-group">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                 <label style="margin:0;">Input</label>
-                <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, 'sample', 0, 'input')"> 📁 Upload .txt</label>
+                <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, 'input')"> 📁 Upload .txt</label>
               </div>
               <textarea name="sampleInput[]" rows="3" placeholder="Sample input..."></textarea>
             </div>
             <div class="form-group">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                 <label style="margin:0;">Output</label>
-                <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, 'sample', 0, 'output')"> 📁 Upload .txt</label>
+                <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, 'output')"> 📁 Upload .txt</label>
               </div>
               <textarea name="sampleOutput[]" rows="3" placeholder="Sample output..."></textarea>
             </div>
@@ -110,9 +109,8 @@
         <button type="button" class="btn-add-tc" onclick="addTestcase('sample')">+ Add Sample Test Case</button>
       </div>
 
-      <!-- Hidden Test Cases -->
       <div class="testcases-section">
-        <h3>Hidden Test Cases <span style="color:#a0a0b0; font-size:13px; font-weight:400;">(chỉ dùng để chấm, người dùng không thấy)</span></h3>
+        <h3>Hidden Test Cases</h3>
         <div id="hiddenTestcases">
           <div class="testcase" data-index="0">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
@@ -122,14 +120,14 @@
             <div class="form-group">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                 <label style="margin:0;">Input</label>
-                <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, 'hidden', 0, 'input')"> 📁 Upload .txt</label>
+                <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, 'input')"> 📁 Upload .txt</label>
               </div>
               <textarea name="hiddenInput[]" rows="3" placeholder="Hidden input..."></textarea>
             </div>
             <div class="form-group">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                 <label style="margin:0;">Output</label>
-                <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, 'hidden', 0, 'output')"> 📁 Upload .txt</label>
+                <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, 'output')"> 📁 Upload .txt</label>
               </div>
               <textarea name="hiddenOutput[]" rows="3" placeholder="Hidden output..."></textarea>
             </div>
@@ -152,11 +150,9 @@
       const label = type === 'sample' ? 'Sample' : 'Hidden';
       const inputName = type === 'sample' ? 'sampleInput[]' : 'hiddenInput[]';
       const outputName = type === 'sample' ? 'sampleOutput[]' : 'hiddenOutput[]';
-      const idx = count - 1;
 
       const div = document.createElement('div');
       div.className = 'testcase';
-      div.dataset.index = idx;
       div.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
           <span style="color:#a0a0b0; font-size:13px;">${label} #${count}</span>
@@ -165,14 +161,14 @@
         <div class="form-group">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
             <label style="margin:0;">Input</label>
-            <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, '${type}', ${idx}, 'input')"> 📁 Upload .txt</label>
+            <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, 'input')"> 📁 Upload .txt</label>
           </div>
           <textarea name="${inputName}" rows="3" placeholder="${label} input..."></textarea>
         </div>
         <div class="form-group">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
             <label style="margin:0;">Output</label>
-            <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, '${type}', ${idx}, 'output')"> 📁 Upload .txt</label>
+            <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, 'output')"> 📁 Upload .txt</label>
           </div>
           <textarea name="${outputName}" rows="3" placeholder="${label} output..."></textarea>
         </div>
@@ -197,7 +193,7 @@
       });
     }
 
-    function loadFile(input, type, idx, field) {
+    function loadFile(input, field) {
       const file = input.files[0];
       if (!file) return;
       const reader = new FileReader();
