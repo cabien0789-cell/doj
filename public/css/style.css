@@ -1192,3 +1192,93 @@ body {
   justify-content: center;
   padding: 0 4px;
 }
+
+/* ─── ORGANIZATIONS ──────────────────────────────────────── */
+.org-card {
+  background-color: #0f0f23;
+  border: 1px solid #2a2a4a;
+  border-radius: 8px;
+  padding: 20px 24px;
+  margin-bottom: 12px;
+  transition: border-color 0.2s;
+}
+
+.org-card:hover {
+  border-color: #00e5a0;
+}
+
+.tab-btn {
+  padding: 8px 20px;
+  background: transparent;
+  border: 1px solid #2a2a4a;
+  color: #a0a0b0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  border-color: #00e5a0;
+  color: #00e5a0;
+}
+
+.tab-active {
+  background-color: #00e5a0;
+  border-color: #00e5a0;
+  color: #0f0f23;
+  font-weight: 700;
+}
+
+.tab-active:hover {
+  background-color: #00c988;
+  color: #0f0f23;
+}
+
+.btn-join {
+  padding: 6px 16px;
+  background: transparent;
+  border: 1px solid #00e5a0;
+  color: #00e5a0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-join:hover {
+  background-color: #00e5a020;
+}
+
+.btn-danger {
+  padding: 10px 20px;
+  background: transparent;
+  border: 1px solid #ff4444;
+  color: #ff4444;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-danger:hover {
+  background-color: #ff444420;
+}
+
+.btn-outline {
+  padding: 10px 20px;
+  background: transparent;
+  border: 1px solid #a0a0b0;
+  color: #a0a0b0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.btn-outline:hover {
+  border-color: #ffffff;
+  color: #ffffff;
+}

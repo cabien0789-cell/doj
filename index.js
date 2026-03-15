@@ -110,16 +110,13 @@ async function sendNotification(username, message) {
 function toUTC(datetimeLocal, timezone) {
   if (!datetimeLocal) return null;
   const date = new Date(datetimeLocal);
-  if (timezone === 'Vietnam') {
-    return new Date(date.getTime() - 7 * 60 * 60000).toISOString();
-  }
+  if (timezone === 'Vietnam') return new Date(date.getTime() - 7 * 60 * 60000).toISOString();
   return date.toISOString();
 }
 
 function judgeCode(code, language, testcases, timeLimit) {
   const tmpDir = path.join(__dirname, 'tmp');
   if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
-
   const timeLimitMs = (timeLimit || 2) * 1000;
   const details = [];
   let passedCount = 0;
@@ -145,18 +142,14 @@ function judgeCode(code, language, testcases, timeLimit) {
     }
   } catch (e) {
     const errMsg = e.stderr ? e.stderr.toString() : (e.message || 'Compilation Error');
-    for (let i = 0; i < testcases.length; i++) {
+    for (let i = 0; i < testcases.length; i++)
       details.push({ status: 'CE', passed: false, output: errMsg, expected: testcases[i].output.trim() });
-    }
     return { verdict: 'Compilation Error', passed: false, passedCount: 0, total: testcases.length, details };
   }
 
   for (let i = 0; i < testcases.length; i++) {
     const tc = testcases[i];
-    if (!tc.input || !tc.output) {
-      details.push({ status: 'WA', passed: false, output: 'No test case data', expected: '' });
-      continue;
-    }
+    if (!tc.input || !tc.output) { details.push({ status: 'WA', passed: false, output: 'No test case data', expected: '' }); continue; }
     const inputFile = path.join(tmpDir, 'input.txt');
     fs.writeFileSync(inputFile, tc.input);
     const startTime = Date.now();
@@ -179,12 +172,8 @@ function judgeCode(code, language, testcases, timeLimit) {
     } catch (e) {
       const execTime = Date.now() - startTime;
       const isTimeout = e.signal === 'SIGTERM' || (e.message && e.message.includes('ETIMEDOUT'));
-      if (isTimeout) {
-        details.push({ status: 'TLE', passed: false, output: 'Time Limit Exceeded', expected: tc.output.trim(), execTime });
-      } else {
-        const errMsg = e.stderr ? e.stderr.toString().split('\n')[0] : (e.message || 'Runtime Error');
-        details.push({ status: 'RE', passed: false, output: errMsg, expected: tc.output.trim(), execTime });
-      }
+      if (isTimeout) details.push({ status: 'TLE', passed: false, output: 'Time Limit Exceeded', expected: tc.output.trim(), execTime });
+      else details.push({ status: 'RE', passed: false, output: e.stderr ? e.stderr.toString().split('\n')[0] : (e.message || 'Runtime Error'), expected: tc.output.trim(), execTime });
     }
   }
 
@@ -192,11 +181,9 @@ function judgeCode(code, language, testcases, timeLimit) {
   let verdict = 'Accepted';
   if (!allPassed) {
     const firstFail = details.find(d => !d.passed);
-    if (firstFail) verdict = firstFail.status === 'TLE' ? 'Time Limit Exceeded'
-                           : firstFail.status === 'RE' ? 'Runtime Error' : 'Wrong Answer';
+    if (firstFail) verdict = firstFail.status === 'TLE' ? 'Time Limit Exceeded' : firstFail.status === 'RE' ? 'Runtime Error' : 'Wrong Answer';
   }
-  const maxExecTime = Math.max(...details.map(d => d.execTime || 0));
-  return { verdict, passed: allPassed, passedCount, total: testcases.length, details, execTime: maxExecTime };
+  return { verdict, passed: allPassed, passedCount, total: testcases.length, details, execTime: Math.max(...details.map(d => d.execTime || 0)) };
 }
 
 function runCodeOnce(code, language, input) {
@@ -237,8 +224,7 @@ function runCodeOnce(code, language, input) {
 function parseTestcases(inputRaw, outputRaw) {
   let inputs = Array.isArray(inputRaw) ? inputRaw : (inputRaw ? [inputRaw] : []);
   let outputs = Array.isArray(outputRaw) ? outputRaw : (outputRaw ? [outputRaw] : []);
-  return inputs.map((inp, i) => ({ input: inp || '', output: outputs[i] || '' }))
-               .filter(tc => tc.input && tc.output);
+  return inputs.map((inp, i) => ({ input: inp || '', output: outputs[i] || '' })).filter(tc => tc.input && tc.output);
 }
 
 // ─── ROUTES ───────────────────────────────────────────────
@@ -247,10 +233,7 @@ app.get('/', async (req, res) => {
   const problemCount = await getProblems().countDocuments();
   const userCount = await getUsers().countDocuments();
   const submissionCount = await getSubmissions().countDocuments();
-  res.render('index', {
-    user: req.session.user || null,
-    stats: { problems: problemCount, users: userCount, submissions: submissionCount }
-  });
+  res.render('index', { user: req.session.user || null, stats: { problems: problemCount, users: userCount, submissions: submissionCount } });
 });
 
 app.get('/login', (req, res) => res.render('login', {}));
@@ -258,41 +241,28 @@ app.get('/register', (req, res) => res.render('register', {}));
 
 app.post('/register', async (req, res) => {
   const { username, password, confirmPassword, email } = req.body;
-  if (username.length < 3 || username.length > 20)
-    return res.render('register', { error: 'Username must be between 3 and 20 characters.' });
-  if (!/^[a-zA-Z0-9_]+$/.test(username))
-    return res.render('register', { error: 'Username can only contain letters, numbers, and underscores.' });
-  if (await getUsers().findOne({ username }))
-    return res.render('register', { error: 'Username already exists.' });
-  if (password.length < 6)
-    return res.render('register', { error: 'Password must be at least 6 characters.' });
-  if (password !== confirmPassword)
-    return res.render('register', { error: 'Passwords do not match.' });
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-    return res.render('register', { error: 'Invalid email address.' });
-  if (await getUsers().findOne({ email }))
-    return res.render('register', { error: 'Email already in use.' });
+  if (username.length < 3 || username.length > 20) return res.render('register', { error: 'Username must be between 3 and 20 characters.' });
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) return res.render('register', { error: 'Username can only contain letters, numbers, and underscores.' });
+  if (await getUsers().findOne({ username })) return res.render('register', { error: 'Username already exists.' });
+  if (password.length < 6) return res.render('register', { error: 'Password must be at least 6 characters.' });
+  if (password !== confirmPassword) return res.render('register', { error: 'Passwords do not match.' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.render('register', { error: 'Invalid email address.' });
+  if (await getUsers().findOne({ email })) return res.render('register', { error: 'Email already in use.' });
 
   const hashedPassword = await bcrypt.hash(password, 10);
   const verifyCode = Math.floor(100000 + Math.random() * 900000).toString();
   req.session.pendingUser = { username, password: hashedPassword, email };
   req.session.verifyCode = verifyCode;
-
   try {
     await sendEmail(email, 'DOJ - Xác nhận email của bạn', emailTemplate(`
       <h2 style="margin:0 0 10px; font-size:20px; font-weight:700; color:#0f0f23;">Xác nhận email của bạn</h2>
-      <p style="margin:0 0 24px; color:#555; font-size:14px; line-height:1.7;">
-        Chào mừng bạn đến với <strong>Dary Online Judge</strong>! Vui lòng nhập mã xác nhận bên dưới để hoàn tất đăng ký tài khoản.
-      </p>
+      <p style="margin:0 0 24px; color:#555; font-size:14px; line-height:1.7;">Chào mừng bạn đến với <strong>Dary Online Judge</strong>! Vui lòng nhập mã xác nhận bên dưới để hoàn tất đăng ký tài khoản.</p>
       <div style="text-align:center; padding:16px 0 20px;">
         <div style="color:#888; font-size:11px; letter-spacing:3px; text-transform:uppercase; margin-bottom:14px;">Mã xác nhận của bạn</div>
         <div style="font-size:32px; font-weight:800; letter-spacing:10px; color:#00e5a0; font-family:'Courier New',monospace; text-indent:10px;">${verifyCode}</div>
         <div style="width:60px; height:3px; background:#00e5a0; margin:12px auto; border-radius:2px;"></div>
         <div style="color:#aaa; font-size:12px;">Mã có hiệu lực trong <strong style="color:#555;">10 phút</strong></div>
       </div>
-      <p style="margin:0; color:#777; font-size:13px; line-height:1.7;">
-        Sau khi xác nhận, bạn có thể bắt đầu luyện tập với hàng trăm bài toán lập trình, tham gia các contest và theo dõi tiến trình của mình trên bảng xếp hạng.
-      </p>
     `));
   } catch (e) { console.error('Email error:', e.message); }
   res.redirect('/verify');
@@ -329,8 +299,6 @@ app.post('/login', async (req, res) => {
 });
 
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/'); });
-
-// ─── FORGOT / RESET / CHANGE PASSWORD ────────────────────
 
 app.get('/forgot-password', (req, res) => res.render('forgot-password', { error: undefined, success: undefined }));
 
@@ -373,9 +341,7 @@ app.post('/reset-password', async (req, res) => {
   res.redirect('/login');
 });
 
-app.get('/change-password', requireLogin, (req, res) => {
-  res.render('change-password', { user: req.session.user, error: undefined, success: undefined });
-});
+app.get('/change-password', requireLogin, (req, res) => res.render('change-password', { user: req.session.user, error: undefined, success: undefined }));
 
 app.post('/change-password', requireLogin, async (req, res) => {
   const { currentPassword, newPassword, confirmPassword } = req.body;
@@ -392,20 +358,13 @@ app.post('/change-password', requireLogin, async (req, res) => {
 // ─── NOTIFICATIONS ────────────────────────────────────────
 
 app.get('/notifications', requireLogin, async (req, res) => {
-  const notifications = await getNotifications()
-    .find({ username: req.session.user.username })
-    .sort({ createdAt: -1 }).toArray();
-  await getNotifications().updateMany(
-    { username: req.session.user.username, read: false },
-    { $set: { read: true } }
-  );
+  const notifications = await getNotifications().find({ username: req.session.user.username }).sort({ createdAt: -1 }).toArray();
+  await getNotifications().updateMany({ username: req.session.user.username, read: false }, { $set: { read: true } });
   res.render('notifications', { user: req.session.user, notifications });
 });
 
 app.get('/notifications/count', requireLogin, async (req, res) => {
-  const count = await getNotifications().countDocuments({
-    username: req.session.user.username, read: false
-  });
+  const count = await getNotifications().countDocuments({ username: req.session.user.username, read: false });
   res.json({ count });
 });
 
@@ -432,12 +391,10 @@ app.get('/leaderboard', async (req, res) => {
       }
     }
   });
-  const leaderboard = Object.values(userMap)
-    .map(u => {
-      const lastSolvedTime = u.solved.size > 0 ? Object.values(u.solvedTime).sort().slice(-1)[0] : null;
-      return { username: u.username, solved: u.solved.size, totalSubmissions: u.totalSubmissions, accepted: u.accepted, lastSolvedTime };
-    })
-    .sort((a, b) => b.solved !== a.solved ? b.solved - a.solved : new Date(a.lastSolvedTime) - new Date(b.lastSolvedTime));
+  const leaderboard = Object.values(userMap).map(u => {
+    const lastSolvedTime = u.solved.size > 0 ? Object.values(u.solvedTime).sort().slice(-1)[0] : null;
+    return { username: u.username, solved: u.solved.size, totalSubmissions: u.totalSubmissions, accepted: u.accepted, lastSolvedTime };
+  }).sort((a, b) => b.solved !== a.solved ? b.solved - a.solved : new Date(a.lastSolvedTime) - new Date(b.lastSolvedTime));
   res.render('leaderboard', { user: req.session.user || null, leaderboard });
 });
 
@@ -464,9 +421,7 @@ app.get('/problems', async (req, res) => {
   res.render('problems', { user, problems: problemsWithStatus });
 });
 
-app.get('/problems/create', requireLogin, (req, res) => {
-  res.render('create-problem', { user: req.session.user, error: undefined });
-});
+app.get('/problems/create', requireLogin, (req, res) => res.render('create-problem', { user: req.session.user, error: undefined }));
 
 app.post('/problems/create', requireLogin, async (req, res) => {
   const { title, difficulty, statement, inputFormat, outputFormat, timeLimit, constraints, explanation } = req.body;
@@ -486,8 +441,7 @@ app.post('/problems/create', requireLogin, async (req, res) => {
 
 app.get('/problems/:id', async (req, res) => {
   let problem;
-  try { problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) }); }
-  catch (e) { return res.redirect('/problems'); }
+  try { problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/problems'); }
   if (!problem) return res.redirect('/problems');
   problem.id = problem._id.toString();
   const user = req.session.user || null;
@@ -501,8 +455,7 @@ app.get('/problems/:id', async (req, res) => {
 app.post('/problems/:id/submit', requireLogin, async (req, res) => {
   const { code, language } = req.body;
   let problem;
-  try { problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) }); }
-  catch (e) { return res.redirect('/problems'); }
+  try { problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/problems'); }
   if (!problem) return res.redirect('/problems');
   problem.id = problem._id.toString();
   const allTestcases = problem.testcases || [...(problem.sampleTestcases || []), ...(problem.hiddenTestcases || [])];
@@ -518,8 +471,7 @@ app.post('/problems/:id/submit', requireLogin, async (req, res) => {
 
 app.get('/problems/:id/edit', requireLogin, async (req, res) => {
   let problem;
-  try { problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) }); }
-  catch (e) { return res.redirect('/problems'); }
+  try { problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/problems'); }
   if (!problem) return res.redirect('/problems');
   if (problem.author !== req.session.user.username) return res.redirect('/problems/' + req.params.id);
   problem.id = problem._id.toString();
@@ -556,8 +508,7 @@ app.post('/problems/:id/delete', requireLogin, async (req, res) => {
 
 app.get('/submissions/:id', requireLogin, async (req, res) => {
   let submission;
-  try { submission = await getSubmissions().findOne({ _id: new ObjectId(req.params.id) }); }
-  catch (e) { return res.redirect('/'); }
+  try { submission = await getSubmissions().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/'); }
   if (!submission || submission.username !== req.session.user.username) return res.redirect('/');
   submission.id = submission._id.toString();
   res.render('submission-detail', { user: req.session.user, submission });
@@ -597,27 +548,22 @@ app.get('/organizations', async (req, res) => {
   res.render('organizations', { user: req.session.user || null, organizations: orgsWithId });
 });
 
-app.get('/organizations/create', requireLogin, (req, res) => {
-  res.render('create-organization', { user: req.session.user, error: undefined });
-});
+app.get('/organizations/create', requireLogin, (req, res) => res.render('create-organization', { user: req.session.user, error: undefined }));
 
 app.post('/organizations/create', requireLogin, async (req, res) => {
   const { name, description } = req.body;
-  if (!name || name.trim().length < 3)
-    return res.render('create-organization', { user: req.session.user, error: 'Organization name must be at least 3 characters.' });
-  if (await getOrgs().findOne({ name: name.trim() }))
-    return res.render('create-organization', { user: req.session.user, error: 'Organization name already exists.' });
+  if (!name || name.trim().length < 3) return res.render('create-organization', { user: req.session.user, error: 'Organization name must be at least 3 characters.' });
+  if (await getOrgs().findOne({ name: name.trim() })) return res.render('create-organization', { user: req.session.user, error: 'Organization name already exists.' });
   const result = await getOrgs().insertOne({
     name: name.trim(), description: description || '',
-    owner: req.session.user.username, members: [req.session.user.username]
+    owner: req.session.user.username, members: [req.session.user.username], pendingMembers: []
   });
   res.redirect('/organizations/' + result.insertedId.toString());
 });
 
 app.get('/organizations/:id', async (req, res) => {
   let org;
-  try { org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) }); }
-  catch (e) { return res.redirect('/organizations'); }
+  try { org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
   if (!org) return res.redirect('/organizations');
   org.id = org._id.toString();
   const allContests = await getContests().find({ orgId: org.id }).toArray();
@@ -625,24 +571,87 @@ app.get('/organizations/:id', async (req, res) => {
   res.render('organization-detail', { user: req.session.user || null, org, contests });
 });
 
-app.get('/organizations/:id/join', requireLogin, async (req, res) => {
-  try { await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, { $addToSet: { members: req.session.user.username } }); } catch (e) {}
+// Request to join
+app.post('/organizations/:id/request', requireLogin, async (req, res) => {
+  try {
+    const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
+    if (!org) return res.redirect('/organizations');
+    if (org.members && org.members.includes(req.session.user.username)) return res.redirect('/organizations/' + req.params.id);
+    await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, { $addToSet: { pendingMembers: req.session.user.username } });
+    await sendNotification(org.owner, `${req.session.user.username} has requested to join your organization "${org.name}".`);
+  } catch (e) {}
   res.redirect('/organizations/' + req.params.id);
 });
 
-app.get('/organizations/:id/leave', requireLogin, async (req, res) => {
+// Cancel request
+app.post('/organizations/:id/cancel-request', requireLogin, async (req, res) => {
+  try {
+    await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, { $pull: { pendingMembers: req.session.user.username } });
+  } catch (e) {}
+  res.redirect('/organizations/' + req.params.id);
+});
+
+// Approve member
+app.post('/organizations/:id/approve/:username', requireLogin, async (req, res) => {
+  try {
+    const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
+    if (!org || org.owner !== req.session.user.username) return res.redirect('/organizations/' + req.params.id);
+    await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, {
+      $pull: { pendingMembers: req.params.username },
+      $addToSet: { members: req.params.username }
+    });
+    await sendNotification(req.params.username, `Your request to join "${org.name}" has been approved!`);
+  } catch (e) {}
+  res.redirect('/organizations/' + req.params.id);
+});
+
+// Reject member
+app.post('/organizations/:id/reject/:username', requireLogin, async (req, res) => {
+  try {
+    const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
+    if (!org || org.owner !== req.session.user.username) return res.redirect('/organizations/' + req.params.id);
+    await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, { $pull: { pendingMembers: req.params.username } });
+    await sendNotification(req.params.username, `Your request to join "${org.name}" has been rejected.`);
+  } catch (e) {}
+  res.redirect('/organizations/' + req.params.id);
+});
+
+// Kick member
+app.post('/organizations/:id/kick/:username', requireLogin, async (req, res) => {
+  try {
+    const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
+    if (!org || org.owner !== req.session.user.username) return res.redirect('/organizations/' + req.params.id);
+    await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, { $pull: { members: req.params.username } });
+    await sendNotification(req.params.username, `You have been removed from the organization "${org.name}".`);
+  } catch (e) {}
+  res.redirect('/organizations/' + req.params.id);
+});
+
+// Leave org
+app.post('/organizations/:id/leave', requireLogin, async (req, res) => {
   try {
     const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
     if (org && org.owner !== req.session.user.username)
       await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, { $pull: { members: req.session.user.username } });
   } catch (e) {}
-  res.redirect('/organizations/' + req.params.id);
+  res.redirect('/organizations');
 });
+
+// Delete org
+app.post('/organizations/:id/delete', requireLogin, async (req, res) => {
+  try {
+    const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
+    if (!org || org.owner !== req.session.user.username) return res.redirect('/organizations/' + req.params.id);
+    await getOrgs().deleteOne({ _id: new ObjectId(req.params.id) });
+  } catch (e) {}
+  res.redirect('/organizations');
+});
+
+// ─── CONTESTS ─────────────────────────────────────────────
 
 app.get('/organizations/:id/contests/create', requireLogin, async (req, res) => {
   let org;
-  try { org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) }); }
-  catch (e) { return res.redirect('/organizations'); }
+  try { org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
   if (!org || org.owner !== req.session.user.username) return res.redirect('/organizations');
   org.id = org._id.toString();
   const problems = (await getProblems().find().toArray()).map(p => ({ ...p, id: p._id.toString() }));
@@ -651,47 +660,30 @@ app.get('/organizations/:id/contests/create', requireLogin, async (req, res) => 
 
 app.post('/organizations/:id/contests/create', requireLogin, async (req, res) => {
   let org;
-  try { org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) }); }
-  catch (e) { return res.redirect('/organizations'); }
+  try { org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
   if (!org || org.owner !== req.session.user.username) return res.redirect('/organizations');
-
   const { name, timezone, noTimeLimit } = req.body;
   let problemIds = req.body['problemIds[]'] || req.body.problemIds || [];
   if (!Array.isArray(problemIds)) problemIds = [problemIds];
-
   const isNoLimit = noTimeLimit === 'on';
   const startTimeUTC = isNoLimit ? null : toUTC(req.body.startTime, timezone);
   const endTimeUTC = isNoLimit ? null : toUTC(req.body.endTime, timezone);
-
   await getContests().insertOne({
-    name, orgId: org._id.toString(),
-    timezone: timezone || 'UTC',
+    name, orgId: org._id.toString(), timezone: timezone || 'UTC',
     noTimeLimit: isNoLimit,
-    startTime: req.body.startTime || null,
-    endTime: req.body.endTime || null,
-    startTimeUTC, endTimeUTC,
-    problemIds
+    startTime: req.body.startTime || null, endTime: req.body.endTime || null,
+    startTimeUTC, endTimeUTC, problemIds
   });
   res.redirect('/organizations/' + org._id.toString());
 });
 
-// ─── EDIT CONTEST ─────────────────────────────────────────
-
 app.get('/contests/:id/edit', requireLogin, async (req, res) => {
   let contest;
-  try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); }
-  catch (e) { return res.redirect('/organizations'); }
+  try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
   if (!contest) return res.redirect('/organizations');
-
-  const org = await getOrgs().findOne({ id: contest.orgId });
-  const orgOwner = org ? org.owner : null;
-  if (req.session.user.username !== orgOwner) {
-    // Try finding org by string id
-    const orgs = await getOrgs().find().toArray();
-    const matchOrg = orgs.find(o => o._id.toString() === contest.orgId);
-    if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
-  }
-
+  const orgs = await getOrgs().find().toArray();
+  const matchOrg = orgs.find(o => o._id.toString() === contest.orgId);
+  if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
   contest.id = contest._id.toString();
   const problems = (await getProblems().find().toArray()).map(p => ({ ...p, id: p._id.toString() }));
   res.render('edit-contest', { user: req.session.user, contest, problems, error: undefined });
@@ -699,80 +691,55 @@ app.get('/contests/:id/edit', requireLogin, async (req, res) => {
 
 app.post('/contests/:id/edit', requireLogin, async (req, res) => {
   let contest;
-  try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); }
-  catch (e) { return res.redirect('/organizations'); }
+  try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
   if (!contest) return res.redirect('/organizations');
-
   const orgs = await getOrgs().find().toArray();
   const matchOrg = orgs.find(o => o._id.toString() === contest.orgId);
   if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
-
   const { name, timezone, noTimeLimit } = req.body;
   let problemIds = req.body['problemIds[]'] || req.body.problemIds || [];
   if (!Array.isArray(problemIds)) problemIds = [problemIds];
-
   const isNoLimit = noTimeLimit === 'on';
   const startTimeUTC = isNoLimit ? null : toUTC(req.body.startTime, timezone);
   const endTimeUTC = isNoLimit ? null : toUTC(req.body.endTime, timezone);
-
   await getContests().updateOne({ _id: new ObjectId(req.params.id) }, { $set: {
-    name, timezone: timezone || 'UTC',
-    noTimeLimit: isNoLimit,
-    startTime: req.body.startTime || null,
-    endTime: req.body.endTime || null,
+    name, timezone: timezone || 'UTC', noTimeLimit: isNoLimit,
+    startTime: req.body.startTime || null, endTime: req.body.endTime || null,
     startTimeUTC, endTimeUTC, problemIds
   }});
   res.redirect('/contests/' + req.params.id);
 });
 
-// ─── CONTEST DETAIL ───────────────────────────────────────
-
 app.get('/contests/:id', async (req, res) => {
   let contest;
-  try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); }
-  catch (e) { return res.redirect('/organizations'); }
+  try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
   if (!contest) return res.redirect('/organizations');
   contest.id = contest._id.toString();
-
   const allProblems = await getProblems().find().toArray();
   const problems = allProblems.filter(p => contest.problemIds.includes(p._id.toString())).map(p => ({ ...p, id: p._id.toString() }));
-
-  // Find org owner
   const orgs = await getOrgs().find().toArray();
   const matchOrg = orgs.find(o => o._id.toString() === contest.orgId);
   const isOwner = req.session.user && matchOrg && matchOrg.owner === req.session.user.username;
-
   const startUTC = contest.startTimeUTC || contest.startTime;
   const endUTC = contest.endTimeUTC || contest.endTime;
-
   let allSubs;
   if (contest.noTimeLimit) {
     allSubs = await getSubmissions().find({ problemId: { $in: contest.problemIds } }).toArray();
   } else {
-    allSubs = await getSubmissions().find({
-      problemId: { $in: contest.problemIds },
-      submittedAt: { $gte: startUTC, $lte: endUTC }
-    }).toArray();
+    allSubs = await getSubmissions().find({ problemId: { $in: contest.problemIds }, submittedAt: { $gte: startUTC, $lte: endUTC } }).toArray();
   }
-
   const scoreMap = {};
   allSubs.forEach(s => {
     if (!scoreMap[s.username]) scoreMap[s.username] = { solved: new Set(), lastAC: null };
     if (s.verdict === 'Accepted') {
       scoreMap[s.username].solved.add(s.problemId);
-      if (!scoreMap[s.username].lastAC || s.submittedAt > scoreMap[s.username].lastAC)
-        scoreMap[s.username].lastAC = s.submittedAt;
+      if (!scoreMap[s.username].lastAC || s.submittedAt > scoreMap[s.username].lastAC) scoreMap[s.username].lastAC = s.submittedAt;
     }
   });
-
   const scoreboard = Object.entries(scoreMap)
     .map(([username, data]) => ({ username, solved: data.solved.size, lastAC: data.lastAC }))
     .sort((a, b) => b.solved - a.solved || new Date(a.lastAC) - new Date(b.lastAC));
-
-  res.render('contest-detail', {
-    user: req.session.user || null, contest: { ...contest, startTimeUTC: startUTC, endTimeUTC: endUTC },
-    problems, scoreboard, isOwner
-  });
+  res.render('contest-detail', { user: req.session.user || null, contest: { ...contest, startTimeUTC: startUTC, endTimeUTC: endUTC }, problems, scoreboard, isOwner });
 });
 
 // ─── 404 ──────────────────────────────────────────────────

@@ -13,11 +13,14 @@
       <a href="/" class="logo">DOJ</a>
       <a href="/problems" class="nav-link">Problems</a>
       <a href="/organizations" class="nav-link active">Organizations</a>
+      <a href="/leaderboard" class="nav-link">Leaderboard</a>
     </div>
     <div class="nav-right">
       <% if (user) { %>
-        <a href="/problems/create" class="btn-register">+ Create</a>
-        <span class="nav-username"><%= user.username %></span>
+        <a href="/notifications" class="notif-btn" id="notifBtn">
+          🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+        </a>
+        <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
         <a href="/logout" class="btn-logout">Logout</a>
       <% } else { %>
         <a href="/login" class="btn-login">Log In</a>
@@ -27,49 +30,98 @@
   </nav>
 
   <div class="problems-container">
-    <div class="problems-header">
+    <div class="problems-header" style="display:flex; justify-content:space-between; align-items:center;">
       <h2>Organizations</h2>
       <% if (user) { %>
-        <a href="/organizations/create" class="btn-register">+ Create Organization</a>
+        <a href="/organizations/create" class="btn-register" style="text-decoration:none;">+ Create Organization</a>
       <% } %>
     </div>
 
-    <table class="problems-table">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Name</th>
-          <th>Members</th>
-          <th>Owner</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% if (organizations.length === 0) { %>
-          <tr>
-            <td colspan="5" class="no-problems">No organizations yet.</td>
-          </tr>
-        <% } else { %>
-          <% organizations.forEach((org, index) => { %>
-            <tr>
-              <td><%= index + 1 %></td>
-              <td><a href="/organizations/<%= org.id %>"><%= org.name %></a></td>
-              <td><%= org.members.length %></td>
-              <td><%= org.owner %></td>
-              <td>
-                <% if (user) { %>
-                  <% if (org.members.includes(user.username)) { %>
-                    <a href="/organizations/<%= org.id %>/leave" class="btn-leave">Leave</a>
-                  <% } else { %>
-                    <a href="/organizations/<%= org.id %>/join" class="btn-join">Join</a>
-                  <% } %>
+    <!-- Search & Tabs -->
+    <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
+      <input type="text" id="searchInput" placeholder="Search organizations..." class="filter-input" style="flex:1; min-width:200px;" />
+      <% if (user) { %>
+        <div style="display:flex; gap:8px;">
+          <button onclick="showTab('all')" id="tabAll" class="tab-btn tab-active">All</button>
+          <button onclick="showTab('mine')" id="tabMine" class="tab-btn">My Organizations</button>
+        </div>
+      <% } %>
+    </div>
+
+    <div id="orgList">
+      <% if (organizations.length === 0) { %>
+        <div style="text-align:center; color:#a0a0b0; padding:60px 0;">No organizations yet.</div>
+      <% } else { %>
+        <% organizations.forEach(org => { %>
+          <div class="org-card"
+            data-name="<%= org.name.toLowerCase() %>"
+            data-member="<%= user && org.members && org.members.includes(user.username) ? 'true' : 'false' %>">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div>
+                <a href="/organizations/<%= org.id %>" style="font-size:18px; font-weight:700; color:#ffffff; text-decoration:none;"><%= org.name %></a>
+                <p style="color:#a0a0b0; font-size:13px; margin:6px 0 0;">Owner: <strong style="color:#ffffff;"><%= org.owner %></strong> · <%= org.members ? org.members.length : 0 %> members</p>
+                <% if (org.description) { %>
+                  <p style="color:#a0a0b0; font-size:13px; margin:6px 0 0;"><%= org.description %></p>
                 <% } %>
-              </td>
-            </tr>
-          <% }) %>
-        <% } %>
-      </tbody>
-    </table>
+              </div>
+              <% if (user) { %>
+                <% if (org.owner === user.username) { %>
+                  <span style="color:#00e5a0; font-size:12px; font-weight:600; padding:4px 10px; border:1px solid #00e5a0; border-radius:20px;">Owner</span>
+                <% } else if (org.members && org.members.includes(user.username)) { %>
+                  <span style="color:#a0a0b0; font-size:12px; font-weight:600; padding:4px 10px; border:1px solid #2a2a4a; border-radius:20px;">Member</span>
+                <% } else if (org.pendingMembers && org.pendingMembers.includes(user.username)) { %>
+                  <span style="color:#f5a623; font-size:12px; font-weight:600; padding:4px 10px; border:1px solid #f5a623; border-radius:20px;">Pending</span>
+                <% } else { %>
+                  <form action="/organizations/<%= org.id %>/request" method="POST">
+                    <button type="submit" class="btn-join">Request to Join</button>
+                  </form>
+                <% } %>
+              <% } %>
+            </div>
+          </div>
+        <% }) %>
+      <% } %>
+    </div>
+
+    <div id="noResults" style="display:none; text-align:center; color:#a0a0b0; padding:40px;">No organizations match your search.</div>
   </div>
+
+  <script>
+    let currentTab = 'all';
+
+    function showTab(tab) {
+      currentTab = tab;
+      document.getElementById('tabAll').className = tab === 'all' ? 'tab-btn tab-active' : 'tab-btn';
+      document.getElementById('tabMine').className = tab === 'mine' ? 'tab-btn tab-active' : 'tab-btn';
+      filterOrgs();
+    }
+
+    function filterOrgs() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const cards = document.querySelectorAll('.org-card');
+      let visible = 0;
+      cards.forEach(card => {
+        const name = card.dataset.name;
+        const isMember = card.dataset.member === 'true';
+        const matchSearch = name.includes(search);
+        const matchTab = currentTab === 'all' || isMember;
+        if (matchSearch && matchTab) { card.style.display = ''; visible++; }
+        else card.style.display = 'none';
+      });
+      document.getElementById('noResults').style.display = visible === 0 ? 'block' : 'none';
+    }
+
+    document.getElementById('searchInput').addEventListener('input', filterOrgs);
+
+    <% if (user) { %>
+    fetch('/notifications/count').then(r => r.json()).then(data => {
+      if (data.count > 0) {
+        const badge = document.getElementById('notifBadge');
+        badge.textContent = data.count;
+        badge.style.display = 'inline-block';
+      }
+    });
+    <% } %>
+  </script>
 </body>
 </html>

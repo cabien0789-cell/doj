@@ -13,11 +13,14 @@
       <a href="/" class="logo">DOJ</a>
       <a href="/problems" class="nav-link">Problems</a>
       <a href="/organizations" class="nav-link">Organizations</a>
+      <a href="/leaderboard" class="nav-link">Leaderboard</a>
     </div>
     <div class="nav-right">
       <% if (user) { %>
-        <a href="/problems/create" class="btn-register">+ Create</a>
-        <span class="nav-username"><%= user.username %></span>
+        <a href="/notifications" class="notif-btn" id="notifBtn">
+          🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+        </a>
+        <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
         <a href="/logout" class="btn-logout">Logout</a>
       <% } else { %>
         <a href="/login" class="btn-login">Log In</a>
@@ -29,88 +32,153 @@
   <div class="problems-container">
     <div class="org-header">
       <h2><%= org.name %></h2>
-      <% if (user && org.members.includes(user.username)) { %>
-        <a href="/organizations/<%= org.id %>/leave" class="btn-leave">Leave Organization</a>
-      <% } else if (user) { %>
-        <a href="/organizations/<%= org.id %>/join" class="btn-join">Join Organization</a>
+      <% if (user) { %>
+        <% if (org.owner === user.username) { %>
+          <span style="color:#00e5a0; font-size:12px; font-weight:600; padding:4px 10px; border:1px solid #00e5a0; border-radius:20px;">Owner</span>
+        <% } else if (org.members && org.members.includes(user.username)) { %>
+          <span style="color:#a0a0b0; font-size:12px; padding:4px 10px; border:1px solid #2a2a4a; border-radius:20px;">Member</span>
+        <% } %>
       <% } %>
     </div>
 
     <% if (org.description) { %>
-      <p class="org-desc"><%= org.description %></p>
+      <p style="color:#a0a0b0; margin-bottom:24px;"><%= org.description %></p>
     <% } %>
 
-    <div class="org-info">
-      <span>Owner: <strong><%= org.owner %></strong></span>
-      <span>Members: <strong><%= org.members.length %></strong></span>
+    <div class="org-info" style="margin-bottom:24px;">
+      <span>Owner: <strong style="color:#ffffff;"><%= org.owner %></strong></span>
+      <span><%= org.members ? org.members.length : 0 %> members</span>
     </div>
 
-    <% if (user && org.members.includes(user.username)) { %>
-      <div class="org-section">
-        <div class="org-section-header">
-          <h3>Contests</h3>
-          <% if (user.username === org.owner) { %>
-            <a href="/organizations/<%= org.id %>/contests/create" class="btn-register">+ Create Contest</a>
-          <% } %>
-        </div>
-
-        <table class="problems-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Name</th>
-              <th>Start</th>
-              <th>End</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% if (contests.length === 0) { %>
-              <tr>
-                <td colspan="5" class="no-problems">No contests yet.</td>
-              </tr>
-            <% } else { %>
-              <% contests.forEach((contest, index) => { %>
-                <tr>
-                  <td><%= index + 1 %></td>
-                  <td><a href="/contests/<%= contest.id %>"><%= contest.name %></a></td>
-                  <td><%= new Date(contest.startTime).toLocaleString() %></td>
-                  <td><%= new Date(contest.endTime).toLocaleString() %></td>
-                  <td>
-                    <% const now = new Date(); %>
-                    <% if (now < new Date(contest.startTime)) { %>
-                      <span class="status-upcoming">Upcoming</span>
-                    <% } else if (now > new Date(contest.endTime)) { %>
-                      <span class="status-ended">Ended</span>
-                    <% } else { %>
-                      <span class="status-live">Live</span>
-                    <% } %>
-                  </td>
-                </tr>
-              <% }) %>
-            <% } %>
-          </tbody>
-        </table>
+    <!-- Action buttons -->
+    <% if (user) { %>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:32px;">
+        <% if (org.owner === user.username) { %>
+          <a href="/organizations/<%= org.id %>/contests/create" class="btn-register" style="text-decoration:none;">+ Create Contest</a>
+          <button onclick="confirmAction('delete-org-form', 'Are you sure you want to delete this organization? This cannot be undone.')" class="btn-danger">Delete Organization</button>
+          <form id="delete-org-form" action="/organizations/<%= org.id %>/delete" method="POST" style="display:none;"></form>
+        <% } else if (org.members && org.members.includes(user.username)) { %>
+          <button onclick="confirmAction('leave-org-form', 'Are you sure you want to leave this organization?')" class="btn-outline">Leave Organization</button>
+          <form id="leave-org-form" action="/organizations/<%= org.id %>/leave" method="POST" style="display:none;"></form>
+        <% } else if (org.pendingMembers && org.pendingMembers.includes(user.username)) { %>
+          <span style="color:#f5a623; font-size:14px; padding:10px 0;">⏳ Your request is pending approval</span>
+          <form action="/organizations/<%= org.id %>/cancel-request" method="POST">
+            <button type="submit" class="btn-outline">Cancel Request</button>
+          </form>
+        <% } else { %>
+          <form action="/organizations/<%= org.id %>/request" method="POST">
+            <button type="submit" class="btn-register">Request to Join</button>
+          </form>
+        <% } %>
       </div>
+    <% } %>
 
+    <!-- Owner: Pending requests -->
+    <% if (user && org.owner === user.username && org.pendingMembers && org.pendingMembers.length > 0) { %>
       <div class="org-section">
-        <h3>Members</h3>
-        <div class="members-list">
-          <% org.members.forEach(member => { %>
-            <div class="member-item">
-              <span><%= member %></span>
-              <% if (member === org.owner) { %>
-                <span class="owner-badge">Owner</span>
+        <h3>Join Requests (<%= org.pendingMembers.length %>)</h3>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <% org.pendingMembers.forEach(username => { %>
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#0f0f23; border:1px solid #2a2a4a; border-radius:6px; padding:12px 16px;">
+              <a href="/profile/<%= username %>" style="color:#ffffff; text-decoration:none; font-weight:600;"><%= username %></a>
+              <div style="display:flex; gap:8px;">
+                <form action="/organizations/<%= org.id %>/approve/<%= username %>" method="POST">
+                  <button type="submit" style="background:#00e5a0; color:#0f0f23; border:none; padding:6px 14px; border-radius:4px; cursor:pointer; font-weight:600; font-size:13px;">Approve</button>
+                </form>
+                <form action="/organizations/<%= org.id %>/reject/<%= username %>" method="POST">
+                  <button type="submit" style="background:transparent; color:#ff4444; border:1px solid #ff4444; padding:6px 14px; border-radius:4px; cursor:pointer; font-size:13px;">Reject</button>
+                </form>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+    <% } %>
+
+    <!-- Owner: Members list -->
+    <% if (user && org.owner === user.username) { %>
+      <div class="org-section">
+        <h3>Members (<%= org.members ? org.members.length : 0 %>)</h3>
+        <div style="margin-bottom:12px;">
+          <input type="text" id="memberSearch" placeholder="Search members..." class="filter-input" oninput="filterMembers()" />
+        </div>
+        <div id="memberList" style="display:flex; flex-direction:column; gap:8px;">
+          <% (org.members || []).forEach(username => { %>
+            <div class="member-row" data-username="<%= username.toLowerCase() %>" style="display:flex; justify-content:space-between; align-items:center; background:#0f0f23; border:1px solid #2a2a4a; border-radius:6px; padding:12px 16px;">
+              <a href="/profile/<%= username %>" style="color:#ffffff; text-decoration:none; font-weight:600;">
+                <%= username %>
+                <% if (username === org.owner) { %>
+                  <span style="color:#00e5a0; font-size:11px; margin-left:6px;">(owner)</span>
+                <% } %>
+              </a>
+              <% if (username !== org.owner) { %>
+                <button onclick="confirmAction('kick-<%= username %>-form', 'Are you sure you want to kick <%= username %>?')" style="background:transparent; color:#ff4444; border:1px solid #ff4444; padding:6px 14px; border-radius:4px; cursor:pointer; font-size:13px;">Kick</button>
+                <form id="kick-<%= username %>-form" action="/organizations/<%= org.id %>/kick/<%= username %>" method="POST" style="display:none;"></form>
               <% } %>
             </div>
           <% }) %>
         </div>
       </div>
-    <% } else { %>
-      <div class="join-prompt">
-        <p>Join this organization to see contests and members.</p>
-      </div>
     <% } %>
+
+    <!-- Contests -->
+    <div class="org-section">
+      <h3>Contests</h3>
+      <% if (contests.length === 0) { %>
+        <p style="color:#a0a0b0;">No contests yet.</p>
+      <% } else { %>
+        <% contests.forEach(contest => { %>
+          <div style="background:#0f0f23; border:1px solid #2a2a4a; border-radius:6px; padding:16px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <a href="/contests/<%= contest.id %>" style="color:#ffffff; font-weight:600; text-decoration:none; font-size:16px;"><%= contest.name %></a>
+              <% if (contest.noTimeLimit) { %>
+                <p style="color:#00e5a0; font-size:12px; margin:4px 0 0;">No time limit</p>
+              <% } else { %>
+                <p style="color:#a0a0b0; font-size:12px; margin:4px 0 0;">
+                  <%= new Date(contest.startTimeUTC || contest.startTime).toLocaleString() %> →
+                  <%= new Date(contest.endTimeUTC || contest.endTime).toLocaleString() %>
+                </p>
+              <% } %>
+            </div>
+            <% const now = new Date(); %>
+            <% if (contest.noTimeLimit) { %>
+              <span class="status-live">● Live</span>
+            <% } else if (now < new Date(contest.startTimeUTC || contest.startTime)) { %>
+              <span class="status-upcoming">Upcoming</span>
+            <% } else if (now > new Date(contest.endTimeUTC || contest.endTime)) { %>
+              <span class="status-ended">Ended</span>
+            <% } else { %>
+              <span class="status-live">● Live</span>
+            <% } %>
+          </div>
+        <% }) %>
+      <% } %>
+    </div>
   </div>
+
+  <script>
+    function confirmAction(formId, message) {
+      if (confirm(message)) {
+        document.getElementById(formId).submit();
+      }
+    }
+
+    function filterMembers() {
+      const search = document.getElementById('memberSearch').value.toLowerCase();
+      document.querySelectorAll('.member-row').forEach(row => {
+        row.style.display = row.dataset.username.includes(search) ? '' : 'none';
+      });
+    }
+
+    <% if (user) { %>
+    fetch('/notifications/count').then(r => r.json()).then(data => {
+      if (data.count > 0) {
+        const badge = document.getElementById('notifBadge');
+        badge.textContent = data.count;
+        badge.style.display = 'inline-block';
+      }
+    });
+    <% } %>
+  </script>
 </body>
 </html>
