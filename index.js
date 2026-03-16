@@ -107,13 +107,10 @@ async function sendNotification(username, message) {
 
 function toUTC(datetimeLocal, timezone) {
   if (!datetimeLocal) return null;
-  const localDate = new Date(datetimeLocal);
   if (timezone === 'Vietnam') {
-    const vietnamOffset = 7 * 60;
-    return new Date(localDate.getTime() - vietnamOffset * 60000).toISOString();
+    return new Date(datetimeLocal + ':00+07:00').toISOString();
   }
-  const browserOffset = localDate.getTimezoneOffset();
-  return new Date(localDate.getTime() + browserOffset * 60000).toISOString();
+  return new Date(datetimeLocal + ':00Z').toISOString();
 }
 
 // Compare output like standard OJ:

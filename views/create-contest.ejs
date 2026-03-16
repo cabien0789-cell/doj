@@ -133,7 +133,7 @@
       const now = new Date();
       let display;
       if (tz === 'Vietnam') {
-        const vnTime = new Date(now.getTime() + (7 * 60 - now.getTimezoneOffset()) * 60000);
+        const vnTime = new Date(now.getTime() + 7 * 60 * 60 * 1000);
         display = vnTime.toISOString().slice(0, 16).replace('T', ' ') + ' (Vietnam UTC+7)';
       } else {
         display = now.toISOString().slice(0, 16).replace('T', ' ') + ' (UTC)';
