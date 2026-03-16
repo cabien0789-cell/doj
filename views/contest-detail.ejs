@@ -62,11 +62,18 @@
             <span class="status-live">● Live</span>
           <% } %>
         <% } %>
-        <% if (user && isOwner) { %>
-          <a href="/contests/<%= contest.id %>/edit" style="color:#f5a623; font-size:13px; text-decoration:none;">✏ Edit Contest</a>
-        <% } %>
       </div>
     </div>
+
+    <!-- Owner actions -->
+    <% if (user && isOwner) { %>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:24px;">
+        <a href="/contests/<%= contest.id %>/problems/create" class="btn-register" style="text-decoration:none;">+ Add Problem</a>
+        <a href="/contests/<%= contest.id %>/edit" style="display:inline-block; text-decoration:none; padding:10px 20px; border:1px solid #f5a623; color:#f5a623; border-radius:4px; font-size:14px;">✏ Edit Contest</a>
+        <button onclick="confirmAction('delete-contest-form', 'Are you sure you want to delete this contest? This cannot be undone.')" class="btn-danger">Delete Contest</button>
+        <form id="delete-contest-form" action="/contests/<%= contest.id %>/delete" method="POST" style="display:none;"></form>
+      </div>
+    <% } %>
 
     <% if (!contest.noTimeLimit) { %>
       <div class="org-info">
@@ -159,6 +166,10 @@
   <% } %>
 
   <script>
+    function confirmAction(formId, message) {
+      if (confirm(message)) document.getElementById(formId).submit();
+    }
+
     <% if (!accessDenied && !contest.noTimeLimit) { %>
     const endTime = new Date('<%= contest.endTimeUTC %>').getTime();
     const startTime = new Date('<%= contest.startTimeUTC %>').getTime();

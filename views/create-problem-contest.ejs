@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add Problem - DOJ</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">DOJ</a>
+      <a href="/problems" class="nav-link">Problems</a>
+      <a href="/organizations" class="nav-link">Organizations</a>
+      <a href="/leaderboard" class="nav-link">Leaderboard</a>
+      <% if (user && user.role === 'admin') { %>
+        <a href="/admin" class="nav-link">Admin</a>
+      <% } %>
+    </div>
+    <div class="nav-right">
+      <a href="/notifications" class="notif-btn">
+        🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+      </a>
+      <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
+      <a href="/logout" class="btn-logout">Logout</a>
+    </div>
+  </nav>
+
+  <div class="create-container">
+    <h2>Add Problem to "<%= contestName %>"</h2>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="error-msg"><%= error %></div>
+    <% } %>
+    <form action="/contests/<%= contestId %>/problems/create" method="POST" id="problemForm">
+      <div class="form-group">
+        <label>Title</label>
+        <input type="text" name="title" placeholder="Problem title" required />
+      </div>
+      <div class="form-group">
+        <label>Difficulty</label>
+        <select name="difficulty">
+          <option value="Easy">Easy</option>
+          <option value="Medium">Medium</option>
+          <option value="Hard">Hard</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Tags</label>
+        <div class="tags-grid">
+          <% ['Arrays', 'Strings', 'Math', 'Sorting', 'Searching', 'Dynamic Programming', 'Greedy', 'Graph', 'Tree', 'Recursion', 'Stack', 'Queue', 'Linked List', 'Binary Search', 'Two Pointers', 'Bit Manipulation', 'Geometry', 'Number Theory'].forEach(tag => { %>
+            <label class="tag-checkbox">
+              <input type="checkbox" name="tags[]" value="<%= tag %>">
+              <span><%= tag %></span>
+            </label>
+          <% }) %>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Time Limit (seconds)</label>
+        <select name="timeLimit">
+          <option value="1">1 second</option>
+          <option value="2" selected>2 seconds</option>
+          <option value="3">3 seconds</option>
+          <option value="5">5 seconds</option>
+          <option value="10">10 seconds</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Problem Statement</label>
+        <textarea name="statement" rows="8" placeholder="Describe the problem..." required></textarea>
+      </div>
+      <div class="form-group">
+        <label>Input Format</label>
+        <textarea name="inputFormat" rows="3" placeholder="Describe the input format..." required></textarea>
+      </div>
+      <div class="form-group">
+        <label>Output Format</label>
+        <textarea name="outputFormat" rows="3" placeholder="Describe the output format..." required></textarea>
+      </div>
+      <div class="form-group">
+        <label>Constraints</label>
+        <textarea name="constraints" rows="3" placeholder="e.g. 1 ≤ N ≤ 10^5"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Explanation</label>
+        <textarea name="explanation" rows="4" placeholder="Explain the sample test cases..."></textarea>
+      </div>
+
+      <div class="testcases-section">
+        <h3>Sample Test Cases</h3>
+        <div id="sampleTestcases">
+          <div class="testcase">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <span style="color:#a0a0b0; font-size:13px;">Sample #1</span>
+              <button type="button" class="btn-remove-tc" onclick="removeTestcase(this, 'sample')">Remove</button>
+            </div>
+            <div class="form-group">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <label style="margin:0;">Input</label>
+                <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, 'input')"> 📁 Upload .txt</label>
+              </div>
+              <textarea name="sampleInput[]" rows="3" placeholder="Sample input..."></textarea>
+            </div>
+            <div class="form-group">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <label style="margin:0;">Output</label>
+                <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, 'output')"> 📁 Upload .txt</label>
+              </div>
+              <textarea name="sampleOutput[]" rows="3" placeholder="Sample output..."></textarea>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="btn-add-tc" onclick="addTestcase('sample')">+ Add Sample Test Case</button>
+      </div>
+
+      <div class="testcases-section">
+        <h3>Hidden Test Cases</h3>
+        <div id="hiddenTestcases">
+          <div class="testcase">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <span style="color:#a0a0b0; font-size:13px;">Hidden #1</span>
+              <button type="button" class="btn-remove-tc" onclick="removeTestcase(this, 'hidden')">Remove</button>
+            </div>
+            <div class="form-group">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <label style="margin:0;">Input</label>
+                <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, 'input')"> 📁 Upload .txt</label>
+              </div>
+              <textarea name="hiddenInput[]" rows="3" placeholder="Hidden input..."></textarea>
+            </div>
+            <div class="form-group">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <label style="margin:0;">Output</label>
+                <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, 'output')"> 📁 Upload .txt</label>
+              </div>
+              <textarea name="hiddenOutput[]" rows="3" placeholder="Hidden output..."></textarea>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="btn-add-tc" onclick="addTestcase('hidden')">+ Add Hidden Test Case</button>
+      </div>
+
+      <button type="submit" class="btn-submit">Add Problem</button>
+    </form>
+  </div>
+
+  <script>
+    function addTestcase(type) {
+      const container = document.getElementById(type + 'Testcases');
+      const count = container.children.length + 1;
+      const label = type === 'sample' ? 'Sample' : 'Hidden';
+      const inputName = type === 'sample' ? 'sampleInput[]' : 'hiddenInput[]';
+      const outputName = type === 'sample' ? 'sampleOutput[]' : 'hiddenOutput[]';
+      const div = document.createElement('div');
+      div.className = 'testcase';
+      div.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <span style="color:#a0a0b0; font-size:13px;">${label} #${count}</span>
+          <button type="button" class="btn-remove-tc" onclick="removeTestcase(this, '${type}')">Remove</button>
+        </div>
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <label style="margin:0;">Input</label>
+            <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, 'input')"> 📁 Upload .txt</label>
+          </div>
+          <textarea name="${inputName}" rows="3" placeholder="${label} input..."></textarea>
+        </div>
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <label style="margin:0;">Output</label>
+            <label class="upload-btn"><input type="file" accept=".txt" onchange="loadFile(this, 'output')"> 📁 Upload .txt</label>
+          </div>
+          <textarea name="${outputName}" rows="3" placeholder="${label} output..."></textarea>
+        </div>
+      `;
+      container.appendChild(div);
+      renumberTestcases(type);
+    }
+
+    function removeTestcase(btn, type) {
+      const container = document.getElementById(type + 'Testcases');
+      if (container.children.length <= 1) return;
+      btn.closest('.testcase').remove();
+      renumberTestcases(type);
+    }
+
+    function renumberTestcases(type) {
+      const container = document.getElementById(type + 'Testcases');
+      const label = type === 'sample' ? 'Sample' : 'Hidden';
+      Array.from(container.children).forEach((div, i) => {
+        const span = div.querySelector('span');
+        if (span) span.textContent = `${label} #${i + 1}`;
+      });
+    }
+
+    function loadFile(input, field) {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const tc = input.closest('.testcase');
+        const textareas = tc.querySelectorAll('textarea');
+        if (field === 'input') textareas[0].value = e.target.result;
+        else textareas[1].value = e.target.result;
+      };
+      reader.readAsText(file);
+    }
+
+    fetch('/notifications/count').then(r => r.json()).then(data => {
+      if (data.count > 0) {
+        const badge = document.getElementById('notifBadge');
+        badge.textContent = data.count;
+        badge.style.display = 'inline-block';
+      }
+    });
+  </script>
+</body>
+</html>

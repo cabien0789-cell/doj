@@ -704,6 +704,64 @@ app.post('/contests/:id/edit', requireLogin, async (req, res) => {
   res.redirect('/contests/' + req.params.id);
 });
 
+// ─── CREATE PROBLEM IN CONTEST ────────────────────────────
+
+app.get('/contests/:id/problems/create', requireLogin, async (req, res) => {
+  let contest;
+  try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
+  if (!contest) return res.redirect('/organizations');
+  const orgs = await getOrgs().find().toArray();
+  const matchOrg = orgs.find(o => o._id.toString() === contest.orgId);
+  if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
+  contest.id = contest._id.toString();
+  res.render('create-problem-contest', { user: req.session.user, contestId: contest.id, contestName: contest.name, error: undefined });
+});
+
+app.post('/contests/:id/problems/create', requireLogin, async (req, res) => {
+  let contest;
+  try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
+  if (!contest) return res.redirect('/organizations');
+  const orgs = await getOrgs().find().toArray();
+  const matchOrg = orgs.find(o => o._id.toString() === contest.orgId);
+  if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
+
+  const { title, difficulty, statement, inputFormat, outputFormat, timeLimit, constraints, explanation } = req.body;
+  const sampleTestcases = parseTestcases(req.body['sampleInput[]'] || req.body.sampleInput, req.body['sampleOutput[]'] || req.body.sampleOutput);
+  const hiddenTestcases = parseTestcases(req.body['hiddenInput[]'] || req.body.hiddenInput, req.body['hiddenOutput[]'] || req.body.hiddenOutput);
+  let tags = req.body['tags[]'] || req.body.tags || [];
+  if (!Array.isArray(tags)) tags = [tags];
+
+  const inserted = await getProblems().insertOne({
+    title, difficulty, statement, inputFormat, outputFormat,
+    constraints: constraints || '', explanation: explanation || '',
+    sampleTestcases, hiddenTestcases, testcases: [...sampleTestcases, ...hiddenTestcases],
+    tags, timeLimit: parseInt(timeLimit) || 2,
+    author: req.session.user.username, createdAt: new Date().toISOString(), featured: false
+  });
+
+  // Add problem to contest
+  await getContests().updateOne(
+    { _id: new ObjectId(req.params.id) },
+    { $addToSet: { problemIds: inserted.insertedId.toString() } }
+  );
+
+  res.redirect('/contests/' + req.params.id);
+});
+
+// ─── DELETE CONTEST ───────────────────────────────────────
+
+app.post('/contests/:id/delete', requireLogin, async (req, res) => {
+  try {
+    const contest = await getContests().findOne({ _id: new ObjectId(req.params.id) });
+    if (!contest) return res.redirect('/organizations');
+    const orgs = await getOrgs().find().toArray();
+    const matchOrg = orgs.find(o => o._id.toString() === contest.orgId);
+    if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
+    await getContests().deleteOne({ _id: new ObjectId(req.params.id) });
+    res.redirect('/organizations/' + contest.orgId);
+  } catch (e) { res.redirect('/organizations'); }
+});
+
 app.get('/contests/:id', async (req, res) => {
   let contest;
   try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
@@ -716,7 +774,6 @@ app.get('/contests/:id', async (req, res) => {
   const isMember = req.session.user && matchOrg && matchOrg.members && matchOrg.members.includes(req.session.user.username);
   const isAdmin = req.session.user && req.session.user.role === 'admin';
 
-  // Admin bypass + member check for private contests
   if (contest.visibility === 'private' && !isMember && !isAdmin) {
     return res.render('contest-detail', {
       user: req.session.user || null, contest, problems: [], scoreboard: [], isOwner: false, accessDenied: true
