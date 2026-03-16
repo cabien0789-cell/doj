@@ -107,21 +107,26 @@ async function sendNotification(username, message) {
 
 function toUTC(datetimeLocal, timezone) {
   if (!datetimeLocal) return null;
-  // datetime-local value is always in local machine time
-  // We need to interpret it as the selected timezone
   const localDate = new Date(datetimeLocal);
   if (timezone === 'Vietnam') {
-    // User entered Vietnam time (UTC+7), convert to UTC by subtracting 7 hours
-    // But datetime-local is already parsed as local time by the browser
-    // Since server is UTC, we need to treat the input as Vietnam time
-    const vietnamOffset = 7 * 60; // minutes
-    const browserOffset = localDate.getTimezoneOffset(); // minutes behind UTC (negative for UTC+)
-    // Convert: input is Vietnam time, so UTC = input - 7h
+    const vietnamOffset = 7 * 60;
     return new Date(localDate.getTime() - vietnamOffset * 60000).toISOString();
   }
-  // UTC: input is already UTC, just convert
   const browserOffset = localDate.getTimezoneOffset();
   return new Date(localDate.getTime() + browserOffset * 60000).toISOString();
+}
+
+// Compare output like standard OJ:
+// - rstrip each line (remove trailing whitespace per line)
+// - remove trailing empty lines
+// - keep leading whitespace and spacing between tokens exactly
+function normalizeOutput(str) {
+  const lines = str.split('\n');
+  const rstripped = lines.map(line => line.replace(/\s+$/, ''));
+  while (rstripped.length > 0 && rstripped[rstripped.length - 1] === '') {
+    rstripped.pop();
+  }
+  return rstripped.join('\n');
 }
 
 function judgeCode(code, language, testcases, timeLimit) {
@@ -153,13 +158,13 @@ function judgeCode(code, language, testcases, timeLimit) {
   } catch (e) {
     const errMsg = e.stderr ? e.stderr.toString() : (e.message || 'Compilation Error');
     for (let i = 0; i < testcases.length; i++)
-      details.push({ status: 'CE', passed: false, output: errMsg, expected: testcases[i].output.trim() });
+      details.push({ status: 'CE', passed: false, output: errMsg, expected: '' });
     return { verdict: 'Compilation Error', passed: false, passedCount: 0, total: testcases.length, details };
   }
 
   for (let i = 0; i < testcases.length; i++) {
     const tc = testcases[i];
-    if (!tc.input || !tc.output) { details.push({ status: 'WA', passed: false, output: 'No test case data', expected: '' }); continue; }
+    if (!tc.input || !tc.output) { details.push({ status: 'WA', passed: false, output: '', expected: '' }); continue; }
     const inputFile = path.join(tmpDir, 'input.txt');
     fs.writeFileSync(inputFile, tc.input);
     const startTime = Date.now();
@@ -168,22 +173,23 @@ function judgeCode(code, language, testcases, timeLimit) {
       if (language === 'python') {
         const codeFile = path.join(tmpDir, 'solution.py');
         fs.writeFileSync(codeFile, code);
-        output = execSync(`python3 ${codeFile} < ${inputFile}`, { timeout: timeLimitMs }).toString().trim();
+        output = execSync(`python3 ${codeFile} < ${inputFile}`, { timeout: timeLimitMs }).toString();
       } else if (language === 'cpp' || language === 'c') {
-        output = execSync(`${compiledPath} < ${inputFile}`, { timeout: timeLimitMs }).toString().trim();
+        output = execSync(`${compiledPath} < ${inputFile}`, { timeout: timeLimitMs }).toString();
       } else if (language === 'java') {
-        output = execSync(`java -cp ${tmpDir} Main < ${inputFile}`, { timeout: timeLimitMs + 5000 }).toString().trim();
+        output = execSync(`java -cp ${tmpDir} Main < ${inputFile}`, { timeout: timeLimitMs + 5000 }).toString();
       }
       const execTime = Date.now() - startTime;
-      const expected = tc.output.trim();
-      const passed = output === expected;
+      const normalizedOutput = normalizeOutput(output);
+      const normalizedExpected = normalizeOutput(tc.output);
+      const passed = normalizedOutput === normalizedExpected;
       if (passed) passedCount++;
-      details.push({ status: passed ? 'AC' : 'WA', passed, output, expected, execTime });
+      details.push({ status: passed ? 'AC' : 'WA', passed, output: '', expected: '', execTime });
     } catch (e) {
       const execTime = Date.now() - startTime;
       const isTimeout = e.signal === 'SIGTERM' || (e.message && e.message.includes('ETIMEDOUT'));
-      if (isTimeout) details.push({ status: 'TLE', passed: false, output: 'Time Limit Exceeded', expected: tc.output.trim(), execTime });
-      else details.push({ status: 'RE', passed: false, output: e.stderr ? e.stderr.toString().split('\n')[0] : (e.message || 'Runtime Error'), expected: tc.output.trim(), execTime });
+      if (isTimeout) details.push({ status: 'TLE', passed: false, output: '', expected: '', execTime });
+      else details.push({ status: 'RE', passed: false, output: e.stderr ? e.stderr.toString().split('\n')[0] : (e.message || 'Runtime Error'), expected: '', execTime });
     }
   }
 
@@ -390,10 +396,7 @@ app.post('/run', requireLogin, (req, res) => {
 
 app.get('/api/my-problems', requireLogin, async (req, res) => {
   const q = req.query.q || '';
-  const query = {
-    author: req.session.user.username,
-    deletedFromProfile: { $ne: true }
-  };
+  const query = { author: req.session.user.username, deletedFromProfile: { $ne: true } };
   if (q) query.title = { $regex: q, $options: 'i' };
   const problems = await getProblems().find(query).toArray();
   res.json(problems.map(p => ({ id: p._id.toString(), title: p.title, difficulty: p.difficulty })));
@@ -464,8 +467,8 @@ app.post('/problems/create', requireLogin, async (req, res) => {
     constraints: constraints || '', explanation: explanation || '',
     sampleTestcases, hiddenTestcases, testcases: [...sampleTestcases, ...hiddenTestcases],
     tags, timeLimit: parseInt(timeLimit) || 2,
-    author: req.session.user.username, createdAt: new Date().toISOString(), featured: false,
-    deletedFromProfile: false
+    author: req.session.user.username, createdAt: new Date().toISOString(),
+    featured: false, deletedFromProfile: false
   });
   res.redirect('/problems');
 });
@@ -578,7 +581,6 @@ app.get('/profile/:username', async (req, res) => {
     deletedFromProfile: { $ne: true }
   }).sort({ createdAt: -1 }).toArray();
   const myProblemsWithId = myProblems.map(p => ({ ...p, id: p._id.toString() }));
-
   res.render('profile', {
     user: req.session.user || null,
     targetUser: { username: targetUser.username, email: targetUser.email, createdAt: targetUser._id.getTimestamp().toISOString() },
@@ -718,10 +720,7 @@ app.get('/contests/:id/edit', requireLogin, async (req, res) => {
   const matchOrg = orgs.find(o => o._id.toString() === contest.orgId);
   if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
   contest.id = contest._id.toString();
-  const myProblems = await getProblems().find({
-    author: req.session.user.username,
-    deletedFromProfile: { $ne: true }
-  }).toArray();
+  const myProblems = await getProblems().find({ author: req.session.user.username, deletedFromProfile: { $ne: true } }).toArray();
   const problems = myProblems.map(p => ({ ...p, id: p._id.toString() }));
   res.render('edit-contest', { user: req.session.user, contest, problems, error: undefined });
 });

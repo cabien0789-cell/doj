@@ -59,9 +59,6 @@
           <% if (tc.execTime !== undefined) { %>
             <span style="color:#a0a0b0; font-size:12px;"><%= tc.execTime %>ms</span>
           <% } %>
-          <% if (!tc.passed && tc.status === 'WA') { %>
-            <span style="color:#a0a0b0; font-size:12px;">Got: <%= tc.output %></span>
-          <% } %>
           <% if (!tc.passed && (tc.status === 'RE' || tc.status === 'CE')) { %>
             <span style="color:#a0a0b0; font-size:12px; word-break:break-all;"><%= tc.output.substring(0, 120) %></span>
           <% } %>
