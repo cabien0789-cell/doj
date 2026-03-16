@@ -133,8 +133,8 @@
       const now = new Date();
       let display;
       if (tz === 'Vietnam') {
-        const vnTime = new Date(now.getTime() + (7 * 60 - now.getTimezoneOffset()) * 60000);
-        display = vnTime.toISOString().slice(0, 16).replace('T', ' ') + ' (Vietnam UTC+7)';
+        const vnStr = now.toLocaleString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false }).replace(', ', ' ').slice(0, 16);
+        display = vnStr + ' (Vietnam UTC+7)';
       } else {
         display = now.toISOString().slice(0, 16).replace('T', ' ') + ' (UTC)';
       }
