@@ -103,64 +103,80 @@
       <% } %>
     <% } %>
 
-    <div class="org-section">
-      <h3>Problems</h3>
-      <table class="problems-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Title</th>
-            <th>Difficulty</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% if (problems.length === 0) { %>
-            <tr><td colspan="3" class="no-problems">No problems in this contest.</td></tr>
-          <% } else { %>
-            <% problems.forEach((problem, index) => { %>
-              <tr>
-                <td><%= index + 1 %></td>
-                <td><a href="/problems/<%= problem.id %>"><%= problem.title %></a></td>
-                <td class="difficulty-<%= problem.difficulty.toLowerCase() %>"><%= problem.difficulty %></td>
-              </tr>
-            <% }) %>
-          <% } %>
-        </tbody>
-      </table>
-    </div>
+    <%
+      const nowCheck = new Date().getTime();
+      const startCheck = contest.noTimeLimit ? null : new Date(contest.startTimeUTC).getTime();
+      const contestNotStarted = !contest.noTimeLimit && nowCheck < startCheck;
+    %>
 
-    <div class="org-section">
-      <h3>Scoreboard</h3>
-      <table class="problems-table">
-        <thead>
-          <tr>
-            <th>Rank</th>
-            <th>Username</th>
-            <th>Solved</th>
-            <th>Last Accepted</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% if (scoreboard.length === 0) { %>
-            <tr><td colspan="4" class="no-problems">No submissions yet.</td></tr>
-          <% } else { %>
-            <% scoreboard.forEach((entry, index) => { %>
-              <tr>
-                <td>
-                  <% if (index === 0) { %><span style="color:#f5c518; font-weight:700; font-size:18px;">🥇</span>
-                  <% } else if (index === 1) { %><span style="color:#a0a0b0; font-weight:700; font-size:18px;">🥈</span>
-                  <% } else if (index === 2) { %><span style="color:#cd7f32; font-weight:700; font-size:18px;">🥉</span>
-                  <% } else { %><%= index + 1 %><% } %>
-                </td>
-                <td><a href="/profile/<%= entry.username %>"><%= entry.username %></a></td>
-                <td style="color:#00e5a0; font-weight:600;"><%= entry.solved %></td>
-                <td style="color:#a0a0b0; font-size:13px;"><%= entry.lastAC ? new Date(entry.lastAC).toLocaleString() : '—' %></td>
-              </tr>
-            <% }) %>
-          <% } %>
-        </tbody>
-      </table>
-    </div>
+    <% if (contestNotStarted && !isOwner) { %>
+      <div class="org-section">
+        <div style="text-align:center; padding:60px 0; color:#a0a0b0;">
+          <div style="font-size:48px; margin-bottom:16px;">⏳</div>
+          <p style="font-size:16px; font-weight:600; color:#ffffff; margin-bottom:8px;">Contest has not started yet.</p>
+          <p style="font-size:14px;">Problems will be visible once the contest begins.</p>
+        </div>
+      </div>
+    <% } else { %>
+      <div class="org-section">
+        <h3>Problems</h3>
+        <table class="problems-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Title</th>
+              <th>Difficulty</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (problems.length === 0) { %>
+              <tr><td colspan="3" class="no-problems">No problems in this contest.</td></tr>
+            <% } else { %>
+              <% problems.forEach((problem, index) => { %>
+                <tr>
+                  <td><%= index + 1 %></td>
+                  <td><a href="/problems/<%= problem.id %>"><%= problem.title %></a></td>
+                  <td class="difficulty-<%= problem.difficulty.toLowerCase() %>"><%= problem.difficulty %></td>
+                </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="org-section">
+        <h3>Scoreboard</h3>
+        <table class="problems-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Username</th>
+              <th>Solved</th>
+              <th>Last Accepted</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (scoreboard.length === 0) { %>
+              <tr><td colspan="4" class="no-problems">No submissions yet.</td></tr>
+            <% } else { %>
+              <% scoreboard.forEach((entry, index) => { %>
+                <tr>
+                  <td>
+                    <% if (index === 0) { %><span style="color:#f5c518; font-weight:700; font-size:18px;">🥇</span>
+                    <% } else if (index === 1) { %><span style="color:#a0a0b0; font-weight:700; font-size:18px;">🥈</span>
+                    <% } else if (index === 2) { %><span style="color:#cd7f32; font-weight:700; font-size:18px;">🥉</span>
+                    <% } else { %><%= index + 1 %><% } %>
+                  </td>
+                  <td><a href="/profile/<%= entry.username %>"><%= entry.username %></a></td>
+                  <td style="color:#00e5a0; font-weight:600;"><%= entry.solved %></td>
+                  <td style="color:#a0a0b0; font-size:13px;"><%= entry.lastAC ? new Date(entry.lastAC).toLocaleString() : '—' %></td>
+                </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
   </div>
 
   <% } %>
