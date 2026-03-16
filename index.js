@@ -107,9 +107,21 @@ async function sendNotification(username, message) {
 
 function toUTC(datetimeLocal, timezone) {
   if (!datetimeLocal) return null;
-  const date = new Date(datetimeLocal);
-  if (timezone === 'Vietnam') return new Date(date.getTime() - 7 * 60 * 60000).toISOString();
-  return date.toISOString();
+  // datetime-local value is always in local machine time
+  // We need to interpret it as the selected timezone
+  const localDate = new Date(datetimeLocal);
+  if (timezone === 'Vietnam') {
+    // User entered Vietnam time (UTC+7), convert to UTC by subtracting 7 hours
+    // But datetime-local is already parsed as local time by the browser
+    // Since server is UTC, we need to treat the input as Vietnam time
+    const vietnamOffset = 7 * 60; // minutes
+    const browserOffset = localDate.getTimezoneOffset(); // minutes behind UTC (negative for UTC+)
+    // Convert: input is Vietnam time, so UTC = input - 7h
+    return new Date(localDate.getTime() - vietnamOffset * 60000).toISOString();
+  }
+  // UTC: input is already UTC, just convert
+  const browserOffset = localDate.getTimezoneOffset();
+  return new Date(localDate.getTime() + browserOffset * 60000).toISOString();
 }
 
 function judgeCode(code, language, testcases, timeLimit) {
@@ -374,6 +386,19 @@ app.post('/run', requireLogin, (req, res) => {
   res.json(runCodeOnce(code, language, input));
 });
 
+// ─── API MY PROBLEMS ──────────────────────────────────────
+
+app.get('/api/my-problems', requireLogin, async (req, res) => {
+  const q = req.query.q || '';
+  const query = {
+    author: req.session.user.username,
+    deletedFromProfile: { $ne: true }
+  };
+  if (q) query.title = { $regex: q, $options: 'i' };
+  const problems = await getProblems().find(query).toArray();
+  res.json(problems.map(p => ({ id: p._id.toString(), title: p.title, difficulty: p.difficulty })));
+});
+
 // ─── LEADERBOARD ──────────────────────────────────────────
 
 app.get('/leaderboard', async (req, res) => {
@@ -439,7 +464,8 @@ app.post('/problems/create', requireLogin, async (req, res) => {
     constraints: constraints || '', explanation: explanation || '',
     sampleTestcases, hiddenTestcases, testcases: [...sampleTestcases, ...hiddenTestcases],
     tags, timeLimit: parseInt(timeLimit) || 2,
-    author: req.session.user.username, createdAt: new Date().toISOString(), featured: false
+    author: req.session.user.username, createdAt: new Date().toISOString(), featured: false,
+    deletedFromProfile: false
   });
   res.redirect('/problems');
 });
@@ -509,6 +535,15 @@ app.post('/problems/:id/delete', requireLogin, async (req, res) => {
   res.redirect('/problems');
 });
 
+app.post('/problems/:id/remove-from-profile', requireLogin, async (req, res) => {
+  try {
+    const problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) });
+    if (!problem || problem.author !== req.session.user.username) return res.status(403).json({ error: 'Forbidden' });
+    await getProblems().updateOne({ _id: new ObjectId(req.params.id) }, { $set: { deletedFromProfile: true } });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
 // ─── SUBMISSION DETAIL ────────────────────────────────────
 
 app.get('/submissions/:id', requireLogin, async (req, res) => {
@@ -538,10 +573,16 @@ app.get('/profile/:username', async (req, res) => {
     langStats
   };
   const recentSubmissions = userSubs.slice(0, 20).map(s => ({ ...s, id: s._id.toString() }));
+  const myProblems = await getProblems().find({
+    author: req.params.username,
+    deletedFromProfile: { $ne: true }
+  }).sort({ createdAt: -1 }).toArray();
+  const myProblemsWithId = myProblems.map(p => ({ ...p, id: p._id.toString() }));
+
   res.render('profile', {
     user: req.session.user || null,
     targetUser: { username: targetUser.username, email: targetUser.email, createdAt: targetUser._id.getTimestamp().toISOString() },
-    stats, recentSubmissions
+    stats, recentSubmissions, myProblems: myProblemsWithId
   });
 });
 
@@ -647,8 +688,7 @@ app.get('/organizations/:id/contests/create', requireLogin, async (req, res) => 
   try { org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
   if (!org || org.owner !== req.session.user.username) return res.redirect('/organizations');
   org.id = org._id.toString();
-  const problems = (await getProblems().find().toArray()).map(p => ({ ...p, id: p._id.toString() }));
-  res.render('create-contest', { user: req.session.user, orgId: org.id, problems, error: undefined });
+  res.render('create-contest', { user: req.session.user, orgId: org.id, error: undefined });
 });
 
 app.post('/organizations/:id/contests/create', requireLogin, async (req, res) => {
@@ -678,7 +718,11 @@ app.get('/contests/:id/edit', requireLogin, async (req, res) => {
   const matchOrg = orgs.find(o => o._id.toString() === contest.orgId);
   if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
   contest.id = contest._id.toString();
-  const problems = (await getProblems().find().toArray()).map(p => ({ ...p, id: p._id.toString() }));
+  const myProblems = await getProblems().find({
+    author: req.session.user.username,
+    deletedFromProfile: { $ne: true }
+  }).toArray();
+  const problems = myProblems.map(p => ({ ...p, id: p._id.toString() }));
   res.render('edit-contest', { user: req.session.user, contest, problems, error: undefined });
 });
 
@@ -703,8 +747,6 @@ app.post('/contests/:id/edit', requireLogin, async (req, res) => {
   }});
   res.redirect('/contests/' + req.params.id);
 });
-
-// ─── CREATE PROBLEM IN CONTEST ────────────────────────────
 
 app.get('/contests/:id/problems/create', requireLogin, async (req, res) => {
   let contest;
@@ -736,10 +778,10 @@ app.post('/contests/:id/problems/create', requireLogin, async (req, res) => {
     constraints: constraints || '', explanation: explanation || '',
     sampleTestcases, hiddenTestcases, testcases: [...sampleTestcases, ...hiddenTestcases],
     tags, timeLimit: parseInt(timeLimit) || 2,
-    author: req.session.user.username, createdAt: new Date().toISOString(), featured: false
+    author: req.session.user.username, createdAt: new Date().toISOString(),
+    featured: false, deletedFromProfile: false
   });
 
-  // Add problem to contest
   await getContests().updateOne(
     { _id: new ObjectId(req.params.id) },
     { $addToSet: { problemIds: inserted.insertedId.toString() } }
@@ -747,8 +789,6 @@ app.post('/contests/:id/problems/create', requireLogin, async (req, res) => {
 
   res.redirect('/contests/' + req.params.id);
 });
-
-// ─── DELETE CONTEST ───────────────────────────────────────
 
 app.post('/contests/:id/delete', requireLogin, async (req, res) => {
   try {

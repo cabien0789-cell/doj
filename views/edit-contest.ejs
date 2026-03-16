@@ -78,29 +78,30 @@
 
       <div id="timeLimitFields" style="<%= contest.noTimeLimit ? 'display:none' : '' %>">
         <div class="form-group">
-          <label>Start Time <span id="tzLabel" style="color:#a0a0b0; font-size:12px;">(<%= contest.timezone || 'UTC' %>)</span></label>
+          <label>Start Time <span id="tzLabel" style="color:#a0a0b0; font-size:12px;">(<%= contest.timezone === 'Vietnam' ? 'Vietnam UTC+7 — enter time in Vietnam time' : 'UTC — enter time in UTC' %>)</span></label>
           <input type="datetime-local" name="startTime" id="startTime"
             value="<%= contest.startTime ? contest.startTime.slice(0,16) : '' %>"
             <%= contest.noTimeLimit ? '' : 'required' %> />
         </div>
         <div class="form-group">
-          <label>End Time <span id="tzLabel2" style="color:#a0a0b0; font-size:12px;">(<%= contest.timezone || 'UTC' %>)</span></label>
+          <label>End Time <span id="tzLabel2" style="color:#a0a0b0; font-size:12px;">(<%= contest.timezone === 'Vietnam' ? 'Vietnam UTC+7 — enter time in Vietnam time' : 'UTC — enter time in UTC' %>)</span></label>
           <input type="datetime-local" name="endTime" id="endTime"
             value="<%= contest.endTime ? contest.endTime.slice(0,16) : '' %>"
             <%= contest.noTimeLimit ? '' : 'required' %> />
+        </div>
+        <div id="tzHint" style="background:#1a1a2e; border:1px solid #2a2a4a; border-radius:6px; padding:10px 14px; margin-bottom:16px; color:#a0a0b0; font-size:13px;">
+          💡 Current time: <strong id="currentTimeDisplay" style="color:#ffffff;"></strong>
         </div>
       </div>
 
       <div class="form-group">
         <label>Problems</label>
-        <% problems.forEach(problem => { %>
-          <div class="problem-checkbox">
-            <input type="checkbox" name="problemIds[]" value="<%= problem.id %>"
-              id="p-<%= problem.id %>"
-              <%= contest.problemIds.includes(problem.id) ? 'checked' : '' %>>
-            <label for="p-<%= problem.id %>"><%= problem.title %> (<%= problem.difficulty %>)</label>
-          </div>
-        <% }) %>
+        <div style="margin-bottom:8px;">
+          <input type="text" id="problemSearchInput" placeholder="Search your problems..." class="filter-input" oninput="searchProblems()" />
+        </div>
+        <div id="problemSearchResults" style="background:#0f0f23; border:1px solid #2a2a4a; border-radius:6px; max-height:200px; overflow-y:auto; display:none; margin-bottom:8px;"></div>
+        <div id="selectedProblems" style="display:flex; flex-direction:column; gap:6px;"></div>
+        <div id="problemIdsContainer"></div>
       </div>
 
       <button type="submit" class="btn-submit">Save Changes</button>
@@ -108,6 +109,15 @@
   </div>
 
   <script>
+    const selectedProblemIds = new Set();
+
+    // Pre-populate existing problems
+    <% problems.forEach(p => { %>
+      <% if (contest.problemIds.includes(p.id)) { %>
+        addProblem('<%= p.id %>', '<%= p.title.replace(/'/g, "\\'") %>', '<%= p.difficulty %>', true);
+      <% } %>
+    <% }) %>
+
     function updateVisibility() {
       const isPublic = document.querySelector('input[name="visibility"][value="public"]').checked;
       document.getElementById('opt-public').className = isPublic ? 'visibility-option selected-public' : 'visibility-option';
@@ -116,34 +126,109 @@
 
     function toggleTimeLimit() {
       const checked = document.getElementById('noTimeLimit').checked;
-      const fields = document.getElementById('timeLimitFields');
-      fields.style.display = checked ? 'none' : 'block';
+      document.getElementById('timeLimitFields').style.display = checked ? 'none' : 'block';
       document.getElementById('startTime').required = !checked;
       document.getElementById('endTime').required = !checked;
     }
 
     function updateTimePlaceholders() {
       const tz = document.getElementById('timezoneSelect').value;
-      const label = tz === 'Vietnam' ? '(Vietnam UTC+7)' : '(UTC)';
+      const isVietnam = tz === 'Vietnam';
+      const label = isVietnam ? '(Vietnam UTC+7 — enter time in Vietnam time)' : '(UTC — enter time in UTC)';
       document.getElementById('tzLabel').textContent = label;
       document.getElementById('tzLabel2').textContent = label;
+      updateCurrentTime();
+    }
+
+    function updateCurrentTime() {
+      const tz = document.getElementById('timezoneSelect').value;
+      const now = new Date();
+      let display;
+      if (tz === 'Vietnam') {
+        const vnTime = new Date(now.getTime() + (7 * 60 - now.getTimezoneOffset()) * 60000);
+        display = vnTime.toISOString().slice(0, 16).replace('T', ' ') + ' (Vietnam UTC+7)';
+      } else {
+        display = now.toISOString().slice(0, 16).replace('T', ' ') + ' (UTC)';
+      }
+      document.getElementById('currentTimeDisplay').textContent = display;
+    }
+
+    updateCurrentTime();
+    setInterval(updateCurrentTime, 10000);
+
+    async function searchProblems() {
+      const q = document.getElementById('problemSearchInput').value.trim();
+      const resultsDiv = document.getElementById('problemSearchResults');
+      if (q.length === 0) { resultsDiv.style.display = 'none'; return; }
+
+      const res = await fetch('/api/my-problems?q=' + encodeURIComponent(q));
+      const problems = await res.json();
+
+      if (problems.length === 0) {
+        resultsDiv.innerHTML = '<div style="padding:12px 16px; color:#a0a0b0; font-size:13px;">No problems found.</div>';
+      } else {
+        resultsDiv.innerHTML = problems
+          .filter(p => !selectedProblemIds.has(p.id))
+          .map(p => `
+            <div style="padding:10px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #2a2a4a; cursor:pointer;" onmouseenter="this.style.background='#1a1a2e'" onmouseleave="this.style.background=''" onclick="addProblem('${p.id}', '${p.title.replace(/'/g, "\\'")}', '${p.difficulty}')">
+              <span style="color:#ffffff; font-size:14px;">${p.title}</span>
+              <span class="difficulty-${p.difficulty.toLowerCase()}" style="font-size:12px;">${p.difficulty}</span>
+            </div>
+          `).join('');
+      }
+      resultsDiv.style.display = 'block';
+    }
+
+    function addProblem(id, title, difficulty, silent = false) {
+      if (selectedProblemIds.has(id)) return;
+      selectedProblemIds.add(id);
+
+      const container = document.getElementById('selectedProblems');
+      const div = document.createElement('div');
+      div.id = 'selected-' + id;
+      div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:#0f0f23; border:1px solid #2a2a4a; border-radius:6px; padding:10px 14px;';
+      div.innerHTML = `
+        <span style="color:#ffffff; font-size:14px;">${title} <span class="difficulty-${difficulty.toLowerCase()}" style="font-size:12px;">(${difficulty})</span></span>
+        <button type="button" onclick="removeProblem('${id}')" style="background:transparent; border:1px solid #ff4444; color:#ff4444; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:12px;">Remove</button>
+      `;
+      container.appendChild(div);
+
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'problemIds[]';
+      input.value = id;
+      input.id = 'input-' + id;
+      document.getElementById('problemIdsContainer').appendChild(input);
+
+      if (!silent) {
+        document.getElementById('problemSearchInput').value = '';
+        document.getElementById('problemSearchResults').style.display = 'none';
+      }
+    }
+
+    function removeProblem(id) {
+      selectedProblemIds.delete(id);
+      const el = document.getElementById('selected-' + id);
+      if (el) el.remove();
+      const input = document.getElementById('input-' + id);
+      if (input) input.remove();
     }
 
     document.getElementById('contestForm').addEventListener('submit', function(e) {
       const noLimit = document.getElementById('noTimeLimit').checked;
       if (noLimit) return;
-      const tz = document.getElementById('timezoneSelect').value;
-      const offset = tz === 'Vietnam' ? 7 * 60 : 0;
-      const now = new Date();
-      const nowLocal = new Date(now.getTime() + offset * 60000);
+
       const startVal = document.getElementById('startTime').value;
       const endVal = document.getElementById('endTime').value;
       if (!startVal || !endVal) return;
+
+      const now = new Date();
       const startDate = new Date(startVal);
       const endDate = new Date(endVal);
-      const minStart = new Date(nowLocal.getTime() + 60 * 60000);
-      const minEnd = new Date(nowLocal.getTime() + 2 * 60 * 60000);
+      const minStart = new Date(now.getTime() + 60 * 60000);
+      const minEnd = new Date(now.getTime() + 2 * 60 * 60000);
       const minEndFromStart = new Date(startDate.getTime() + 15 * 60000);
+
       if (startDate < minStart) { e.preventDefault(); alert('Start time must be at least 1 hour from now.'); return; }
       if (endDate < minEnd) { e.preventDefault(); alert('End time must be at least 2 hours from now.'); return; }
       if (endDate < minEndFromStart) { e.preventDefault(); alert('End time must be at least 15 minutes after start time.'); return; }

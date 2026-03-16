@@ -91,46 +91,119 @@
       </div>
     <% } %>
 
-    <div class="problems-header" style="margin-top:8px;">
-      <h2>Recent Submissions</h2>
+    <!-- Tabs -->
+    <div style="display:flex; gap:8px; margin-bottom:24px;">
+      <button onclick="showTab('submissions')" id="tab-submissions" class="tab-btn tab-active">Recent Submissions</button>
+      <% if (user && user.username === targetUser.username) { %>
+        <button onclick="showTab('myproblems')" id="tab-myproblems" class="tab-btn">My Problems (<%= myProblems.length %>)</button>
+      <% } %>
     </div>
 
-    <table class="problems-table">
-      <thead>
-        <tr>
-          <th>Time</th>
-          <th>Problem</th>
-          <th>Language</th>
-          <th>Verdict</th>
-          <th>Score</th>
-          <% if (user && user.username === targetUser.username) { %>
-            <th>Code</th>
+    <!-- Submissions Tab -->
+    <div id="section-submissions">
+      <table class="problems-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Problem</th>
+            <th>Language</th>
+            <th>Verdict</th>
+            <th>Score</th>
+            <% if (user && user.username === targetUser.username) { %>
+              <th>Code</th>
+            <% } %>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (recentSubmissions.length === 0) { %>
+            <tr><td colspan="6" class="no-problems">No submissions yet.</td></tr>
+          <% } else { %>
+            <% recentSubmissions.forEach(s => { %>
+              <tr>
+                <td style="color:#a0a0b0; font-size:13px;"><%= new Date(s.submittedAt).toLocaleString() %></td>
+                <td><a href="/problems/<%= s.problemId %>"><%= s.problemTitle %></a></td>
+                <td><%= s.language.toUpperCase() %></td>
+                <td class="verdict-<%= s.verdict.replace(/\s+/g,'').toLowerCase() %>"><%= s.verdict %></td>
+                <td><%= s.passedCount %>/<%= s.total %></td>
+                <% if (user && user.username === targetUser.username) { %>
+                  <td><a href="/submissions/<%= s.id %>" style="color:#00e5a0; text-decoration:none; font-size:13px;">View</a></td>
+                <% } %>
+              </tr>
+            <% }) %>
           <% } %>
-        </tr>
-      </thead>
-      <tbody>
-        <% if (recentSubmissions.length === 0) { %>
-          <tr><td colspan="6" class="no-problems">No submissions yet.</td></tr>
-        <% } else { %>
-          <% recentSubmissions.forEach(s => { %>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- My Problems Tab -->
+    <% if (user && user.username === targetUser.username) { %>
+    <div id="section-myproblems" style="display:none;">
+      <div style="margin-bottom:16px;">
+        <input type="text" id="myProblemSearch" placeholder="Search my problems..." class="filter-input" oninput="filterMyProblems()" />
+      </div>
+      <% if (myProblems.length === 0) { %>
+        <div style="text-align:center; color:#a0a0b0; padding:40px 0;">No problems yet. Create problems inside your contests.</div>
+      <% } else { %>
+        <table class="problems-table">
+          <thead>
             <tr>
-              <td style="color:#a0a0b0; font-size:13px;"><%= new Date(s.submittedAt).toLocaleString() %></td>
-              <td><a href="/problems/<%= s.problemId %>"><%= s.problemTitle %></a></td>
-              <td><%= s.language.toUpperCase() %></td>
-              <td class="verdict-<%= s.verdict.replace(/\s+/g,'').toLowerCase() %>"><%= s.verdict %></td>
-              <td><%= s.passedCount %>/<%= s.total %></td>
-              <% if (user && user.username === targetUser.username) { %>
-                <td><a href="/submissions/<%= s.id %>" style="color:#00e5a0; text-decoration:none; font-size:13px;">View</a></td>
-              <% } %>
+              <th>Title</th>
+              <th>Difficulty</th>
+              <th>Tags</th>
+              <th>Created</th>
+              <th>Action</th>
             </tr>
-          <% }) %>
-        <% } %>
-      </tbody>
-    </table>
+          </thead>
+          <tbody id="myProblemsBody">
+            <% myProblems.forEach(p => { %>
+              <tr class="my-problem-row" data-title="<%= p.title.toLowerCase() %>">
+                <td><a href="/problems/<%= p.id %>"><%= p.title %></a></td>
+                <td class="difficulty-<%= p.difficulty.toLowerCase() %>"><%= p.difficulty %></td>
+                <td style="color:#a0a0b0; font-size:13px;">
+                  <% if (p.tags && p.tags.length > 0) { %>
+                    <%= p.tags.slice(0,2).join(', ') %><%= p.tags.length > 2 ? ' +' + (p.tags.length-2) : '' %>
+                  <% } else { %>—<% } %>
+                </td>
+                <td style="color:#a0a0b0; font-size:13px;"><%= new Date(p.createdAt).toLocaleDateString() %></td>
+                <td>
+                  <button onclick="removeFromProfile('<%= p.id %>', '<%= p.title.replace(/'/g, "\\'") %>')" style="background:transparent; color:#ff4444; border:1px solid #ff4444; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px;">Remove</button>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+    <% } %>
   </div>
 
-  <% if (user) { %>
   <script>
+    function showTab(tab) {
+      ['submissions', 'myproblems'].forEach(t => {
+        const section = document.getElementById('section-' + t);
+        const btn = document.getElementById('tab-' + t);
+        if (section) section.style.display = t === tab ? 'block' : 'none';
+        if (btn) btn.className = t === tab ? 'tab-btn tab-active' : 'tab-btn';
+      });
+    }
+
+    function filterMyProblems() {
+      const search = document.getElementById('myProblemSearch').value.toLowerCase();
+      document.querySelectorAll('.my-problem-row').forEach(row => {
+        row.style.display = row.dataset.title.includes(search) ? '' : 'none';
+      });
+    }
+
+    async function removeFromProfile(id, title) {
+      if (!confirm(`Remove "${title}" from My Problems? This will not affect the problem in any contest.`)) return;
+      const res = await fetch('/problems/' + id + '/remove-from-profile', { method: 'POST' });
+      if (res.ok) {
+        const row = document.querySelector(`.my-problem-row[data-title="${title.toLowerCase()}"]`);
+        if (row) row.remove();
+      }
+    }
+
+    <% if (user) { %>
     fetch('/notifications/count').then(r => r.json()).then(data => {
       if (data.count > 0) {
         const badge = document.getElementById('notifBadge');
@@ -138,7 +211,7 @@
         badge.style.display = 'inline-block';
       }
     });
+    <% } %>
   </script>
-  <% } %>
 </body>
 </html>
