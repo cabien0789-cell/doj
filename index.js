@@ -256,10 +256,38 @@ function parseTestcases(inputRaw, outputRaw) {
 // ─── ROUTES ───────────────────────────────────────────────
 
 app.get('/', async (req, res) => {
-  const problemCount = await getProblems().countDocuments({ featured: true });
-  const userCount = await getUsers().countDocuments();
-  const submissionCount = await getSubmissions().countDocuments();
-  res.render('index', { user: req.session.user || null, stats: { problems: problemCount, users: userCount, submissions: submissionCount } });
+  // Recent contests (5 mới nhất)
+  const allContests = await getContests().find().toArray();
+  const recentContests = allContests
+    .sort((a, b) => {
+      const aTime = a.startTimeUTC || a.startTime || '';
+      const bTime = b.startTimeUTC || b.startTime || '';
+      return bTime.localeCompare(aTime);
+    })
+    .slice(0, 5)
+    .map(c => ({ ...c, id: c._id.toString() }));
+
+  // Top users (top 5)
+  const allSubs = await getSubmissions().find().sort({ submittedAt: 1 }).toArray();
+  const userMap = {};
+  allSubs.forEach(s => {
+    if (!userMap[s.username]) userMap[s.username] = { username: s.username, solved: new Set(), totalSubmissions: 0, accepted: 0 };
+    userMap[s.username].totalSubmissions++;
+    if (s.verdict === 'Accepted') {
+      userMap[s.username].accepted++;
+      userMap[s.username].solved.add(s.problemId);
+    }
+  });
+  const topUsers = Object.values(userMap)
+    .map(u => ({ username: u.username, solved: u.solved.size, totalSubmissions: u.totalSubmissions, accepted: u.accepted }))
+    .sort((a, b) => b.solved - a.solved)
+    .slice(0, 5);
+
+  res.render('index', {
+    user: req.session.user || null,
+    recentContests,
+    topUsers
+  });
 });
 
 app.get('/login', (req, res) => res.render('login', {}));

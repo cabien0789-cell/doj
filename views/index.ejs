@@ -42,33 +42,98 @@
     </div>
   </div>
 
-  <div class="stats-bar">
-    <div class="stat-item">
-      <span class="stat-number"><%= stats.problems %></span>
-      <span class="stat-label">Problems</span>
+  <div class="home-container">
+    <div class="home-section">
+      <div class="home-section-header">
+        <h2>🏆 Recent Contests</h2>
+        <a href="/organizations" style="color:#00e5a0; font-size:13px; text-decoration:none;">View all →</a>
+      </div>
+      <% if (recentContests.length === 0) { %>
+        <div style="text-align:center; color:#a0a0b0; padding:40px 0;">No contests yet.</div>
+      <% } else { %>
+        <% recentContests.forEach(contest => { %>
+          <div style="background:#0f0f23; border:1px solid #2a2a4a; border-radius:8px; padding:16px 20px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; transition:border-color 0.2s;" onmouseenter="this.style.borderColor='#00e5a0'" onmouseleave="this.style.borderColor='#2a2a4a'">
+            <div>
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                <a href="/contests/<%= contest.id %>" style="color:#ffffff; font-weight:600; text-decoration:none; font-size:15px;"><%= contest.name %></a>
+                <% if (contest.visibility === 'private') { %>
+                  <span style="color:#f5a623; font-size:11px; padding:2px 8px; border:1px solid #f5a623; border-radius:20px;">🔒 Private</span>
+                <% } else { %>
+                  <span style="color:#a0a0b0; font-size:11px; padding:2px 8px; border:1px solid #2a2a4a; border-radius:20px;">🌐 Public</span>
+                <% } %>
+              </div>
+              <% if (contest.noTimeLimit) { %>
+                <p style="color:#00e5a0; font-size:12px; margin:0;">No time limit</p>
+              <% } else { %>
+                <%
+                  const cTz = contest.timezone === 'Vietnam' ? 'Asia/Ho_Chi_Minh' : 'UTC';
+                  const cTzLabel = contest.timezone === 'Vietnam' ? '(Vietnam UTC+7)' : '(UTC)';
+                  const cStart = new Date(contest.startTimeUTC || contest.startTime).toLocaleString('en-GB', { timeZone: cTz });
+                  const cEnd = new Date(contest.endTimeUTC || contest.endTime).toLocaleString('en-GB', { timeZone: cTz });
+                %>
+                <p style="color:#a0a0b0; font-size:12px; margin:0;"><%= cStart %> → <%= cEnd %> <%= cTzLabel %></p>
+              <% } %>
+            </div>
+            <% const nowHome = new Date(); %>
+            <% if (contest.noTimeLimit) { %>
+              <span class="status-live">● Live</span>
+            <% } else if (nowHome < new Date(contest.startTimeUTC || contest.startTime)) { %>
+              <span class="status-upcoming">Upcoming</span>
+            <% } else if (nowHome > new Date(contest.endTimeUTC || contest.endTime)) { %>
+              <span class="status-ended">Ended</span>
+            <% } else { %>
+              <span class="status-live">● Live</span>
+            <% } %>
+          </div>
+        <% }) %>
+      <% } %>
     </div>
-    <div class="stat-item">
-      <span class="stat-number"><%= stats.users %></span>
-      <span class="stat-label">Users</span>
-    </div>
-    <div class="stat-item">
-      <span class="stat-number"><%= stats.submissions %></span>
-      <span class="stat-label">Submissions</span>
-    </div>
-  </div>
 
-  <div class="features">
-    <div class="feature-card">
-      <h3>Solve Problems</h3>
-      <p>Challenge yourself with algorithmic problems of all difficulty levels.</p>
-    </div>
-    <div class="feature-card">
-      <h3>Organizations</h3>
-      <p>Create or join organizations and compete in contests.</p>
-    </div>
-    <div class="feature-card">
-      <h3>Leaderboard</h3>
-      <p>Track your progress and compete with others globally.</p>
+    <div class="home-section">
+      <div class="home-section-header">
+        <h2>👑 Top Users</h2>
+        <a href="/leaderboard" style="color:#00e5a0; font-size:13px; text-decoration:none;">View all →</a>
+      </div>
+      <% if (topUsers.length === 0) { %>
+        <div style="text-align:center; color:#a0a0b0; padding:40px 0;">No data yet.</div>
+      <% } else { %>
+        <table class="problems-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Username</th>
+              <th>Solved</th>
+              <th>Acceptance</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% topUsers.forEach((u, index) => { %>
+              <tr>
+                <td>
+                  <% if (index === 0) { %><span style="color:#f5c518; font-weight:700; font-size:18px;">🥇</span>
+                  <% } else if (index === 1) { %><span style="color:#a0a0b0; font-weight:700; font-size:18px;">🥈</span>
+                  <% } else if (index === 2) { %><span style="color:#cd7f32; font-weight:700; font-size:18px;">🥉</span>
+                  <% } else { %><span style="color:#a0a0b0;"><%= index + 1 %></span><% } %>
+                </td>
+                <td>
+                  <a href="/profile/<%= u.username %>" style="color:#ffffff; text-decoration:none; font-weight:600;">
+                    <% if (user && user.username === u.username) { %>
+                      <span style="color:#00e5a0;"><%= u.username %></span>
+                      <span style="color:#a0a0b0; font-size:12px;"> (you)</span>
+                    <% } else { %>
+                      <%= u.username %>
+                    <% } %>
+                  </a>
+                </td>
+                <td style="color:#00e5a0; font-weight:700;"><%= u.solved %></td>
+                <td style="color:#f5a623;">
+                  <%= u.totalSubmissions > 0 ? Math.round(u.accepted / u.totalSubmissions * 100) + '%' : '—' %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } %>
     </div>
   </div>
 

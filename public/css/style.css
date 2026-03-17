@@ -1317,3 +1317,36 @@ body {
   border-color: #f5a623;
   background: #f5a62310;
 }
+
+/* ─── HOME PAGE ──────────────────────────────────────────── */
+.home-container {
+  max-width: 1000px;
+  margin: 40px auto;
+  padding: 0 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+
+.home-section {
+  background: transparent;
+}
+
+.home-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.home-section-header h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+@media (max-width: 700px) {
+  .home-container {
+    grid-template-columns: 1fr;
+  }
+}
