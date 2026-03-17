@@ -140,9 +140,14 @@
               <% if (contest.noTimeLimit) { %>
                 <p style="color:#00e5a0; font-size:12px; margin:4px 0 0;">No time limit</p>
               <% } else { %>
+                <%
+                  const cTz = contest.timezone === 'Vietnam' ? 'Asia/Ho_Chi_Minh' : 'UTC';
+                  const cTzLabel = contest.timezone === 'Vietnam' ? '(Vietnam UTC+7)' : '(UTC)';
+                  const cStart = new Date(contest.startTimeUTC || contest.startTime).toLocaleString('en-GB', { timeZone: cTz });
+                  const cEnd = new Date(contest.endTimeUTC || contest.endTime).toLocaleString('en-GB', { timeZone: cTz });
+                %>
                 <p style="color:#a0a0b0; font-size:12px; margin:4px 0 0;">
-                  <%= new Date(contest.startTimeUTC || contest.startTime).toLocaleString() %> →
-                  <%= new Date(contest.endTimeUTC || contest.endTime).toLocaleString() %>
+                  <%= cStart %> → <%= cEnd %> <%= cTzLabel %>
                 </p>
               <% } %>
             </div>
