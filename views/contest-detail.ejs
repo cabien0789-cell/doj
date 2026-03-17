@@ -76,9 +76,14 @@
     <% } %>
 
     <% if (!contest.noTimeLimit) { %>
+      <%
+        const tzName = contest.timezone === 'Vietnam' ? 'Asia/Ho_Chi_Minh' : 'UTC';
+        const startDisplay = new Date(contest.startTimeUTC).toLocaleString('en-GB', { timeZone: tzName });
+        const endDisplay = new Date(contest.endTimeUTC).toLocaleString('en-GB', { timeZone: tzName });
+      %>
       <div class="org-info">
-        <span>Start: <strong><%= new Date(contest.startTimeUTC).toLocaleString() %></strong></span>
-        <span>End: <strong><%= new Date(contest.endTimeUTC).toLocaleString() %></strong></span>
+        <span>Start: <strong><%= startDisplay %></strong></span>
+        <span>End: <strong><%= endDisplay %></strong></span>
         <span>Time: <strong><%= contest.timezone === 'Vietnam' ? 'Vietnam (UTC+7)' : 'UTC' %></strong></span>
       </div>
     <% } else { %>
