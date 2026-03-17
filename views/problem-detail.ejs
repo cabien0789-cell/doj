@@ -126,7 +126,7 @@
             <tbody>
               <% mySubmissions.forEach(s => { %>
                 <tr>
-                  <td style="color:#a0a0b0; font-size:13px;"><%= new Date(s.submittedAt).toLocaleString() %></td>
+                  <td style="color:#a0a0b0; font-size:13px;"><%= new Date(s.submittedAt).toLocaleString('en-GB', { hour12: false }) %></td>
                   <td><%= s.language.toUpperCase() %></td>
                   <td class="verdict-<%= s.verdict.replace(/\s+/g,'').toLowerCase() %>"><%= s.verdict %></td>
                   <td><%= s.passedCount %>/<%= s.total %></td>

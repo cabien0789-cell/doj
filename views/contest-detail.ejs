@@ -78,8 +78,8 @@
     <% if (!contest.noTimeLimit) { %>
       <%
         const tzName = contest.timezone === 'Vietnam' ? 'Asia/Ho_Chi_Minh' : 'UTC';
-        const startDisplay = new Date(contest.startTimeUTC).toLocaleString('en-GB', { timeZone: tzName });
-        const endDisplay = new Date(contest.endTimeUTC).toLocaleString('en-GB', { timeZone: tzName });
+        const startDisplay = new Date(contest.startTimeUTC).toLocaleString('en-GB', { timeZone: tzName, hour12: false });
+        const endDisplay = new Date(contest.endTimeUTC).toLocaleString('en-GB', { timeZone: tzName, hour12: false });
       %>
       <div class="org-info">
         <span>Start: <strong><%= startDisplay %></strong></span>
@@ -159,7 +159,7 @@
                   </td>
                   <td><a href="/profile/<%= entry.username %>"><%= entry.username %></a></td>
                   <td style="color:#00e5a0; font-weight:600;"><%= entry.solved %></td>
-                  <td style="color:#a0a0b0; font-size:13px;"><%= entry.lastAC ? new Date(entry.lastAC).toLocaleString() : '—' %></td>
+                  <td style="color:#a0a0b0; font-size:13px;"><%= entry.lastAC ? new Date(entry.lastAC).toLocaleString('en-GB', { hour12: false }) : '—' %></td>
                 </tr>
               <% }) %>
             <% } %>
@@ -218,7 +218,7 @@
                   </td>
                   <td><a href="/profile/<%= entry.username %>"><%= entry.username %></a></td>
                   <td style="color:#00e5a0; font-weight:600;"><%= entry.solved %></td>
-                  <td style="color:#a0a0b0; font-size:13px;"><%= entry.lastAC ? new Date(entry.lastAC).toLocaleString() : '—' %></td>
+                  <td style="color:#a0a0b0; font-size:13px;"><%= entry.lastAC ? new Date(entry.lastAC).toLocaleString('en-GB', { hour12: false }) : '—' %></td>
                 </tr>
               <% }) %>
             <% } %>

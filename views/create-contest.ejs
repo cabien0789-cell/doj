@@ -77,11 +77,27 @@
       <div id="timeLimitFields">
         <div class="form-group">
           <label>Start Time <span id="tzLabel" style="color:#a0a0b0; font-size:12px;">(UTC — enter time in UTC)</span></label>
-          <input type="datetime-local" name="startTime" id="startTime" required />
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <input type="date" id="startDate" style="flex:1; min-width:140px;" required />
+            <div style="display:flex; gap:4px; align-items:center;">
+              <input type="number" id="startHour" min="0" max="23" placeholder="HH" style="width:64px; text-align:center;" required />
+              <span style="color:#a0a0b0;">:</span>
+              <input type="number" id="startMinute" min="0" max="59" placeholder="MM" style="width:64px; text-align:center;" required />
+            </div>
+          </div>
+          <input type="hidden" name="startTime" id="startTime" />
         </div>
         <div class="form-group">
           <label>End Time <span id="tzLabel2" style="color:#a0a0b0; font-size:12px;">(UTC — enter time in UTC)</span></label>
-          <input type="datetime-local" name="endTime" id="endTime" required />
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <input type="date" id="endDate" style="flex:1; min-width:140px;" required />
+            <div style="display:flex; gap:4px; align-items:center;">
+              <input type="number" id="endHour" min="0" max="23" placeholder="HH" style="width:64px; text-align:center;" required />
+              <span style="color:#a0a0b0;">:</span>
+              <input type="number" id="endMinute" min="0" max="59" placeholder="MM" style="width:64px; text-align:center;" required />
+            </div>
+          </div>
+          <input type="hidden" name="endTime" id="endTime" />
         </div>
         <div id="tzHint" style="background:#1a1a2e; border:1px solid #2a2a4a; border-radius:6px; padding:10px 14px; margin-bottom:16px; color:#a0a0b0; font-size:13px;">
           💡 Current time: <strong id="currentTimeDisplay" style="color:#ffffff;"></strong>
@@ -98,16 +114,37 @@
         <div id="problemIdsContainer"></div>
       </div>
 
-      <button type="submit" class="btn-submit">Create Contest</button>
+      <button type="submit" class="btn-submit" onclick="return buildDateTime()">Create Contest</button>
     </form>
   </div>
 
   <script>
     const selectedProblemIds = new Set();
-    const selectedProblemData = {};
-
     const SERVER_UTC = '<%= serverTime.utc %>';
     const SERVER_VN = '<%= serverTime.vietnam %>';
+
+    function pad(n) { return String(n).padStart(2, '0'); }
+
+    function buildDateTime() {
+      const noLimit = document.getElementById('noTimeLimit').checked;
+      if (noLimit) return true;
+
+      const sd = document.getElementById('startDate').value;
+      const sh = document.getElementById('startHour').value;
+      const sm = document.getElementById('startMinute').value;
+      const ed = document.getElementById('endDate').value;
+      const eh = document.getElementById('endHour').value;
+      const em = document.getElementById('endMinute').value;
+
+      if (!sd || sh === '' || sm === '' || !ed || eh === '' || em === '') {
+        alert('Please fill in all date and time fields.');
+        return false;
+      }
+
+      document.getElementById('startTime').value = sd + 'T' + pad(sh) + ':' + pad(sm);
+      document.getElementById('endTime').value = ed + 'T' + pad(eh) + ':' + pad(em);
+      return true;
+    }
 
     function updateVisibility() {
       const isPublic = document.querySelector('input[name="visibility"][value="public"]').checked;
@@ -118,8 +155,6 @@
     function toggleTimeLimit() {
       const checked = document.getElementById('noTimeLimit').checked;
       document.getElementById('timeLimitFields').style.display = checked ? 'none' : 'block';
-      document.getElementById('startTime').required = !checked;
-      document.getElementById('endTime').required = !checked;
     }
 
     function updateTimePlaceholders() {
@@ -162,7 +197,6 @@
     function addProblem(id, title, difficulty) {
       if (selectedProblemIds.has(id)) return;
       selectedProblemIds.add(id);
-      selectedProblemData[id] = { title, difficulty };
 
       const container = document.getElementById('selectedProblems');
       const div = document.createElement('div');

@@ -43,7 +43,7 @@
       </p>
       <p style="color:#a0a0b0; font-size:13px; margin-top:8px;">
         <%= submission.language.toUpperCase() %> &nbsp;·&nbsp;
-        <%= new Date(submission.submittedAt).toLocaleString() %> &nbsp;·&nbsp;
+        <%= new Date(submission.submittedAt).toLocaleString('en-GB', { hour12: false }) %> &nbsp;·&nbsp;
         <a href="/problems/<%= submission.problemId %>" style="color:#00e5a0; text-decoration:none;"><%= submission.problemTitle %></a>
         <% if (submission.execTime !== undefined) { %>
           &nbsp;·&nbsp; ⏱ <strong style="color:#ffffff;"><%= submission.execTime %>ms</strong>

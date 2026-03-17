@@ -41,7 +41,7 @@
           <div style="padding:16px 20px; border-bottom:<%= i < notifications.length-1 ? '1px solid #2a2a4a' : 'none' %>; display:flex; justify-content:space-between; align-items:flex-start; gap:16px;">
             <div>
               <p style="margin:0 0 6px; color:#ffffff; font-size:14px; line-height:1.6;"><%= n.message %></p>
-              <p style="margin:0; color:#a0a0b0; font-size:12px;"><%= new Date(n.createdAt).toLocaleString() %></p>
+              <p style="margin:0; color:#a0a0b0; font-size:12px;"><%= new Date(n.createdAt).toLocaleString('en-GB', { hour12: false }) %></p>
             </div>
           </div>
         <% }) %>
