@@ -99,11 +99,11 @@
         <div class="form-group">
           <label>Start Time <span id="tzLabel" style="color:#a0a0b0; font-size:12px;">(<%= contest.timezone === 'Vietnam' ? 'Vietnam UTC+7 — enter time in Vietnam time' : 'UTC — enter time in UTC' %>)</span></label>
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            <input type="date" id="startDate" value="<%= initStartDate %>" style="flex:1; min-width:140px;" />
+            <input type="date" id="startDate" value="<%= initStartDate %>" style="flex:1; min-width:140px;" <%= !contest.noTimeLimit ? 'required' : '' %> />
             <div style="display:flex; gap:4px; align-items:center;">
-              <input type="number" id="startHour" min="0" max="23" placeholder="HH" value="<%= initStartHour %>" style="width:64px; text-align:center;" />
+              <input type="number" id="startHour" min="0" max="23" placeholder="HH" value="<%= initStartHour %>" style="width:64px; text-align:center;" <%= !contest.noTimeLimit ? 'required' : '' %> />
               <span style="color:#a0a0b0;">:</span>
-              <input type="number" id="startMinute" min="0" max="59" placeholder="MM" value="<%= initStartMinute %>" style="width:64px; text-align:center;" />
+              <input type="number" id="startMinute" min="0" max="59" placeholder="MM" value="<%= initStartMinute %>" style="width:64px; text-align:center;" <%= !contest.noTimeLimit ? 'required' : '' %> />
             </div>
           </div>
           <input type="hidden" name="startTime" id="startTime" />
@@ -111,11 +111,11 @@
         <div class="form-group">
           <label>End Time <span id="tzLabel2" style="color:#a0a0b0; font-size:12px;">(<%= contest.timezone === 'Vietnam' ? 'Vietnam UTC+7 — enter time in Vietnam time' : 'UTC — enter time in UTC' %>)</span></label>
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            <input type="date" id="endDate" value="<%= initEndDate %>" style="flex:1; min-width:140px;" />
+            <input type="date" id="endDate" value="<%= initEndDate %>" style="flex:1; min-width:140px;" <%= !contest.noTimeLimit ? 'required' : '' %> />
             <div style="display:flex; gap:4px; align-items:center;">
-              <input type="number" id="endHour" min="0" max="23" placeholder="HH" value="<%= initEndHour %>" style="width:64px; text-align:center;" />
+              <input type="number" id="endHour" min="0" max="23" placeholder="HH" value="<%= initEndHour %>" style="width:64px; text-align:center;" <%= !contest.noTimeLimit ? 'required' : '' %> />
               <span style="color:#a0a0b0;">:</span>
-              <input type="number" id="endMinute" min="0" max="59" placeholder="MM" value="<%= initEndMinute %>" style="width:64px; text-align:center;" />
+              <input type="number" id="endMinute" min="0" max="59" placeholder="MM" value="<%= initEndMinute %>" style="width:64px; text-align:center;" <%= !contest.noTimeLimit ? 'required' : '' %> />
             </div>
           </div>
           <input type="hidden" name="endTime" id="endTime" />
@@ -138,6 +138,39 @@
       <button type="submit" class="btn-submit" onclick="return buildDateTime()">Save Changes</button>
     </form>
   </div>
+
+  <style>
+    .drag-item {
+      cursor: grab;
+      user-select: none;
+    }
+    .drag-item:active {
+      cursor: grabbing;
+    }
+    .drag-item.dragging {
+      opacity: 0.4;
+    }
+    .drop-indicator {
+      height: 3px;
+      background: #00e5a0;
+      border-radius: 2px;
+      margin: 2px 0;
+      display: none;
+    }
+    .drop-indicator.visible {
+      display: block;
+    }
+    .drag-handle {
+      color: #a0a0b0;
+      font-size: 16px;
+      cursor: grab;
+      padding: 0 8px 0 4px;
+      line-height: 1;
+    }
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+  </style>
 
   <script>
     const selectedProblemIds = new Set();
@@ -183,6 +216,14 @@
     function toggleTimeLimit() {
       const checked = document.getElementById('noTimeLimit').checked;
       document.getElementById('timeLimitFields').style.display = checked ? 'none' : 'block';
+      const timeInputs = ['startDate', 'startHour', 'startMinute', 'endDate', 'endHour', 'endMinute'];
+      timeInputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          if (checked) el.removeAttribute('required');
+          else el.setAttribute('required', '');
+        }
+      });
     }
 
     function updateTimePlaceholders() {
@@ -229,13 +270,28 @@
       selectedProblemIds.add(id);
 
       const container = document.getElementById('selectedProblems');
+
+      const indicator = document.createElement('div');
+      indicator.className = 'drop-indicator';
+      container.appendChild(indicator);
+
       const div = document.createElement('div');
       div.id = 'selected-' + id;
+      div.className = 'drag-item';
+      div.draggable = true;
+      div.dataset.id = id;
       div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:#0f0f23; border:1px solid #2a2a4a; border-radius:6px; padding:10px 14px;';
       div.innerHTML = `
-        <span style="color:#ffffff; font-size:14px;">${title} <span class="difficulty-${difficulty.toLowerCase()}" style="font-size:12px;">(${difficulty})</span></span>
+        <div style="display:flex; align-items:center; gap:4px;">
+          <span class="drag-handle">⠿</span>
+          <span style="color:#ffffff; font-size:14px;">${title} <span class="difficulty-${difficulty.toLowerCase()}" style="font-size:12px;">(${difficulty})</span></span>
+        </div>
         <button type="button" onclick="removeProblem('${id}')" style="background:transparent; border:1px solid #ff4444; color:#ff4444; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:12px;">Remove</button>
       `;
+
+      div.addEventListener('dragstart', onDragStart);
+      div.addEventListener('dragend', onDragEnd);
+
       container.appendChild(div);
 
       const input = document.createElement('input');
@@ -249,14 +305,134 @@
         document.getElementById('problemSearchInput').value = '';
         document.getElementById('problemSearchResults').style.display = 'none';
       }
+
+      rebindDropZones();
     }
 
     function removeProblem(id) {
       selectedProblemIds.delete(id);
       const el = document.getElementById('selected-' + id);
-      if (el) el.remove();
+      if (el) {
+        const prev = el.previousElementSibling;
+        if (prev && prev.classList.contains('drop-indicator')) prev.remove();
+        el.remove();
+      }
       const input = document.getElementById('input-' + id);
       if (input) input.remove();
+      rebindDropZones();
+    }
+
+    // ── Drag & Drop ──────────────────────────────────────────
+
+    let dragSrcEl = null;
+
+    function onDragStart(e) {
+      dragSrcEl = this;
+      this.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', this.dataset.id);
+    }
+
+    function onDragEnd(e) {
+      this.classList.remove('dragging');
+      document.querySelectorAll('.drop-indicator').forEach(ind => ind.classList.remove('visible'));
+      dragSrcEl = null;
+      syncHiddenInputOrder();
+    }
+
+    function rebindDropZones() {
+      const container = document.getElementById('selectedProblems');
+
+      container.querySelectorAll('.drop-indicator').forEach(ind => {
+        ind.addEventListener('dragover', e => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          document.querySelectorAll('.drop-indicator').forEach(i => i.classList.remove('visible'));
+          ind.classList.add('visible');
+        });
+        ind.addEventListener('dragleave', e => {
+          ind.classList.remove('visible');
+        });
+        ind.addEventListener('drop', e => {
+          e.preventDefault();
+          ind.classList.remove('visible');
+          if (!dragSrcEl) return;
+
+          // Insert dragSrcEl's indicator before this indicator, then dragSrcEl after indicator
+          const srcIndicator = dragSrcEl.previousElementSibling;
+          if (srcIndicator && srcIndicator.classList.contains('drop-indicator')) {
+            srcIndicator.remove();
+          }
+          dragSrcEl.remove();
+
+          ind.insertAdjacentElement('afterend', dragSrcEl);
+          dragSrcEl.insertAdjacentHTML('beforebegin', '<div class="drop-indicator"></div>');
+
+          rebindDropZones();
+          syncHiddenInputOrder();
+        });
+      });
+
+      container.querySelectorAll('.drag-item').forEach(item => {
+        item.addEventListener('dragover', e => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          if (item === dragSrcEl) return;
+          document.querySelectorAll('.drop-indicator').forEach(i => i.classList.remove('visible'));
+          const rect = item.getBoundingClientRect();
+          const mid = rect.top + rect.height / 2;
+          if (e.clientY < mid) {
+            const prev = item.previousElementSibling;
+            if (prev && prev.classList.contains('drop-indicator')) prev.classList.add('visible');
+          } else {
+            const next = item.nextElementSibling;
+            if (next && next.classList.contains('drop-indicator')) next.classList.add('visible');
+          }
+        });
+        item.addEventListener('dragleave', e => {
+          document.querySelectorAll('.drop-indicator').forEach(i => i.classList.remove('visible'));
+        });
+        item.addEventListener('drop', e => {
+          e.preventDefault();
+          document.querySelectorAll('.drop-indicator').forEach(i => i.classList.remove('visible'));
+          if (!dragSrcEl || dragSrcEl === item) return;
+
+          const rect = item.getBoundingClientRect();
+          const mid = rect.top + rect.height / 2;
+
+          const srcIndicator = dragSrcEl.previousElementSibling;
+          if (srcIndicator && srcIndicator.classList.contains('drop-indicator')) {
+            srcIndicator.remove();
+          }
+          dragSrcEl.remove();
+
+          if (e.clientY < mid) {
+            item.insertAdjacentElement('beforebegin', dragSrcEl);
+            dragSrcEl.insertAdjacentHTML('beforebegin', '<div class="drop-indicator"></div>');
+          } else {
+            item.insertAdjacentElement('afterend', dragSrcEl);
+            dragSrcEl.insertAdjacentHTML('beforebegin', '<div class="drop-indicator"></div>');
+          }
+
+          rebindDropZones();
+          syncHiddenInputOrder();
+        });
+      });
+    }
+
+    function syncHiddenInputOrder() {
+      const container = document.getElementById('selectedProblems');
+      const hiddenContainer = document.getElementById('problemIdsContainer');
+      hiddenContainer.innerHTML = '';
+      container.querySelectorAll('.drag-item').forEach(item => {
+        const id = item.dataset.id;
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'problemIds[]';
+        input.value = id;
+        input.id = 'input-' + id;
+        hiddenContainer.appendChild(input);
+      });
     }
 
     fetch('/notifications/count').then(r => r.json()).then(data => {
