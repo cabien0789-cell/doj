@@ -111,6 +111,9 @@
   <script>
     const selectedProblemIds = new Set();
 
+    const SERVER_UTC = '<%= serverTime.utc %>';
+    const SERVER_VN = '<%= serverTime.vietnam %>';
+
     // Pre-populate existing problems
     <% problems.forEach(p => { %>
       <% if (contest.problemIds.includes(p.id)) { %>
@@ -142,19 +145,10 @@
 
     function updateCurrentTime() {
       const tz = document.getElementById('timezoneSelect').value;
-      const now = new Date();
-      let display;
-      if (tz === 'Vietnam') {
-        const vnTime = new Date(now.getTime() + 7 * 60 * 60 * 1000);
-        display = vnTime.toISOString().slice(0, 16).replace('T', ' ') + ' (Vietnam UTC+7)';
-      } else {
-        display = now.toISOString().slice(0, 16).replace('T', ' ') + ' (UTC)';
-      }
-      document.getElementById('currentTimeDisplay').textContent = display;
+      document.getElementById('currentTimeDisplay').textContent = tz === 'Vietnam' ? SERVER_VN : SERVER_UTC;
     }
 
     updateCurrentTime();
-    setInterval(updateCurrentTime, 10000);
 
     async function searchProblems() {
       const q = document.getElementById('problemSearchInput').value.trim();

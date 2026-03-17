@@ -126,6 +126,14 @@ function validateContestTime(startTimeUTC, endTimeUTC) {
   return null;
 }
 
+function getServerTime() {
+  const now = new Date();
+  const utcStr = now.toISOString().slice(0, 16).replace('T', ' ') + ' (UTC)';
+  const vnTime = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+  const vnStr = vnTime.toISOString().slice(0, 16).replace('T', ' ') + ' (Vietnam UTC+7)';
+  return { utc: utcStr, vietnam: vnStr };
+}
+
 // Compare output like standard OJ:
 // - rstrip each line (remove trailing whitespace per line)
 // - remove trailing empty lines
@@ -728,7 +736,7 @@ app.get('/organizations/:id/contests/create', requireLogin, async (req, res) => 
   try { org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
   if (!org || org.owner !== req.session.user.username) return res.redirect('/organizations');
   org.id = org._id.toString();
-  res.render('create-contest', { user: req.session.user, orgId: org.id, error: undefined });
+  res.render('create-contest', { user: req.session.user, orgId: org.id, error: undefined, serverTime: getServerTime() });
 });
 
 app.post('/organizations/:id/contests/create', requireLogin, async (req, res) => {
@@ -743,7 +751,7 @@ app.post('/organizations/:id/contests/create', requireLogin, async (req, res) =>
   const endTimeUTC = isNoLimit ? null : toUTC(req.body.endTime, timezone);
   if (!isNoLimit) {
     const validationError = validateContestTime(startTimeUTC, endTimeUTC);
-    if (validationError) return res.render('create-contest', { user: req.session.user, orgId: org._id.toString(), error: validationError });
+    if (validationError) return res.render('create-contest', { user: req.session.user, orgId: org._id.toString(), error: validationError, serverTime: getServerTime() });
   }
   await getContests().insertOne({
     name, orgId: org._id.toString(), timezone: timezone || 'UTC',
@@ -764,7 +772,7 @@ app.get('/contests/:id/edit', requireLogin, async (req, res) => {
   contest.id = contest._id.toString();
   const myProblems = await getProblems().find({ author: req.session.user.username, deletedFromProfile: { $ne: true } }).toArray();
   const problems = myProblems.map(p => ({ ...p, id: p._id.toString() }));
-  res.render('edit-contest', { user: req.session.user, contest, problems, error: undefined });
+  res.render('edit-contest', { user: req.session.user, contest, problems, error: undefined, serverTime: getServerTime() });
 });
 
 app.post('/contests/:id/edit', requireLogin, async (req, res) => {
@@ -784,9 +792,15 @@ app.post('/contests/:id/edit', requireLogin, async (req, res) => {
     const validationError = validateContestTime(startTimeUTC, endTimeUTC);
     if (validationError) {
       contest.id = contest._id.toString();
+      contest.startTime = req.body.startTime || contest.startTime;
+      contest.endTime = req.body.endTime || contest.endTime;
+      contest.timezone = timezone || contest.timezone;
+      contest.name = name || contest.name;
+      contest.visibility = visibility || contest.visibility;
+      contest.noTimeLimit = isNoLimit;
       const myProblems = await getProblems().find({ author: req.session.user.username, deletedFromProfile: { $ne: true } }).toArray();
       const problems = myProblems.map(p => ({ ...p, id: p._id.toString() }));
-      return res.render('edit-contest', { user: req.session.user, contest, problems, error: validationError });
+      return res.render('edit-contest', { user: req.session.user, contest, problems, error: validationError, serverTime: getServerTime() });
     }
   }
   await getContests().updateOne({ _id: new ObjectId(req.params.id) }, { $set: {
