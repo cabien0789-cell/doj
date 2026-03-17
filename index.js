@@ -113,6 +113,19 @@ function toUTC(datetimeLocal, timezone) {
   return new Date(datetimeLocal + ':00Z').toISOString();
 }
 
+function validateContestTime(startTimeUTC, endTimeUTC) {
+  const now = new Date();
+  const start = new Date(startTimeUTC);
+  const end = new Date(endTimeUTC);
+  const minStart = new Date(now.getTime() + 60 * 60000);
+  const minEnd = new Date(now.getTime() + 2 * 60 * 60000);
+  const minEndFromStart = new Date(start.getTime() + 15 * 60000);
+  if (start < minStart) return 'Start time must be at least 1 hour from now.';
+  if (end < minEnd) return 'End time must be at least 2 hours from now.';
+  if (end < minEndFromStart) return 'End time must be at least 15 minutes after start time.';
+  return null;
+}
+
 // Compare output like standard OJ:
 // - rstrip each line (remove trailing whitespace per line)
 // - remove trailing empty lines
@@ -700,6 +713,10 @@ app.post('/organizations/:id/contests/create', requireLogin, async (req, res) =>
   const isNoLimit = noTimeLimit === 'on';
   const startTimeUTC = isNoLimit ? null : toUTC(req.body.startTime, timezone);
   const endTimeUTC = isNoLimit ? null : toUTC(req.body.endTime, timezone);
+  if (!isNoLimit) {
+    const validationError = validateContestTime(startTimeUTC, endTimeUTC);
+    if (validationError) return res.render('create-contest', { user: req.session.user, orgId: org._id.toString(), error: validationError });
+  }
   await getContests().insertOne({
     name, orgId: org._id.toString(), timezone: timezone || 'UTC',
     noTimeLimit: isNoLimit, visibility: visibility || 'public',
@@ -735,6 +752,15 @@ app.post('/contests/:id/edit', requireLogin, async (req, res) => {
   const isNoLimit = noTimeLimit === 'on';
   const startTimeUTC = isNoLimit ? null : toUTC(req.body.startTime, timezone);
   const endTimeUTC = isNoLimit ? null : toUTC(req.body.endTime, timezone);
+  if (!isNoLimit) {
+    const validationError = validateContestTime(startTimeUTC, endTimeUTC);
+    if (validationError) {
+      contest.id = contest._id.toString();
+      const myProblems = await getProblems().find({ author: req.session.user.username, deletedFromProfile: { $ne: true } }).toArray();
+      const problems = myProblems.map(p => ({ ...p, id: p._id.toString() }));
+      return res.render('edit-contest', { user: req.session.user, contest, problems, error: validationError });
+    }
+  }
   await getContests().updateOne({ _id: new ObjectId(req.params.id) }, { $set: {
     name, timezone: timezone || 'UTC', noTimeLimit: isNoLimit,
     visibility: visibility || 'public',

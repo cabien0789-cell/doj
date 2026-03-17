@@ -199,33 +199,6 @@
       if (input) input.remove();
     }
 
-    document.getElementById('contestForm').addEventListener('submit', function(e) {
-      const noLimit = document.getElementById('noTimeLimit').checked;
-      if (noLimit) return;
-
-      const startVal = document.getElementById('startTime').value;
-      const endVal = document.getElementById('endTime').value;
-      if (!startVal || !endVal) return;
-
-      const now = new Date();
-      const tz = document.getElementById('timezoneSelect').value;
-
-      // Convert input time to UTC for comparison
-      const startDate = new Date(startVal);
-      const endDate = new Date(endVal);
-
-      // If Vietnam timezone, the user entered Vietnam time but browser treats it as local
-      // We need to get "now" in the same reference frame as the input
-      // Since datetime-local is always local time, compare directly
-      const minStart = new Date(now.getTime() + 60 * 60000);
-      const minEnd = new Date(now.getTime() + 2 * 60 * 60000);
-      const minEndFromStart = new Date(startDate.getTime() + 15 * 60000);
-
-      if (startDate < minStart) { e.preventDefault(); alert('Start time must be at least 1 hour from now.'); return; }
-      if (endDate < minEnd) { e.preventDefault(); alert('End time must be at least 2 hours from now.'); return; }
-      if (endDate < minEndFromStart) { e.preventDefault(); alert('End time must be at least 15 minutes after start time.'); return; }
-    });
-
     fetch('/notifications/count').then(r => r.json()).then(data => {
       if (data.count > 0) {
         const badge = document.getElementById('notifBadge');
