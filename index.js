@@ -272,7 +272,7 @@ app.get('/', async (req, res) => {
       const bTime = b.startTimeUTC || b.startTime || '';
       return bTime.localeCompare(aTime);
     })
-    .slice(0, 5)
+    .slice(0, 3)
     .map(c => ({ ...c, id: c._id.toString() }));
 
   const allSubs = await getSubmissions().find().sort({ submittedAt: 1 }).toArray();
