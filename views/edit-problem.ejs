@@ -41,7 +41,7 @@
         </select>
       </div>
       <div class="form-group">
-        <label>Tags <span style="color:#a0a0b0; font-size:12px;">(chọn một hoặc nhiều)</span></label>
+        <label>Tags</label>
         <div class="tags-grid">
           <% ['Arrays', 'Strings', 'Math', 'Sorting', 'Searching', 'Dynamic Programming', 'Greedy', 'Graph', 'Tree', 'Recursion', 'Stack', 'Queue', 'Linked List', 'Binary Search', 'Two Pointers', 'Bit Manipulation', 'Geometry', 'Number Theory'].forEach(tag => { %>
             <label class="tag-checkbox">
@@ -75,17 +75,16 @@
         <textarea name="outputFormat" rows="3" required><%= problem.outputFormat %></textarea>
       </div>
       <div class="form-group">
-        <label>Constraints <span style="color:#a0a0b0; font-size:12px;">(không bắt buộc)</span></label>
+        <label>Constraints</label>
         <textarea name="constraints" rows="3"><%= problem.constraints || '' %></textarea>
       </div>
       <div class="form-group">
-        <label>Explanation <span style="color:#a0a0b0; font-size:12px;">(không bắt buộc)</span></label>
+        <label>Explanation</label>
         <textarea name="explanation" rows="4"><%= problem.explanation || '' %></textarea>
       </div>
 
-      <!-- Sample Test Cases -->
       <div class="testcases-section">
-        <h3>Sample Test Cases <span style="color:#a0a0b0; font-size:13px; font-weight:400;">(hiển thị công khai)</span></h3>
+        <h3>Sample Test Cases</h3>
         <div id="sampleTestcases">
           <% (problem.sampleTestcases || problem.testcases || []).forEach((tc, i) => { %>
             <div class="testcase">
@@ -113,9 +112,8 @@
         <button type="button" class="btn-add-tc" onclick="addTestcase('sample')">+ Add Sample Test Case</button>
       </div>
 
-      <!-- Hidden Test Cases -->
       <div class="testcases-section">
-        <h3>Hidden Test Cases <span style="color:#a0a0b0; font-size:13px; font-weight:400;">(chỉ dùng để chấm)</span></h3>
+        <h3>Hidden Test Cases</h3>
         <div id="hiddenTestcases">
           <% (problem.hiddenTestcases || []).forEach((tc, i) => { %>
             <div class="testcase">
