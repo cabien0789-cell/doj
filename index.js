@@ -107,10 +107,11 @@ async function sendNotification(username, message) {
 
 function toUTC(datetimeLocal, timezone) {
   if (!datetimeLocal) return null;
+  const clean = datetimeLocal.slice(0, 16);
   if (timezone === 'Vietnam') {
-    return new Date(datetimeLocal + ':00+07:00').toISOString();
+    return new Date(clean + ':00+07:00').toISOString();
   }
-  return new Date(datetimeLocal + ':00Z').toISOString();
+  return new Date(clean + ':00Z').toISOString();
 }
 
 function validateContestTime(startTimeUTC, endTimeUTC) {
@@ -264,7 +265,6 @@ function parseTestcases(inputRaw, outputRaw) {
 // ─── ROUTES ───────────────────────────────────────────────
 
 app.get('/', async (req, res) => {
-  // Recent contests (5 mới nhất)
   const allContests = await getContests().find().toArray();
   const recentContests = allContests
     .sort((a, b) => {
@@ -275,7 +275,6 @@ app.get('/', async (req, res) => {
     .slice(0, 5)
     .map(c => ({ ...c, id: c._id.toString() }));
 
-  // Top users (top 5)
   const allSubs = await getSubmissions().find().sort({ submittedAt: 1 }).toArray();
   const userMap = {};
   allSubs.forEach(s => {
@@ -291,11 +290,7 @@ app.get('/', async (req, res) => {
     .sort((a, b) => b.solved - a.solved)
     .slice(0, 5);
 
-  res.render('index', {
-    user: req.session.user || null,
-    recentContests,
-    topUsers
-  });
+  res.render('index', { user: req.session.user || null, recentContests, topUsers });
 });
 
 app.get('/login', (req, res) => res.render('login', {}));
@@ -750,13 +745,23 @@ app.post('/organizations/:id/contests/create', requireLogin, async (req, res) =>
   const startTimeUTC = isNoLimit ? null : toUTC(req.body.startTime, timezone);
   const endTimeUTC = isNoLimit ? null : toUTC(req.body.endTime, timezone);
   if (!isNoLimit) {
-    const validationError = validateContestTime(startTimeUTC, endTimeUTC);
+    const now = new Date();
+    const start = new Date(startTimeUTC);
+    const end = new Date(endTimeUTC);
+    const minStart = new Date(now.getTime() + 60 * 60000);
+    const minEnd = new Date(now.getTime() + 2 * 60 * 60000);
+    const minEndFromStart = new Date(start.getTime() + 15 * 60000);
+    let validationError = null;
+    if (start < minStart) validationError = 'Start time must be at least 1 hour from now.';
+    else if (end < minEnd) validationError = 'End time must be at least 2 hours from now.';
+    else if (end < minEndFromStart) validationError = 'End time must be at least 15 minutes after start time.';
     if (validationError) return res.render('create-contest', { user: req.session.user, orgId: org._id.toString(), error: validationError, serverTime: getServerTime() });
   }
   await getContests().insertOne({
     name, orgId: org._id.toString(), timezone: timezone || 'UTC',
     noTimeLimit: isNoLimit, visibility: visibility || 'public',
-    startTime: req.body.startTime || null, endTime: req.body.endTime || null,
+    startTime: req.body.startTime ? req.body.startTime.slice(0, 16) : null,
+    endTime: req.body.endTime ? req.body.endTime.slice(0, 16) : null,
     startTimeUTC, endTimeUTC, problemIds
   });
   res.redirect('/organizations/' + org._id.toString());
@@ -789,11 +794,20 @@ app.post('/contests/:id/edit', requireLogin, async (req, res) => {
   const startTimeUTC = isNoLimit ? null : toUTC(req.body.startTime, timezone);
   const endTimeUTC = isNoLimit ? null : toUTC(req.body.endTime, timezone);
   if (!isNoLimit) {
-    const validationError = validateContestTime(startTimeUTC, endTimeUTC);
+    const now = new Date();
+    const start = new Date(startTimeUTC);
+    const end = new Date(endTimeUTC);
+    const minStart = new Date(now.getTime() + 60 * 60000);
+    const minEnd = new Date(now.getTime() + 2 * 60 * 60000);
+    const minEndFromStart = new Date(start.getTime() + 15 * 60000);
+    let validationError = null;
+    if (start < minStart) validationError = 'Start time must be at least 1 hour from now.';
+    else if (end < minEnd) validationError = 'End time must be at least 2 hours from now.';
+    else if (end < minEndFromStart) validationError = 'End time must be at least 15 minutes after start time.';
     if (validationError) {
       contest.id = contest._id.toString();
-      contest.startTime = req.body.startTime || contest.startTime;
-      contest.endTime = req.body.endTime || contest.endTime;
+      contest.startTime = req.body.startTime ? req.body.startTime.slice(0, 16) : contest.startTime;
+      contest.endTime = req.body.endTime ? req.body.endTime.slice(0, 16) : contest.endTime;
       contest.timezone = timezone || contest.timezone;
       contest.name = name || contest.name;
       contest.visibility = visibility || contest.visibility;
@@ -806,7 +820,8 @@ app.post('/contests/:id/edit', requireLogin, async (req, res) => {
   await getContests().updateOne({ _id: new ObjectId(req.params.id) }, { $set: {
     name, timezone: timezone || 'UTC', noTimeLimit: isNoLimit,
     visibility: visibility || 'public',
-    startTime: req.body.startTime || null, endTime: req.body.endTime || null,
+    startTime: req.body.startTime ? req.body.startTime.slice(0, 16) : null,
+    endTime: req.body.endTime ? req.body.endTime.slice(0, 16) : null,
     startTimeUTC, endTimeUTC, problemIds
   }});
   res.redirect('/contests/' + req.params.id);
