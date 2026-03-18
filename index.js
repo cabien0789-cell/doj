@@ -6,21 +6,14 @@ const { MongoClient, ObjectId } = require('mongodb');
 const { execSync } = require('child_process');
 const fetch = require('node-fetch');
 const fs = require('fs');
-const multer = require('multer');
 
 const app = express();
-
-const storage = multer.memoryStorage();
-const upload = multer({
-  storage,
-  limits: { fileSize: 50 * 1024 * 1024 }
-});
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
 app.use(session({
   secret: 'doj-secret-key',
@@ -259,66 +252,11 @@ function runCodeOnce(code, language, input) {
   }
 }
 
-// Parse testcases cho CREATE (không có existing)
-function parseTestcasesFromRequest(req, type) {
-  const results = [];
-  let i = 0;
-  while (true) {
-    const textInput = req.body[`${type}Input_${i}`];
-    const textOutput = req.body[`${type}Output_${i}`];
-    const fileInput = req.files && req.files[`${type}InputFile_${i}`];
-    const fileOutput = req.files && req.files[`${type}OutputFile_${i}`];
-    const hasInput = textInput !== undefined || fileInput;
-    const hasOutput = textOutput !== undefined || fileOutput;
-    if (!hasInput && !hasOutput) break;
-    const inp = fileInput ? fileInput[0].buffer.toString('utf8') : (textInput || '');
-    const out = fileOutput ? fileOutput[0].buffer.toString('utf8') : (textOutput || '');
-    if (inp && out) results.push({ input: inp, output: out });
-    i++;
-  }
-  return results;
+function parseTestcases(inputRaw, outputRaw) {
+  let inputs = Array.isArray(inputRaw) ? inputRaw : (inputRaw ? [inputRaw] : []);
+  let outputs = Array.isArray(outputRaw) ? outputRaw : (outputRaw ? [outputRaw] : []);
+  return inputs.map((inp, i) => ({ input: inp || '', output: outputs[i] || '' })).filter(tc => tc.input && tc.output);
 }
-
-// Parse testcases cho EDIT (có existing, giữ lại nếu không thay đổi)
-function parseTestcasesFromRequestEdit(req, type, existingTcs) {
-  const results = [];
-  let i = 0;
-  while (true) {
-    const keep = req.body[`keep_${type}_${i}`];
-    const textInput = req.body[`${type}Input_${i}`];
-    const textOutput = req.body[`${type}Output_${i}`];
-    const fileInput = req.files && req.files[`${type}InputFile_${i}`];
-    const fileOutput = req.files && req.files[`${type}OutputFile_${i}`];
-    const hasAny = keep !== undefined || textInput !== undefined || fileInput || textOutput !== undefined || fileOutput;
-    if (!hasAny) break;
-
-    if (keep === '1') {
-      // Giữ nguyên testcase cũ
-      if (existingTcs && existingTcs[i]) {
-        results.push(existingTcs[i]);
-      }
-    } else {
-      const inp = fileInput ? fileInput[0].buffer.toString('utf8') : (textInput || '');
-      const out = fileOutput ? fileOutput[0].buffer.toString('utf8') : (textOutput || '');
-      if (inp && out) results.push({ input: inp, output: out });
-    }
-    i++;
-  }
-  return results;
-}
-
-function buildTcUpload(maxTc) {
-  const fields = [];
-  for (let i = 0; i < maxTc; i++) {
-    fields.push({ name: `sampleInputFile_${i}`, maxCount: 1 });
-    fields.push({ name: `sampleOutputFile_${i}`, maxCount: 1 });
-    fields.push({ name: `hiddenInputFile_${i}`, maxCount: 1 });
-    fields.push({ name: `hiddenOutputFile_${i}`, maxCount: 1 });
-  }
-  return upload.fields(fields);
-}
-
-const tcUpload = buildTcUpload(50);
 
 // ─── ROUTES ───────────────────────────────────────────────
 
@@ -555,10 +493,10 @@ app.get('/problems', async (req, res) => {
 
 app.get('/problems/create', requireLogin, (req, res) => res.render('create-problem', { user: req.session.user, error: undefined }));
 
-app.post('/problems/create', requireLogin, tcUpload, async (req, res) => {
+app.post('/problems/create', requireLogin, async (req, res) => {
   const { title, difficulty, statement, inputFormat, outputFormat, timeLimit, constraints, explanation } = req.body;
-  const sampleTestcases = parseTestcasesFromRequest(req, 'sample');
-  const hiddenTestcases = parseTestcasesFromRequest(req, 'hidden');
+  const sampleTestcases = parseTestcases(req.body['sampleInput[]'] || req.body.sampleInput, req.body['sampleOutput[]'] || req.body.sampleOutput);
+  const hiddenTestcases = parseTestcases(req.body['hiddenInput[]'] || req.body.hiddenInput, req.body['hiddenOutput[]'] || req.body.hiddenOutput);
   let tags = req.body['tags[]'] || req.body.tags || [];
   if (!Array.isArray(tags)) tags = [tags];
   await getProblems().insertOne({
@@ -611,16 +549,10 @@ app.get('/problems/:id/edit', requireLogin, async (req, res) => {
   res.render('edit-problem', { user: req.session.user, problem, error: undefined });
 });
 
-app.post('/problems/:id/edit', requireLogin, tcUpload, async (req, res) => {
-  let problem;
-  try { problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/problems'); }
-  if (!problem) return res.redirect('/problems');
-
+app.post('/problems/:id/edit', requireLogin, async (req, res) => {
   const { title, difficulty, statement, inputFormat, outputFormat, timeLimit, constraints, explanation } = req.body;
-  const existingSample = problem.sampleTestcases || problem.testcases || [];
-  const existingHidden = problem.hiddenTestcases || [];
-  const sampleTestcases = parseTestcasesFromRequestEdit(req, 'sample', existingSample);
-  const hiddenTestcases = parseTestcasesFromRequestEdit(req, 'hidden', existingHidden);
+  const sampleTestcases = parseTestcases(req.body['sampleInput[]'] || req.body.sampleInput, req.body['sampleOutput[]'] || req.body.sampleOutput);
+  const hiddenTestcases = parseTestcases(req.body['hiddenInput[]'] || req.body.hiddenInput, req.body['hiddenOutput[]'] || req.body.hiddenOutput);
   let tags = req.body['tags[]'] || req.body.tags || [];
   if (!Array.isArray(tags)) tags = [tags];
   try {
@@ -910,7 +842,7 @@ app.get('/contests/:id/problems/create', requireLogin, async (req, res) => {
   res.render('create-problem-contest', { user: req.session.user, contestId: contest.id, contestName: contest.name, error: undefined });
 });
 
-app.post('/contests/:id/problems/create', requireLogin, tcUpload, async (req, res) => {
+app.post('/contests/:id/problems/create', requireLogin, async (req, res) => {
   let contest;
   try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
   if (!contest) return res.redirect('/organizations');
@@ -919,8 +851,8 @@ app.post('/contests/:id/problems/create', requireLogin, tcUpload, async (req, re
   if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
 
   const { title, difficulty, statement, inputFormat, outputFormat, timeLimit, constraints, explanation } = req.body;
-  const sampleTestcases = parseTestcasesFromRequest(req, 'sample');
-  const hiddenTestcases = parseTestcasesFromRequest(req, 'hidden');
+  const sampleTestcases = parseTestcases(req.body['sampleInput[]'] || req.body.sampleInput, req.body['sampleOutput[]'] || req.body.sampleOutput);
+  const hiddenTestcases = parseTestcases(req.body['hiddenInput[]'] || req.body.hiddenInput, req.body['hiddenOutput[]'] || req.body.hiddenOutput);
   let tags = req.body['tags[]'] || req.body.tags || [];
   if (!Array.isArray(tags)) tags = [tags];
 
