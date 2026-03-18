@@ -135,10 +135,6 @@ function getServerTime() {
   return { utc: utcStr, vietnam: vnStr };
 }
 
-// Compare output like standard OJ:
-// - rstrip each line (remove trailing whitespace per line)
-// - remove trailing empty lines
-// - keep leading whitespace and spacing between tokens exactly
 function normalizeOutput(str) {
   const lines = str.split('\n');
   const rstripped = lines.map(line => line.replace(/\s+$/, ''));
@@ -776,7 +772,11 @@ app.get('/contests/:id/edit', requireLogin, async (req, res) => {
   if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
   contest.id = contest._id.toString();
   const myProblems = await getProblems().find({ author: req.session.user.username, deletedFromProfile: { $ne: true } }).toArray();
-  const problems = myProblems.map(p => ({ ...p, id: p._id.toString() }));
+  const myProblemsWithId = myProblems.map(p => ({ ...p, id: p._id.toString() }));
+  const problems = [
+    ...contest.problemIds.map(pid => myProblemsWithId.find(p => p.id === pid)).filter(p => p),
+    ...myProblemsWithId.filter(p => !contest.problemIds.includes(p.id))
+  ];
   res.render('edit-contest', { user: req.session.user, contest, problems, error: undefined, serverTime: getServerTime() });
 });
 
@@ -812,9 +812,13 @@ app.post('/contests/:id/edit', requireLogin, async (req, res) => {
       contest.name = name || contest.name;
       contest.visibility = visibility || contest.visibility;
       contest.noTimeLimit = isNoLimit;
-      const myProblems = await getProblems().find({ author: req.session.user.username, deletedFromProfile: { $ne: true } }).toArray();
-      const problems = myProblems.map(p => ({ ...p, id: p._id.toString() }));
-      return res.render('edit-contest', { user: req.session.user, contest, problems, error: validationError, serverTime: getServerTime() });
+      const myProblems2 = await getProblems().find({ author: req.session.user.username, deletedFromProfile: { $ne: true } }).toArray();
+      const myProblemsWithId2 = myProblems2.map(p => ({ ...p, id: p._id.toString() }));
+      const problems2 = [
+        ...contest.problemIds.map(pid => myProblemsWithId2.find(p => p.id === pid)).filter(p => p),
+        ...myProblemsWithId2.filter(p => !contest.problemIds.includes(p.id))
+      ];
+      return res.render('edit-contest', { user: req.session.user, contest, problems: problems2, error: validationError, serverTime: getServerTime() });
     }
   }
   await getContests().updateOne({ _id: new ObjectId(req.params.id) }, { $set: {
@@ -904,6 +908,7 @@ app.get('/contests/:id', async (req, res) => {
     const p = allProblems.find(p => p._id.toString() === pid);
     return p ? { ...p, id: p._id.toString() } : null;
   }).filter(p => p !== null);
+
   const startUTC = contest.startTimeUTC || contest.startTime;
   const endUTC = contest.endTimeUTC || contest.endTime;
 
