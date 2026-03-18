@@ -900,7 +900,10 @@ app.get('/contests/:id', async (req, res) => {
   }
 
   const allProblems = await getProblems().find().toArray();
-  const problems = allProblems.filter(p => contest.problemIds.includes(p._id.toString())).map(p => ({ ...p, id: p._id.toString() }));
+  const problems = contest.problemIds.map(pid => {
+    const p = allProblems.find(p => p._id.toString() === pid);
+    return p ? { ...p, id: p._id.toString() } : null;
+  }).filter(p => p !== null);
   const startUTC = contest.startTimeUTC || contest.startTime;
   const endUTC = contest.endTimeUTC || contest.endTime;
 
