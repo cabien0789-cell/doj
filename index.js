@@ -13,15 +13,8 @@ const app = express();
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }
+  limits: { fileSize: 50 * 1024 * 1024 }
 });
-
-const tcUpload = upload.fields([
-  { name: 'sampleInputFile', maxCount: 20 },
-  { name: 'sampleOutputFile', maxCount: 20 },
-  { name: 'hiddenInputFile', maxCount: 20 },
-  { name: 'hiddenOutputFile', maxCount: 20 }
-]);
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -267,24 +260,39 @@ function runCodeOnce(code, language, input) {
 }
 
 function parseTestcasesFromRequest(req, type) {
-  const textInputs = req.body[`${type}Input[]`] || req.body[`${type}Input`] || [];
-  const textOutputs = req.body[`${type}Output[]`] || req.body[`${type}Output`] || [];
-  const inputArr = Array.isArray(textInputs) ? textInputs : [textInputs];
-  const outputArr = Array.isArray(textOutputs) ? textOutputs : [textOutputs];
-
-  const fileInputs = (req.files && req.files[`${type}InputFile`]) || [];
-  const fileOutputs = (req.files && req.files[`${type}OutputFile`]) || [];
-
-  const count = Math.max(inputArr.length, fileInputs.length);
   const results = [];
+  let i = 0;
+  while (true) {
+    const textInput = req.body[`${type}Input_${i}`];
+    const textOutput = req.body[`${type}Output_${i}`];
+    const fileInput = req.files && req.files[`${type}InputFile_${i}`];
+    const fileOutput = req.files && req.files[`${type}OutputFile_${i}`];
 
-  for (let i = 0; i < count; i++) {
-    const inp = fileInputs[i] ? fileInputs[i].buffer.toString('utf8') : (inputArr[i] || '');
-    const out = fileOutputs[i] ? fileOutputs[i].buffer.toString('utf8') : (outputArr[i] || '');
+    const hasInput = textInput !== undefined || fileInput;
+    const hasOutput = textOutput !== undefined || fileOutput;
+    if (!hasInput && !hasOutput) break;
+
+    const inp = fileInput ? fileInput[0].buffer.toString('utf8') : (textInput || '');
+    const out = fileOutput ? fileOutput[0].buffer.toString('utf8') : (textOutput || '');
+
     if (inp && out) results.push({ input: inp, output: out });
+    i++;
   }
   return results;
 }
+
+function buildTcUpload(maxTc) {
+  const fields = [];
+  for (let i = 0; i < maxTc; i++) {
+    fields.push({ name: `sampleInputFile_${i}`, maxCount: 1 });
+    fields.push({ name: `sampleOutputFile_${i}`, maxCount: 1 });
+    fields.push({ name: `hiddenInputFile_${i}`, maxCount: 1 });
+    fields.push({ name: `hiddenOutputFile_${i}`, maxCount: 1 });
+  }
+  return upload.fields(fields);
+}
+
+const tcUpload = buildTcUpload(50);
 
 // ─── ROUTES ───────────────────────────────────────────────
 

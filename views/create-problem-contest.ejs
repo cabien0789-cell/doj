@@ -90,7 +90,7 @@
       <div class="testcases-section">
         <h3>Sample Test Cases</h3>
         <div id="sampleTestcases">
-          <div class="testcase" data-index="0">
+          <div class="testcase">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
               <span style="color:#a0a0b0; font-size:13px;">Sample #1</span>
               <button type="button" class="btn-remove-tc" onclick="removeTestcase(this, 'sample')">Remove</button>
@@ -98,24 +98,20 @@
             <div class="form-group">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                 <label style="margin:0;">Input</label>
-                <label class="upload-btn">
-                  <input type="file" accept=".txt" onchange="handleFileUpload(this, 'sampleInput', 0)"> 📁 Upload .txt
-                </label>
+                <label class="upload-btn"><input type="file" accept=".txt" onchange="handleFileUpload(this, 'sampleInput', 0)"> 📁 Upload .txt</label>
               </div>
               <div class="tc-file-info" id="sampleInputFileInfo-0" style="display:none; background:#1a1a2e; border:1px solid #00e5a0; border-radius:4px; padding:8px 12px; margin-bottom:6px; font-size:13px; color:#00e5a0;"></div>
-              <textarea name="sampleInput[]" rows="3" placeholder="Sample input..." id="sampleInputText-0"></textarea>
-              <input type="file" name="sampleInputFile" accept=".txt" id="sampleInputFile-0" style="display:none">
+              <textarea name="sampleInput_0" rows="3" placeholder="Sample input..." id="sampleInputText-0"></textarea>
+              <input type="file" name="sampleInputFile_0" accept=".txt" id="sampleInputFile-0" style="display:none">
             </div>
             <div class="form-group">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                 <label style="margin:0;">Output</label>
-                <label class="upload-btn">
-                  <input type="file" accept=".txt" onchange="handleFileUpload(this, 'sampleOutput', 0)"> 📁 Upload .txt
-                </label>
+                <label class="upload-btn"><input type="file" accept=".txt" onchange="handleFileUpload(this, 'sampleOutput', 0)"> 📁 Upload .txt</label>
               </div>
               <div class="tc-file-info" id="sampleOutputFileInfo-0" style="display:none; background:#1a1a2e; border:1px solid #00e5a0; border-radius:4px; padding:8px 12px; margin-bottom:6px; font-size:13px; color:#00e5a0;"></div>
-              <textarea name="sampleOutput[]" rows="3" placeholder="Sample output..." id="sampleOutputText-0"></textarea>
-              <input type="file" name="sampleOutputFile" accept=".txt" id="sampleOutputFile-0" style="display:none">
+              <textarea name="sampleOutput_0" rows="3" placeholder="Sample output..." id="sampleOutputText-0"></textarea>
+              <input type="file" name="sampleOutputFile_0" accept=".txt" id="sampleOutputFile-0" style="display:none">
             </div>
           </div>
         </div>
@@ -125,7 +121,7 @@
       <div class="testcases-section">
         <h3>Hidden Test Cases</h3>
         <div id="hiddenTestcases">
-          <div class="testcase" data-index="0">
+          <div class="testcase">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
               <span style="color:#a0a0b0; font-size:13px;">Hidden #1</span>
               <button type="button" class="btn-remove-tc" onclick="removeTestcase(this, 'hidden')">Remove</button>
@@ -133,24 +129,20 @@
             <div class="form-group">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                 <label style="margin:0;">Input</label>
-                <label class="upload-btn">
-                  <input type="file" accept=".txt" onchange="handleFileUpload(this, 'hiddenInput', 0)"> 📁 Upload .txt
-                </label>
+                <label class="upload-btn"><input type="file" accept=".txt" onchange="handleFileUpload(this, 'hiddenInput', 0)"> 📁 Upload .txt</label>
               </div>
               <div class="tc-file-info" id="hiddenInputFileInfo-0" style="display:none; background:#1a1a2e; border:1px solid #00e5a0; border-radius:4px; padding:8px 12px; margin-bottom:6px; font-size:13px; color:#00e5a0;"></div>
-              <textarea name="hiddenInput[]" rows="3" placeholder="Hidden input..." id="hiddenInputText-0"></textarea>
-              <input type="file" name="hiddenInputFile" accept=".txt" id="hiddenInputFile-0" style="display:none">
+              <textarea name="hiddenInput_0" rows="3" placeholder="Hidden input..." id="hiddenInputText-0"></textarea>
+              <input type="file" name="hiddenInputFile_0" accept=".txt" id="hiddenInputFile-0" style="display:none">
             </div>
             <div class="form-group">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                 <label style="margin:0;">Output</label>
-                <label class="upload-btn">
-                  <input type="file" accept=".txt" onchange="handleFileUpload(this, 'hiddenOutput', 0)"> 📁 Upload .txt
-                </label>
+                <label class="upload-btn"><input type="file" accept=".txt" onchange="handleFileUpload(this, 'hiddenOutput', 0)"> 📁 Upload .txt</label>
               </div>
               <div class="tc-file-info" id="hiddenOutputFileInfo-0" style="display:none; background:#1a1a2e; border:1px solid #00e5a0; border-radius:4px; padding:8px 12px; margin-bottom:6px; font-size:13px; color:#00e5a0;"></div>
-              <textarea name="hiddenOutput[]" rows="3" placeholder="Hidden output..." id="hiddenOutputText-0"></textarea>
-              <input type="file" name="hiddenOutputFile" accept=".txt" id="hiddenOutputFile-0" style="display:none">
+              <textarea name="hiddenOutput_0" rows="3" placeholder="Hidden output..." id="hiddenOutputText-0"></textarea>
+              <input type="file" name="hiddenOutputFile_0" accept=".txt" id="hiddenOutputFile-0" style="display:none">
             </div>
           </div>
         </div>
@@ -188,7 +180,7 @@
         const reader = new FileReader();
         reader.onload = function(e) {
           textEl.style.display = '';
-          textEl.setAttribute('name', fieldName + '[]');
+          textEl.setAttribute('name', fieldName + '_' + index);
           textEl.value = e.target.result;
           infoEl.style.display = 'none';
           fileInput.value = '';
@@ -199,7 +191,7 @@
 
     function addTestcase(type) {
       const container = document.getElementById(type + 'Testcases');
-      const count = type === 'sample' ? sampleCount++ : hiddenCount++;
+      const index = type === 'sample' ? sampleCount++ : hiddenCount++;
       const label = type === 'sample' ? 'Sample' : 'Hidden';
       const fieldPrefix = type === 'sample' ? 'sample' : 'hidden';
 
@@ -207,26 +199,26 @@
       div.className = 'testcase';
       div.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <span style="color:#a0a0b0; font-size:13px;">${label} #${count + 1}</span>
+          <span style="color:#a0a0b0; font-size:13px;">${label} #${index + 1}</span>
           <button type="button" class="btn-remove-tc" onclick="removeTestcase(this, '${type}')">Remove</button>
         </div>
         <div class="form-group">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
             <label style="margin:0;">Input</label>
-            <label class="upload-btn"><input type="file" accept=".txt" onchange="handleFileUpload(this, '${fieldPrefix}Input', ${count})"> 📁 Upload .txt</label>
+            <label class="upload-btn"><input type="file" accept=".txt" onchange="handleFileUpload(this, '${fieldPrefix}Input', ${index})"> 📁 Upload .txt</label>
           </div>
-          <div class="tc-file-info" id="${fieldPrefix}InputFileInfo-${count}" style="display:none; background:#1a1a2e; border:1px solid #00e5a0; border-radius:4px; padding:8px 12px; margin-bottom:6px; font-size:13px; color:#00e5a0;"></div>
-          <textarea name="${fieldPrefix}Input[]" rows="3" placeholder="${label} input..." id="${fieldPrefix}InputText-${count}"></textarea>
-          <input type="file" name="${fieldPrefix}InputFile" accept=".txt" id="${fieldPrefix}InputFile-${count}" style="display:none">
+          <div class="tc-file-info" id="${fieldPrefix}InputFileInfo-${index}" style="display:none; background:#1a1a2e; border:1px solid #00e5a0; border-radius:4px; padding:8px 12px; margin-bottom:6px; font-size:13px; color:#00e5a0;"></div>
+          <textarea name="${fieldPrefix}Input_${index}" rows="3" placeholder="${label} input..." id="${fieldPrefix}InputText-${index}"></textarea>
+          <input type="file" name="${fieldPrefix}InputFile_${index}" accept=".txt" id="${fieldPrefix}InputFile-${index}" style="display:none">
         </div>
         <div class="form-group">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
             <label style="margin:0;">Output</label>
-            <label class="upload-btn"><input type="file" accept=".txt" onchange="handleFileUpload(this, '${fieldPrefix}Output', ${count})"> 📁 Upload .txt</label>
+            <label class="upload-btn"><input type="file" accept=".txt" onchange="handleFileUpload(this, '${fieldPrefix}Output', ${index})"> 📁 Upload .txt</label>
           </div>
-          <div class="tc-file-info" id="${fieldPrefix}OutputFileInfo-${count}" style="display:none; background:#1a1a2e; border:1px solid #00e5a0; border-radius:4px; padding:8px 12px; margin-bottom:6px; font-size:13px; color:#00e5a0;"></div>
-          <textarea name="${fieldPrefix}Output[]" rows="3" placeholder="${label} output..." id="${fieldPrefix}OutputText-${count}"></textarea>
-          <input type="file" name="${fieldPrefix}OutputFile" accept=".txt" id="${fieldPrefix}OutputFile-${count}" style="display:none">
+          <div class="tc-file-info" id="${fieldPrefix}OutputFileInfo-${index}" style="display:none; background:#1a1a2e; border:1px solid #00e5a0; border-radius:4px; padding:8px 12px; margin-bottom:6px; font-size:13px; color:#00e5a0;"></div>
+          <textarea name="${fieldPrefix}Output_${index}" rows="3" placeholder="${label} output..." id="${fieldPrefix}OutputText-${index}"></textarea>
+          <input type="file" name="${fieldPrefix}OutputFile_${index}" accept=".txt" id="${fieldPrefix}OutputFile-${index}" style="display:none">
         </div>
       `;
       container.appendChild(div);
