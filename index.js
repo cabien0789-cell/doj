@@ -259,6 +259,7 @@ function runCodeOnce(code, language, input) {
   }
 }
 
+// Parse testcases cho CREATE (không có existing)
 function parseTestcasesFromRequest(req, type) {
   const results = [];
   let i = 0;
@@ -267,15 +268,40 @@ function parseTestcasesFromRequest(req, type) {
     const textOutput = req.body[`${type}Output_${i}`];
     const fileInput = req.files && req.files[`${type}InputFile_${i}`];
     const fileOutput = req.files && req.files[`${type}OutputFile_${i}`];
-
     const hasInput = textInput !== undefined || fileInput;
     const hasOutput = textOutput !== undefined || fileOutput;
     if (!hasInput && !hasOutput) break;
-
     const inp = fileInput ? fileInput[0].buffer.toString('utf8') : (textInput || '');
     const out = fileOutput ? fileOutput[0].buffer.toString('utf8') : (textOutput || '');
-
     if (inp && out) results.push({ input: inp, output: out });
+    i++;
+  }
+  return results;
+}
+
+// Parse testcases cho EDIT (có existing, giữ lại nếu không thay đổi)
+function parseTestcasesFromRequestEdit(req, type, existingTcs) {
+  const results = [];
+  let i = 0;
+  while (true) {
+    const keep = req.body[`keep_${type}_${i}`];
+    const textInput = req.body[`${type}Input_${i}`];
+    const textOutput = req.body[`${type}Output_${i}`];
+    const fileInput = req.files && req.files[`${type}InputFile_${i}`];
+    const fileOutput = req.files && req.files[`${type}OutputFile_${i}`];
+    const hasAny = keep !== undefined || textInput !== undefined || fileInput || textOutput !== undefined || fileOutput;
+    if (!hasAny) break;
+
+    if (keep === '1') {
+      // Giữ nguyên testcase cũ
+      if (existingTcs && existingTcs[i]) {
+        results.push(existingTcs[i]);
+      }
+    } else {
+      const inp = fileInput ? fileInput[0].buffer.toString('utf8') : (textInput || '');
+      const out = fileOutput ? fileOutput[0].buffer.toString('utf8') : (textOutput || '');
+      if (inp && out) results.push({ input: inp, output: out });
+    }
     i++;
   }
   return results;
@@ -586,9 +612,15 @@ app.get('/problems/:id/edit', requireLogin, async (req, res) => {
 });
 
 app.post('/problems/:id/edit', requireLogin, tcUpload, async (req, res) => {
+  let problem;
+  try { problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/problems'); }
+  if (!problem) return res.redirect('/problems');
+
   const { title, difficulty, statement, inputFormat, outputFormat, timeLimit, constraints, explanation } = req.body;
-  const sampleTestcases = parseTestcasesFromRequest(req, 'sample');
-  const hiddenTestcases = parseTestcasesFromRequest(req, 'hidden');
+  const existingSample = problem.sampleTestcases || problem.testcases || [];
+  const existingHidden = problem.hiddenTestcases || [];
+  const sampleTestcases = parseTestcasesFromRequestEdit(req, 'sample', existingSample);
+  const hiddenTestcases = parseTestcasesFromRequestEdit(req, 'hidden', existingHidden);
   let tags = req.body['tags[]'] || req.body.tags || [];
   if (!Array.isArray(tags)) tags = [tags];
   try {
