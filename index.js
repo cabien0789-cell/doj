@@ -6,14 +6,28 @@ const { MongoClient, ObjectId } = require('mongodb');
 const { execSync } = require('child_process');
 const fetch = require('node-fetch');
 const fs = require('fs');
+const multer = require('multer');
 
 const app = express();
+
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }
+});
+
+const tcUpload = upload.fields([
+  { name: 'sampleInputFile', maxCount: 20 },
+  { name: 'sampleOutputFile', maxCount: 20 },
+  { name: 'hiddenInputFile', maxCount: 20 },
+  { name: 'hiddenOutputFile', maxCount: 20 }
+]);
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '10mb' }));
 
 app.use(session({
   secret: 'doj-secret-key',
@@ -252,10 +266,24 @@ function runCodeOnce(code, language, input) {
   }
 }
 
-function parseTestcases(inputRaw, outputRaw) {
-  let inputs = Array.isArray(inputRaw) ? inputRaw : (inputRaw ? [inputRaw] : []);
-  let outputs = Array.isArray(outputRaw) ? outputRaw : (outputRaw ? [outputRaw] : []);
-  return inputs.map((inp, i) => ({ input: inp || '', output: outputs[i] || '' })).filter(tc => tc.input && tc.output);
+function parseTestcasesFromRequest(req, type) {
+  const textInputs = req.body[`${type}Input[]`] || req.body[`${type}Input`] || [];
+  const textOutputs = req.body[`${type}Output[]`] || req.body[`${type}Output`] || [];
+  const inputArr = Array.isArray(textInputs) ? textInputs : [textInputs];
+  const outputArr = Array.isArray(textOutputs) ? textOutputs : [textOutputs];
+
+  const fileInputs = (req.files && req.files[`${type}InputFile`]) || [];
+  const fileOutputs = (req.files && req.files[`${type}OutputFile`]) || [];
+
+  const count = Math.max(inputArr.length, fileInputs.length);
+  const results = [];
+
+  for (let i = 0; i < count; i++) {
+    const inp = fileInputs[i] ? fileInputs[i].buffer.toString('utf8') : (inputArr[i] || '');
+    const out = fileOutputs[i] ? fileOutputs[i].buffer.toString('utf8') : (outputArr[i] || '');
+    if (inp && out) results.push({ input: inp, output: out });
+  }
+  return results;
 }
 
 // ─── ROUTES ───────────────────────────────────────────────
@@ -493,10 +521,10 @@ app.get('/problems', async (req, res) => {
 
 app.get('/problems/create', requireLogin, (req, res) => res.render('create-problem', { user: req.session.user, error: undefined }));
 
-app.post('/problems/create', requireLogin, async (req, res) => {
+app.post('/problems/create', requireLogin, tcUpload, async (req, res) => {
   const { title, difficulty, statement, inputFormat, outputFormat, timeLimit, constraints, explanation } = req.body;
-  const sampleTestcases = parseTestcases(req.body['sampleInput[]'] || req.body.sampleInput, req.body['sampleOutput[]'] || req.body.sampleOutput);
-  const hiddenTestcases = parseTestcases(req.body['hiddenInput[]'] || req.body.hiddenInput, req.body['hiddenOutput[]'] || req.body.hiddenOutput);
+  const sampleTestcases = parseTestcasesFromRequest(req, 'sample');
+  const hiddenTestcases = parseTestcasesFromRequest(req, 'hidden');
   let tags = req.body['tags[]'] || req.body.tags || [];
   if (!Array.isArray(tags)) tags = [tags];
   await getProblems().insertOne({
@@ -549,10 +577,10 @@ app.get('/problems/:id/edit', requireLogin, async (req, res) => {
   res.render('edit-problem', { user: req.session.user, problem, error: undefined });
 });
 
-app.post('/problems/:id/edit', requireLogin, async (req, res) => {
+app.post('/problems/:id/edit', requireLogin, tcUpload, async (req, res) => {
   const { title, difficulty, statement, inputFormat, outputFormat, timeLimit, constraints, explanation } = req.body;
-  const sampleTestcases = parseTestcases(req.body['sampleInput[]'] || req.body.sampleInput, req.body['sampleOutput[]'] || req.body.sampleOutput);
-  const hiddenTestcases = parseTestcases(req.body['hiddenInput[]'] || req.body.hiddenInput, req.body['hiddenOutput[]'] || req.body.hiddenOutput);
+  const sampleTestcases = parseTestcasesFromRequest(req, 'sample');
+  const hiddenTestcases = parseTestcasesFromRequest(req, 'hidden');
   let tags = req.body['tags[]'] || req.body.tags || [];
   if (!Array.isArray(tags)) tags = [tags];
   try {
@@ -842,7 +870,7 @@ app.get('/contests/:id/problems/create', requireLogin, async (req, res) => {
   res.render('create-problem-contest', { user: req.session.user, contestId: contest.id, contestName: contest.name, error: undefined });
 });
 
-app.post('/contests/:id/problems/create', requireLogin, async (req, res) => {
+app.post('/contests/:id/problems/create', requireLogin, tcUpload, async (req, res) => {
   let contest;
   try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
   if (!contest) return res.redirect('/organizations');
@@ -851,8 +879,8 @@ app.post('/contests/:id/problems/create', requireLogin, async (req, res) => {
   if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
 
   const { title, difficulty, statement, inputFormat, outputFormat, timeLimit, constraints, explanation } = req.body;
-  const sampleTestcases = parseTestcases(req.body['sampleInput[]'] || req.body.sampleInput, req.body['sampleOutput[]'] || req.body.sampleOutput);
-  const hiddenTestcases = parseTestcases(req.body['hiddenInput[]'] || req.body.hiddenInput, req.body['hiddenOutput[]'] || req.body.hiddenOutput);
+  const sampleTestcases = parseTestcasesFromRequest(req, 'sample');
+  const hiddenTestcases = parseTestcasesFromRequest(req, 'hidden');
   let tags = req.body['tags[]'] || req.body.tags || [];
   if (!Array.isArray(tags)) tags = [tags];
 
