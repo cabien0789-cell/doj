@@ -93,26 +93,26 @@
                 <button type="button" class="btn-remove-tc" onclick="removeTestcase(this, 'sample')">Remove</button>
               </div>
               <input type="hidden" name="keep_sample_<%= i %>" value="1" id="keepSample-<%= i %>">
-              <div style="background:#1a1a2e; border:1px solid #2a2a4a; border-radius:4px; padding:10px 14px; margin-bottom:8px; font-size:13px; color:#a0a0b0;">
-                ✓ Testcase đã có dữ liệu (<%= tc.input.split('\n').length %> dòng input, <%= tc.output.split('\n').length %> dòng output)
-                <span style="color:#00e5a0; margin-left:8px; font-size:12px;">— Giữ nguyên nếu không thay thế</span>
+              <div style="background:#0f0f23; border:1px solid #2a2a4a; border-radius:4px; padding:10px 14px; margin-bottom:10px; font-size:13px; color:#a0a0b0;">
+                ✓ Has data (<%= tc.input.split('\n').length %> lines input · <%= tc.output.split('\n').length %> lines output)
+                <span style="color:#00e5a0; margin-left:6px; font-size:12px;">— kept unless replaced below</span>
               </div>
               <div class="form-group">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                  <label style="margin:0; color:#a0a0b0; font-size:12px;">Thay thế Input (tuỳ chọn)</label>
+                  <label style="margin:0; font-size:12px; color:#a0a0b0;">Replace Input (optional)</label>
                   <label class="upload-btn"><input type="file" accept=".txt" onchange="handleFileUpload(this, 'sampleInput', <%= i %>)"> 📁 Upload .txt</label>
                 </div>
                 <div class="tc-file-info" id="sampleInputFileInfo-<%= i %>" style="display:none; background:#1a1a2e; border:1px solid #00e5a0; border-radius:4px; padding:8px 12px; margin-bottom:6px; font-size:13px; color:#00e5a0;"></div>
-                <textarea rows="2" placeholder="Hoặc nhập thủ công để thay thế..." id="sampleInputText-<%= i %>" style="font-size:12px;" oninput="onTextareaInput(this, 'sample', 'Input', <%= i %>)"></textarea>
+                <textarea rows="2" placeholder="Or type to replace..." id="sampleInputText-<%= i %>" style="font-size:12px;" oninput="onTextareaInput(this, 'sample', 'Input', <%= i %>)"></textarea>
                 <input type="file" name="sampleInputFile_<%= i %>" accept=".txt" id="sampleInputFile-<%= i %>" style="display:none">
               </div>
               <div class="form-group">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                  <label style="margin:0; color:#a0a0b0; font-size:12px;">Thay thế Output (tuỳ chọn)</label>
+                  <label style="margin:0; font-size:12px; color:#a0a0b0;">Replace Output (optional)</label>
                   <label class="upload-btn"><input type="file" accept=".txt" onchange="handleFileUpload(this, 'sampleOutput', <%= i %>)"> 📁 Upload .txt</label>
                 </div>
                 <div class="tc-file-info" id="sampleOutputFileInfo-<%= i %>" style="display:none; background:#1a1a2e; border:1px solid #00e5a0; border-radius:4px; padding:8px 12px; margin-bottom:6px; font-size:13px; color:#00e5a0;"></div>
-                <textarea rows="2" placeholder="Hoặc nhập thủ công để thay thế..." id="sampleOutputText-<%= i %>" style="font-size:12px;" oninput="onTextareaInput(this, 'sample', 'Output', <%= i %>)"></textarea>
+                <textarea rows="2" placeholder="Or type to replace..." id="sampleOutputText-<%= i %>" style="font-size:12px;" oninput="onTextareaInput(this, 'sample', 'Output', <%= i %>)"></textarea>
                 <input type="file" name="sampleOutputFile_<%= i %>" accept=".txt" id="sampleOutputFile-<%= i %>" style="display:none">
               </div>
             </div>
@@ -131,26 +131,26 @@
                 <button type="button" class="btn-remove-tc" onclick="removeTestcase(this, 'hidden')">Remove</button>
               </div>
               <input type="hidden" name="keep_hidden_<%= i %>" value="1" id="keepHidden-<%= i %>">
-              <div style="background:#1a1a2e; border:1px solid #2a2a4a; border-radius:4px; padding:10px 14px; margin-bottom:8px; font-size:13px; color:#a0a0b0;">
-                ✓ Testcase đã có dữ liệu (<%= tc.input.split('\n').length %> dòng input, <%= tc.output.split('\n').length %> dòng output)
-                <span style="color:#00e5a0; margin-left:8px; font-size:12px;">— Giữ nguyên nếu không thay thế</span>
+              <div style="background:#0f0f23; border:1px solid #2a2a4a; border-radius:4px; padding:10px 14px; margin-bottom:10px; font-size:13px; color:#a0a0b0;">
+                ✓ Has data (<%= tc.input.split('\n').length %> lines input · <%= tc.output.split('\n').length %> lines output)
+                <span style="color:#00e5a0; margin-left:6px; font-size:12px;">— kept unless replaced below</span>
               </div>
               <div class="form-group">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                  <label style="margin:0; color:#a0a0b0; font-size:12px;">Thay thế Input (tuỳ chọn)</label>
+                  <label style="margin:0; font-size:12px; color:#a0a0b0;">Replace Input (optional)</label>
                   <label class="upload-btn"><input type="file" accept=".txt" onchange="handleFileUpload(this, 'hiddenInput', <%= i %>)"> 📁 Upload .txt</label>
                 </div>
                 <div class="tc-file-info" id="hiddenInputFileInfo-<%= i %>" style="display:none; background:#1a1a2e; border:1px solid #00e5a0; border-radius:4px; padding:8px 12px; margin-bottom:6px; font-size:13px; color:#00e5a0;"></div>
-                <textarea rows="2" placeholder="Hoặc nhập thủ công để thay thế..." id="hiddenInputText-<%= i %>" style="font-size:12px;" oninput="onTextareaInput(this, 'hidden', 'Input', <%= i %>)"></textarea>
+                <textarea rows="2" placeholder="Or type to replace..." id="hiddenInputText-<%= i %>" style="font-size:12px;" oninput="onTextareaInput(this, 'hidden', 'Input', <%= i %>)"></textarea>
                 <input type="file" name="hiddenInputFile_<%= i %>" accept=".txt" id="hiddenInputFile-<%= i %>" style="display:none">
               </div>
               <div class="form-group">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                  <label style="margin:0; color:#a0a0b0; font-size:12px;">Thay thế Output (tuỳ chọn)</label>
+                  <label style="margin:0; font-size:12px; color:#a0a0b0;">Replace Output (optional)</label>
                   <label class="upload-btn"><input type="file" accept=".txt" onchange="handleFileUpload(this, 'hiddenOutput', <%= i %>)"> 📁 Upload .txt</label>
                 </div>
                 <div class="tc-file-info" id="hiddenOutputFileInfo-<%= i %>" style="display:none; background:#1a1a2e; border:1px solid #00e5a0; border-radius:4px; padding:8px 12px; margin-bottom:6px; font-size:13px; color:#00e5a0;"></div>
-                <textarea rows="2" placeholder="Hoặc nhập thủ công để thay thế..." id="hiddenOutputText-<%= i %>" style="font-size:12px;" oninput="onTextareaInput(this, 'hidden', 'Output', <%= i %>)"></textarea>
+                <textarea rows="2" placeholder="Or type to replace..." id="hiddenOutputText-<%= i %>" style="font-size:12px;" oninput="onTextareaInput(this, 'hidden', 'Output', <%= i %>)"></textarea>
                 <input type="file" name="hiddenOutputFile_<%= i %>" accept=".txt" id="hiddenOutputFile-<%= i %>" style="display:none">
               </div>
             </div>
@@ -168,7 +168,6 @@
     let sampleCount = <%= (problem.sampleTestcases || problem.testcases || []).length %>;
     let hiddenCount = <%= (problem.hiddenTestcases && problem.hiddenTestcases.length > 0 ? problem.hiddenTestcases : []).length %>;
 
-    // Khi người dùng nhập textarea thay thế → bỏ keep, gán name
     function onTextareaInput(el, type, field, index) {
       const keepEl = document.getElementById('keep' + (type === 'sample' ? 'Sample' : 'Hidden') + '-' + index);
       if (el.value.trim() !== '') {
@@ -183,26 +182,21 @@
     function handleFileUpload(input, fieldName, index) {
       const file = input.files[0];
       if (!file) return;
-
       const infoEl = document.getElementById(fieldName + 'FileInfo-' + index);
       const textEl = document.getElementById(fieldName + 'Text-' + index);
       const fileInput = document.getElementById(fieldName + 'File-' + index);
       const type = fieldName.startsWith('sample') ? 'Sample' : 'Hidden';
       const keepEl = document.getElementById('keep' + type + '-' + index);
-
       const dt = new DataTransfer();
       dt.items.add(file);
       fileInput.files = dt.files;
-
-      // Bỏ keep vì sẽ thay thế bằng file mới
       if (keepEl) keepEl.disabled = true;
-
       if (file.size > FILE_SIZE_LIMIT) {
         textEl.style.display = 'none';
         textEl.value = '';
         textEl.removeAttribute('name');
         infoEl.style.display = 'block';
-        infoEl.textContent = '📄 ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB) — file uploaded, sẽ thay thế testcase cũ';
+        infoEl.textContent = '📄 ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB) — will replace existing testcase';
       } else {
         const reader = new FileReader();
         reader.onload = function(e) {
@@ -221,7 +215,6 @@
       const index = type === 'sample' ? sampleCount++ : hiddenCount++;
       const label = type === 'sample' ? 'Sample' : 'Hidden';
       const fieldPrefix = type === 'sample' ? 'sample' : 'hidden';
-
       const div = document.createElement('div');
       div.className = 'testcase';
       div.innerHTML = `
@@ -252,7 +245,6 @@
       renumberTestcases(type);
     }
 
-    // Upload file cho testcase MỚI (không có keep)
     function handleFileUploadNew(input, fieldName, index) {
       const file = input.files[0];
       if (!file) return;
