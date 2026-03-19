@@ -52,14 +52,14 @@
         <div style="text-align:center; color:#a0a0b0; padding:40px 0;">No contests yet.</div>
       <% } else { %>
         <% recentContests.forEach(contest => { %>
-          <div style="background:#0f0f23; border:1px solid #2a2a4a; border-radius:8px; padding:16px 20px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; transition:border-color 0.2s;" onmouseenter="this.style.borderColor='#00e5a0'" onmouseleave="this.style.borderColor='#2a2a4a'">
+          <div style="background:#141e26; border:1px solid #1e2830; border-radius:8px; padding:16px 20px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; transition:border-color 0.2s;" onmouseenter="this.style.borderColor='#00e5a0'" onmouseleave="this.style.borderColor='#1e2830'">
             <div>
               <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
                 <a href="/contests/<%= contest.id %>" style="color:#ffffff; font-weight:600; text-decoration:none; font-size:15px;"><%= contest.name %></a>
                 <% if (contest.visibility === 'private') { %>
                   <span style="color:#f5a623; font-size:11px; padding:2px 8px; border:1px solid #f5a623; border-radius:20px;">🔒 Private</span>
                 <% } else { %>
-                  <span style="color:#a0a0b0; font-size:11px; padding:2px 8px; border:1px solid #2a2a4a; border-radius:20px;">🌐 Public</span>
+                  <span style="color:#a0a0b0; font-size:11px; padding:2px 8px; border:1px solid #1e2830; border-radius:20px;">🌐 Public</span>
                 <% } %>
               </div>
               <% if (contest.noTimeLimit) { %>
