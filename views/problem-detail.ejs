@@ -121,6 +121,7 @@
                 <th>Language</th>
                 <th>Verdict</th>
                 <th>Score</th>
+                <th>View</th>
               </tr>
             </thead>
             <tbody>
@@ -130,6 +131,7 @@
                   <td><%= s.language.toUpperCase() %></td>
                   <td class="verdict-<%= s.verdict.replace(/\s+/g,'').toLowerCase() %>"><%= s.verdict %></td>
                   <td><%= s.passedCount %>/<%= s.total %></td>
+                  <td><a href="/submissions/<%= s._id %>" style="color:#00e5a0; text-decoration:none; font-size:13px;">View</a></td>
                 </tr>
               <% }) %>
             </tbody>
@@ -145,7 +147,6 @@
             <select name="language" class="language-select" id="languageSelect">
               <option value="cpp">C++</option>
               <option value="c">C</option>
-              <option value="java">Java</option>
               <option value="python">Python</option>
             </select>
           </div>
@@ -190,7 +191,6 @@
     const defaultCode = {
       cpp: `#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    \n    return 0;\n}`,
       c: `#include <stdio.h>\n\nint main() {\n    \n    return 0;\n}`,
-      java: `import java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        \n    }\n}`,
       python: `import sys\ninput = sys.stdin.readline\n\n`
     };
 
@@ -203,7 +203,7 @@
     editor.setValue(defaultCode.cpp);
     editor.setSize('100%', '100%');
 
-    const modeMap = { cpp: 'text/x-c++src', c: 'text/x-csrc', java: 'text/x-java', python: 'text/x-python' };
+    const modeMap = { cpp: 'text/x-c++src', c: 'text/x-csrc', python: 'text/x-python' };
 
     document.getElementById('languageSelect').addEventListener('change', function() {
       editor.setOption('mode', modeMap[this.value]);

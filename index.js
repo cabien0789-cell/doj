@@ -165,10 +165,6 @@ function judgeCode(code, language, testcases, timeLimit) {
       fs.writeFileSync(codeFile, code);
       execSync(`gcc -o ${outFile} ${codeFile}`, { timeout: 30000 });
       compiledPath = outFile;
-    } else if (language === 'java') {
-      const codeFile = path.join(tmpDir, 'Main.java');
-      fs.writeFileSync(codeFile, code);
-      execSync(`javac ${codeFile}`, { timeout: 30000, cwd: tmpDir });
     }
   } catch (e) {
     const errMsg = e.stderr ? e.stderr.toString() : (e.message || 'Compilation Error');
@@ -191,8 +187,6 @@ function judgeCode(code, language, testcases, timeLimit) {
         output = execSync(`python3 ${codeFile} < ${inputFile}`, { timeout: timeLimitMs }).toString();
       } else if (language === 'cpp' || language === 'c') {
         output = execSync(`${compiledPath} < ${inputFile}`, { timeout: timeLimitMs }).toString();
-      } else if (language === 'java') {
-        output = execSync(`java -cp ${tmpDir} Main < ${inputFile}`, { timeout: timeLimitMs + 5000 }).toString();
       }
       const execTime = Date.now() - startTime;
       const normalizedOutput = normalizeOutput(output);
@@ -240,11 +234,6 @@ function runCodeOnce(code, language, input) {
       fs.writeFileSync(codeFile, code);
       execSync(`gcc -o ${outFile} ${codeFile}`, { timeout: 30000 });
       output = execSync(`${outFile} < ${inputFile}`, { timeout: 10000 }).toString();
-    } else if (language === 'java') {
-      const codeFile = path.join(tmpDir, 'RunMain.java');
-      fs.writeFileSync(codeFile, code.replace('public class Main', 'public class RunMain'));
-      execSync(`javac ${codeFile}`, { timeout: 30000, cwd: tmpDir });
-      output = execSync(`java -cp ${tmpDir} RunMain < ${inputFile}`, { timeout: 10000 }).toString();
     }
     return { output: output || '(no output)' };
   } catch (e) {
@@ -537,7 +526,7 @@ app.post('/problems/:id/submit', requireLogin, async (req, res) => {
     execTime: result.execTime, code, submittedAt: new Date().toISOString()
   };
   const inserted = await getSubmissions().insertOne(submission);
-  res.render('submission-result', { user: req.session.user, result, problemId: problem.id, submissionId: inserted.insertedId.toString() });
+  res.render('submission-result', { user: req.session.user, result, problemId: problem.id, submissionId: inserted.insertedId.toString(), code, language });
 });
 
 app.get('/problems/:id/edit', requireLogin, async (req, res) => {
