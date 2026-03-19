@@ -508,7 +508,7 @@ app.get('/problems/:id', async (req, res) => {
   const allProblemSubs = await getSubmissions().find({ problemId: problem.id }).toArray();
   problem.totalSubmissions = allProblemSubs.length;
   problem.acceptedSubmissions = allProblemSubs.filter(s => s.verdict === 'Accepted').length;
-  const mySubmissions = user ? allProblemSubs.filter(s => s.username === user.username).sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt)).slice(0, 5) : [];
+  const mySubmissions = user ? allProblemSubs.filter(s => s.username === user.username).sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt)).slice(0, 5).map(s => ({ ...s, id: s._id.toString() })) : [];
   res.render('problem-detail', { user, problem, mySubmissions });
 });
 

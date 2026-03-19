@@ -93,12 +93,18 @@
         <% (problem.sampleTestcases || problem.testcases || []).slice(0, 3).forEach((tc, i) => { %>
           <div class="testcase-display">
             <div class="tc-block">
-              <div class="tc-label">Input <%= i + 1 %></div>
-              <pre><%= tc.input %></pre>
+              <div class="tc-label" style="display:flex; justify-content:space-between; align-items:center;">
+                <span>Input <%= i + 1 %></span>
+                <button onclick="copyText(this, '<%= i %>-input')" style="background:none; border:none; color:#a0a0b0; cursor:pointer; font-size:11px; padding:2px 6px;">📋 Copy</button>
+              </div>
+              <pre id="tc-<%= i %>-input"><%= tc.input %></pre>
             </div>
             <div class="tc-block">
-              <div class="tc-label">Output <%= i + 1 %></div>
-              <pre><%= tc.output %></pre>
+              <div class="tc-label" style="display:flex; justify-content:space-between; align-items:center;">
+                <span>Output <%= i + 1 %></span>
+                <button onclick="copyText(this, '<%= i %>-output')" style="background:none; border:none; color:#a0a0b0; cursor:pointer; font-size:11px; padding:2px 6px;">📋 Copy</button>
+              </div>
+              <pre id="tc-<%= i %>-output"><%= tc.output %></pre>
             </div>
           </div>
         <% }) %>
@@ -121,6 +127,7 @@
                 <th>Language</th>
                 <th>Verdict</th>
                 <th>Score</th>
+                <th>View</th>
               </tr>
             </thead>
             <tbody>
@@ -130,6 +137,7 @@
                   <td><%= s.language.toUpperCase() %></td>
                   <td class="verdict-<%= s.verdict.replace(/\s+/g,'').toLowerCase() %>"><%= s.verdict %></td>
                   <td><%= s.passedCount %>/<%= s.total %></td>
+                  <td><a href="/submissions/<%= s.id %>" style="color:#00e5a0; text-decoration:none; font-size:13px;">View</a></td>
                 </tr>
               <% }) %>
             </tbody>
@@ -248,6 +256,18 @@
       }
       btn.textContent = '▶ Execute';
       btn.disabled = false;
+    }
+
+    function copyText(btn, id) {
+      const text = document.getElementById('tc-' + id).textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = '✓ Copied';
+        btn.style.color = '#00e5a0';
+        setTimeout(() => {
+          btn.textContent = '📋 Copy';
+          btn.style.color = '#a0a0b0';
+        }, 2000);
+      });
     }
 
     <% if (user) { %>
