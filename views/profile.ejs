@@ -78,11 +78,12 @@
       <div style="background-color:#141e26; border:1px solid #2a3e4e; border-radius:8px; padding:20px 24px; margin-bottom:32px;">
         <div style="font-size:14px; font-weight:600; color:#7a9ab0; text-transform:uppercase; letter-spacing:1px; margin-bottom:16px;">Languages Used</div>
         <div style="display:flex; gap:12px; flex-wrap:wrap;">
-          <% const langColors = { cpp: '#00e5a0', c: '#38bdf8', python: '#facc15' }; %>
+          <% const langColors = { cpp: '#00e5a0', c: '#38bdf8', python: '#facc15', javascript: '#f7df1e' }; %>
+          <% const langLabels = { cpp: 'C++', c: 'C', python: 'Python', javascript: 'JavaScript' }; %>
           <% Object.entries(stats.langStats).sort((a,b) => b[1]-a[1]).forEach(([lang, count]) => { %>
             <div style="display:flex; align-items:center; gap:8px; background:#0e1820; padding:8px 16px; border-radius:20px; border:1px solid #2a3e4e;">
               <span style="width:10px; height:10px; border-radius:50%; background:<%= langColors[lang] || '#00e5a0' %>; display:inline-block;"></span>
-              <span style="color:#e0eaf0; font-size:14px; font-weight:600;"><%= lang.toUpperCase() %></span>
+              <span style="color:#e0eaf0; font-size:14px; font-weight:600;"><%= langLabels[lang] || lang.toUpperCase() %></span>
               <span style="color:#7a9ab0; font-size:13px;"><%= count %> submissions</span>
               <span style="color:#7a9ab0; font-size:12px;">(<%= Math.round(count / stats.totalSubmissions * 100) %>%)</span>
             </div>
@@ -120,7 +121,7 @@
               <tr>
                 <td style="color:#7a9ab0; font-size:13px;"><%= new Date(s.submittedAt).toLocaleString('en-GB', { hour12: false }) %></td>
                 <td><a href="/problems/<%= s.problemId %>"><%= s.problemTitle %></a></td>
-                <td><%= s.language.toUpperCase() %></td>
+                <td><%= s.language === 'javascript' ? 'JavaScript' : s.language.toUpperCase() %></td>
                 <td class="verdict-<%= s.verdict.replace(/\s+/g,'').toLowerCase() %>"><%= s.verdict %></td>
                 <td><%= s.passedCount %>/<%= s.total %></td>
                 <% if (user && user.username === targetUser.username) { %>

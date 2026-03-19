@@ -42,7 +42,7 @@
       <% if (result.execTime !== undefined) { %>
         <p style="color:#7a9ab0; font-size:13px; margin-top:8px;">
           ⏱ Runtime: <strong style="color:#ffffff;"><%= result.execTime %>ms</strong>
-          &nbsp;·&nbsp; <%= language.toUpperCase() %>
+          &nbsp;·&nbsp; <%= language === 'javascript' ? 'JavaScript (Node.js)' : language.toUpperCase() %>
         </p>
       <% } %>
     </div>
@@ -90,8 +90,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
   <script>
-    const modeMap = { cpp: 'text/x-c++src', c: 'text/x-csrc', python: 'text/x-python' };
+    const modeMap = { cpp: 'text/x-c++src', c: 'text/x-csrc', python: 'text/x-python', javascript: 'text/javascript' };
     const editor = CodeMirror.fromTextArea(document.getElementById('codeView'), {
       mode: modeMap['<%= language %>'] || 'text/x-c++src',
       theme: 'dracula', lineNumbers: true, readOnly: true

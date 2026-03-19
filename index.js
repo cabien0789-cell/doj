@@ -187,6 +187,10 @@ function judgeCode(code, language, testcases, timeLimit) {
         output = execSync(`python3 ${codeFile} < ${inputFile}`, { timeout: timeLimitMs }).toString();
       } else if (language === 'cpp' || language === 'c') {
         output = execSync(`${compiledPath} < ${inputFile}`, { timeout: timeLimitMs }).toString();
+      } else if (language === 'javascript') {
+        const codeFile = path.join(tmpDir, 'solution.js');
+        fs.writeFileSync(codeFile, code);
+        output = execSync(`node ${codeFile} < ${inputFile}`, { timeout: timeLimitMs }).toString();
       }
       const execTime = Date.now() - startTime;
       const normalizedOutput = normalizeOutput(output);
@@ -234,6 +238,10 @@ function runCodeOnce(code, language, input) {
       fs.writeFileSync(codeFile, code);
       execSync(`gcc -o ${outFile} ${codeFile}`, { timeout: 30000 });
       output = execSync(`${outFile} < ${inputFile}`, { timeout: 10000 }).toString();
+    } else if (language === 'javascript') {
+      const codeFile = path.join(tmpDir, 'run_solution.js');
+      fs.writeFileSync(codeFile, code);
+      output = execSync(`node ${codeFile} < ${inputFile}`, { timeout: 10000 }).toString();
     }
     return { output: output || '(no output)' };
   } catch (e) {

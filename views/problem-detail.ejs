@@ -134,7 +134,7 @@
               <% mySubmissions.forEach(s => { %>
                 <tr>
                   <td style="color:#a0a0b0; font-size:13px;"><%= new Date(s.submittedAt).toLocaleString('en-GB', { hour12: false }) %></td>
-                  <td><%= s.language.toUpperCase() %></td>
+                  <td><%= s.language === 'javascript' ? 'JavaScript' : s.language.toUpperCase() %></td>
                   <td class="verdict-<%= s.verdict.replace(/\s+/g,'').toLowerCase() %>"><%= s.verdict %></td>
                   <td><%= s.passedCount %>/<%= s.total %></td>
                   <td><a href="/submissions/<%= s.id %>" style="color:#00e5a0; text-decoration:none; font-size:13px;">View</a></td>
@@ -154,6 +154,7 @@
               <option value="cpp">C++</option>
               <option value="c">C</option>
               <option value="python">Python</option>
+              <option value="javascript">JavaScript (Node.js)</option>
             </select>
           </div>
           <div id="editorWrapper">
@@ -191,13 +192,15 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
   <script>
     const defaultCode = {
       cpp: `#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    \n    return 0;\n}`,
       c: `#include <stdio.h>\n\nint main() {\n    \n    return 0;\n}`,
-      python: `import sys\ninput = sys.stdin.readline\n\n`
+      python: `import sys\ninput = sys.stdin.readline\n\n`,
+      javascript: `const lines = require('fs').readFileSync('/dev/stdin','utf8').split('\\n');\nlet idx = 0;\n\n`
     };
 
     const editor = CodeMirror.fromTextArea(document.getElementById('codeArea'), {
@@ -209,7 +212,7 @@
     editor.setValue(defaultCode.cpp);
     editor.setSize('100%', '100%');
 
-    const modeMap = { cpp: 'text/x-c++src', c: 'text/x-csrc', python: 'text/x-python' };
+    const modeMap = { cpp: 'text/x-c++src', c: 'text/x-csrc', python: 'text/x-python', javascript: 'text/javascript' };
 
     document.getElementById('languageSelect').addEventListener('change', function() {
       editor.setOption('mode', modeMap[this.value]);

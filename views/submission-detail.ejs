@@ -40,7 +40,7 @@
       </div>
       <p class="result-score"><%= submission.passedCount %> / <%= submission.total %> test cases passed</p>
       <p style="color:#7a9ab0; font-size:13px; margin-top:8px;">
-        <%= submission.language.toUpperCase() %> &nbsp;·&nbsp;
+        <%= submission.language === 'javascript' ? 'JavaScript (Node.js)' : submission.language.toUpperCase() %> &nbsp;·&nbsp;
         <%= new Date(submission.submittedAt).toLocaleString('en-GB', { hour12: false }) %> &nbsp;·&nbsp;
         <a href="/problems/<%= submission.problemId %>" style="color:#00e5a0; text-decoration:none;"><%= submission.problemTitle %></a>
         <% if (submission.execTime !== undefined) { %>
@@ -90,8 +90,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
   <script>
-    const modeMap = { cpp: 'text/x-c++src', c: 'text/x-csrc', python: 'text/x-python' };
+    const modeMap = { cpp: 'text/x-c++src', c: 'text/x-csrc', python: 'text/x-python', javascript: 'text/javascript' };
     const editor = CodeMirror.fromTextArea(document.getElementById('codeView'), {
       mode: modeMap['<%= submission.language %>'] || 'text/x-c++src',
       theme: 'dracula', lineNumbers: true, readOnly: true
