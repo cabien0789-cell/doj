@@ -6,8 +6,6 @@
   <title>Submission Result - DOJ</title>
   <link rel="stylesheet" href="/css/style.css">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
 </head>
 <body>
   <nav class="navbar">
@@ -46,65 +44,39 @@
       <% } %>
     </div>
 
-    <div style="background:#0f0f23; border:1px solid #2a2a4a; border-radius:8px; padding:20px; margin-bottom:24px;">
-      <div style="display:flex; flex-wrap:wrap; gap:8px;">
-        <% result.details.forEach((tc, i) => { %>
-          <div title="<%= tc.status === 'AC' ? 'Accepted' : tc.status === 'WA' ? 'Wrong Answer' : tc.status === 'TLE' ? 'Time Limit Exceeded' : tc.status === 'RE' ? 'Runtime Error' : 'Compilation Error' %><%= tc.execTime !== undefined ? ' · ' + tc.execTime + 'ms' : '' %>"
-            style="display:flex; align-items:center; gap:6px; padding:8px 14px; border-radius:6px; border:1px solid <%= tc.status === 'AC' ? '#00e5a0' : tc.status === 'TLE' ? '#f5a623' : tc.status === 'RE' ? '#c084fc' : tc.status === 'CE' ? '#60a5fa' : '#ff4444' %>; background:<%= tc.status === 'AC' ? '#00e5a010' : tc.status === 'TLE' ? '#f5a62310' : tc.status === 'RE' ? '#c084fc10' : tc.status === 'CE' ? '#60a5fa10' : '#ff444410' %>; min-width:120px;">
-            <span style="font-size:14px;">
-              <% if (tc.status === 'AC') { %>✓<% } else { %>✗<% } %>
-            </span>
-            <span style="color:#ffffff; font-size:13px;">Test Case #<%= i + 1 %></span>
-          </div>
-        <% }) %>
-      </div>
+    <div class="result-details">
+      <% result.details.forEach((tc, i) => { %>
+        <div class="tc-result">
+          <span>Test Case <%= i + 1 %></span>
+          <span class="verdict-<%= tc.status.toLowerCase() %>">
+            <% if (tc.status === 'AC') { %>✓ Accepted
+            <% } else if (tc.status === 'WA') { %>✗ Wrong Answer
+            <% } else if (tc.status === 'TLE') { %>⏱ Time Limit Exceeded
+            <% } else if (tc.status === 'RE') { %>⚡ Runtime Error
+            <% } else if (tc.status === 'CE') { %>🔧 Compilation Error
+            <% } %>
+          </span>
+          <% if (tc.execTime !== undefined) { %>
+            <span style="color:#a0a0b0; font-size:12px;"><%= tc.execTime %>ms</span>
+          <% } %>
+          <% if (!tc.passed && (tc.status === 'RE' || tc.status === 'CE')) { %>
+            <span style="color:#a0a0b0; font-size:12px; word-break:break-all;"><%= tc.output.substring(0, 120) %></span>
+          <% } %>
+        </div>
+      <% }) %>
     </div>
 
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-      <span style="font-size:14px; color:#a0a0b0;">Your Code</span>
-      <button id="copyBtn" onclick="copyCode()" style="background:transparent; border:1px solid #2a2a4a; color:#a0a0b0; padding:6px 14px; border-radius:4px; cursor:pointer; font-size:13px; transition:all 0.2s;">
-        📋 Copy Code
-      </button>
-    </div>
-
-    <div style="border:1px solid #2a2a4a; border-radius:4px; overflow:hidden; margin-bottom:24px;">
-      <textarea id="codeView"><%= code %></textarea>
-    </div>
-
-    <div style="display:flex; gap:12px;">
+    <div style="margin-top:20px; display:flex; gap:12px;">
       <a href="/problems/<%= problemId %>" class="btn-submit" style="display:inline-block; text-decoration:none;">Back to Problem</a>
       <% if (user) { %>
+        <a href="/submissions/<%= submissionId %>" style="display:inline-block; text-decoration:none; padding:12px 24px; border:1px solid #00e5a0; border-radius:4px; color:#00e5a0; font-size:14px;">View Submission</a>
         <a href="/profile/<%= user.username %>" style="display:inline-block; text-decoration:none; padding:12px 24px; border:1px solid #a0a0b0; border-radius:4px; color:#a0a0b0; font-size:14px;">My Submissions</a>
       <% } %>
     </div>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+  <% if (user) { %>
   <script>
-    const modeMap = { cpp: 'text/x-c++src', c: 'text/x-csrc', python: 'text/x-python' };
-    const editor = CodeMirror.fromTextArea(document.getElementById('codeView'), {
-      mode: modeMap['<%= language %>'] || 'text/x-c++src',
-      theme: 'dracula', lineNumbers: true, readOnly: true
-    });
-    editor.setSize('100%', '400px');
-
-    function copyCode() {
-      navigator.clipboard.writeText(editor.getValue()).then(() => {
-        const btn = document.getElementById('copyBtn');
-        btn.textContent = '✓ Copied!';
-        btn.style.color = '#00e5a0';
-        btn.style.borderColor = '#00e5a0';
-        setTimeout(() => {
-          btn.textContent = '📋 Copy Code';
-          btn.style.color = '#a0a0b0';
-          btn.style.borderColor = '#2a2a4a';
-        }, 2000);
-      });
-    }
-
-    <% if (user) { %>
     fetch('/notifications/count').then(r => r.json()).then(data => {
       if (data.count > 0) {
         const badge = document.getElementById('notifBadge');
@@ -112,7 +84,7 @@
         badge.style.display = 'inline-block';
       }
     });
-    <% } %>
   </script>
+  <% } %>
 </body>
 </html>

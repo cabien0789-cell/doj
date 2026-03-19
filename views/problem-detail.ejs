@@ -121,7 +121,6 @@
                 <th>Language</th>
                 <th>Verdict</th>
                 <th>Score</th>
-                <th>View</th>
               </tr>
             </thead>
             <tbody>
@@ -131,7 +130,6 @@
                   <td><%= s.language.toUpperCase() %></td>
                   <td class="verdict-<%= s.verdict.replace(/\s+/g,'').toLowerCase() %>"><%= s.verdict %></td>
                   <td><%= s.passedCount %>/<%= s.total %></td>
-                  <td><a href="/submissions/<%= s._id %>" style="color:#00e5a0; text-decoration:none; font-size:13px;">View</a></td>
                 </tr>
               <% }) %>
             </tbody>
