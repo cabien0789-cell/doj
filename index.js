@@ -144,8 +144,6 @@ function normalizeOutput(str) {
   return rstripped.join('\n');
 }
 
-const JAVA_BIN = '/opt/java/openjdk/bin';
-
 function judgeCode(code, language, testcases, timeLimit) {
   const tmpDir = path.join(__dirname, 'tmp');
   if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
@@ -170,7 +168,7 @@ function judgeCode(code, language, testcases, timeLimit) {
     } else if (language === 'java') {
       const codeFile = path.join(tmpDir, 'Main.java');
       fs.writeFileSync(codeFile, code);
-      execSync(`${JAVA_BIN}/javac ${codeFile}`, { timeout: 30000, cwd: tmpDir });
+      execSync(`javac ${codeFile}`, { timeout: 30000, cwd: tmpDir });
     }
   } catch (e) {
     const errMsg = e.stderr ? e.stderr.toString() : (e.message || 'Compilation Error');
@@ -194,7 +192,7 @@ function judgeCode(code, language, testcases, timeLimit) {
       } else if (language === 'cpp' || language === 'c') {
         output = execSync(`${compiledPath} < ${inputFile}`, { timeout: timeLimitMs }).toString();
       } else if (language === 'java') {
-        output = execSync(`${JAVA_BIN}/java -cp ${tmpDir} Main < ${inputFile}`, { timeout: timeLimitMs + 5000 }).toString();
+        output = execSync(`java -cp ${tmpDir} Main < ${inputFile}`, { timeout: timeLimitMs + 5000 }).toString();
       }
       const execTime = Date.now() - startTime;
       const normalizedOutput = normalizeOutput(output);
@@ -245,8 +243,8 @@ function runCodeOnce(code, language, input) {
     } else if (language === 'java') {
       const codeFile = path.join(tmpDir, 'RunMain.java');
       fs.writeFileSync(codeFile, code.replace('public class Main', 'public class RunMain'));
-      execSync(`${JAVA_BIN}/javac ${codeFile}`, { timeout: 30000, cwd: tmpDir });
-      output = execSync(`${JAVA_BIN}/java -cp ${tmpDir} RunMain < ${inputFile}`, { timeout: 10000 }).toString();
+      execSync(`javac ${codeFile}`, { timeout: 30000, cwd: tmpDir });
+      output = execSync(`java -cp ${tmpDir} RunMain < ${inputFile}`, { timeout: 10000 }).toString();
     }
     return { output: output || '(no output)' };
   } catch (e) {
