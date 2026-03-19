@@ -526,7 +526,7 @@ app.post('/problems/:id/submit', requireLogin, async (req, res) => {
     execTime: result.execTime, code, submittedAt: new Date().toISOString()
   };
   const inserted = await getSubmissions().insertOne(submission);
-  res.render('submission-result', { user: req.session.user, result, problemId: problem.id, submissionId: inserted.insertedId.toString() });
+  res.render('submission-result', { user: req.session.user, result, problemId: problem.id, submissionId: inserted.insertedId.toString(), code, language });
 });
 
 app.get('/problems/:id/edit', requireLogin, async (req, res) => {
