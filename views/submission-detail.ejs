@@ -39,7 +39,7 @@
         <%= submission.verdict %>
       </div>
       <p class="result-score"><%= submission.passedCount %> / <%= submission.total %> test cases passed</p>
-      <p style="color:#a0a0b0; font-size:13px; margin-top:8px;">
+      <p style="color:#7a9ab0; font-size:13px; margin-top:8px;">
         <%= submission.language.toUpperCase() %> &nbsp;·&nbsp;
         <%= new Date(submission.submittedAt).toLocaleString('en-GB', { hour12: false }) %> &nbsp;·&nbsp;
         <a href="/problems/<%= submission.problemId %>" style="color:#00e5a0; text-decoration:none;"><%= submission.problemTitle %></a>
@@ -49,38 +49,38 @@
       </p>
     </div>
 
-    <div style="font-size:13px; font-weight:600; color:#a0a0b0; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px;">Test Cases</div>
+    <div style="font-size:13px; font-weight:600; color:#7a9ab0; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px;">Test Cases</div>
     <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; margin-bottom:24px;">
       <% for (let i = 0; i < submission.total; i++) { %>
         <%
           const verdict = submission.verdict;
-          let borderColor = '#2a2a4a';
-          let textColor = '#a0a0b0';
+          let borderColor = '#2a3e4e';
+          let textColor = '#7a9ab0';
           let statusText = '—';
           if (i < submission.passedCount) {
             borderColor = '#00e5a0'; textColor = '#00e5a0'; statusText = 'AC';
           } else if (verdict === 'Compilation Error') {
-            borderColor = '#60a5fa'; textColor = '#60a5fa'; statusText = 'CE';
+            borderColor = '#38bdf8'; textColor = '#38bdf8'; statusText = 'CE';
           } else if (verdict === 'Time Limit Exceeded') {
             borderColor = '#f5a623'; textColor = '#f5a623'; statusText = 'TLE';
           } else if (verdict === 'Runtime Error') {
-            borderColor = '#c084fc'; textColor = '#c084fc'; statusText = 'RE';
+            borderColor = '#f87171'; textColor = '#f87171'; statusText = 'RE';
           } else {
             borderColor = '#ff4444'; textColor = '#ff4444'; statusText = 'WA';
           }
         %>
-        <div style="background:#0f0f23; border:1px solid <%= borderColor %>; border-radius:6px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
-          <span style="font-size:13px; color:#a0a0b0;">Test #<%= i + 1 %></span>
+        <div style="background:#141e26; border:1px solid <%= borderColor %>; border-radius:6px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:13px; color:#7a9ab0;">Test #<%= i + 1 %></span>
           <span style="font-size:12px; font-weight:600; color:<%= textColor %>;"><%= statusText %></span>
         </div>
       <% } %>
     </div>
 
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-      <span style="font-size:13px; font-weight:600; color:#a0a0b0; text-transform:uppercase; letter-spacing:1px;">Your Code</span>
-      <button id="copyBtn" onclick="copyCode()" style="background:transparent; border:1px solid #2a2a4a; color:#a0a0b0; padding:6px 14px; border-radius:4px; cursor:pointer; font-size:13px; transition:all 0.2s;">📋 Copy Code</button>
+      <span style="font-size:13px; font-weight:600; color:#7a9ab0; text-transform:uppercase; letter-spacing:1px;">Your Code</span>
+      <button id="copyBtn" onclick="copyCode()" style="background:transparent; border:1px solid #2a3e4e; color:#7a9ab0; padding:6px 14px; border-radius:4px; cursor:pointer; font-size:13px; transition:all 0.2s;">📋 Copy Code</button>
     </div>
-    <div style="border:1px solid #2a2a4a; border-radius:4px; overflow:hidden; margin-bottom:24px;">
+    <div style="border:1px solid #2a3e4e; border-radius:4px; overflow:hidden; margin-bottom:24px;">
       <textarea id="codeView"><%= submission.code %></textarea>
     </div>
 
@@ -106,8 +106,8 @@
         btn.style.borderColor = '#00e5a0';
         setTimeout(() => {
           btn.textContent = '📋 Copy Code';
-          btn.style.color = '#a0a0b0';
-          btn.style.borderColor = '#2a2a4a';
+          btn.style.color = '#7a9ab0';
+          btn.style.borderColor = '#2a3e4e';
         }, 2000);
       });
     }

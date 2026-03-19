@@ -39,13 +39,13 @@
         <% if (org.owner === user.username) { %>
           <span style="color:#00e5a0; font-size:12px; font-weight:600; padding:4px 10px; border:1px solid #00e5a0; border-radius:20px;">Owner</span>
         <% } else if (org.members && org.members.includes(user.username)) { %>
-          <span style="color:#a0a0b0; font-size:12px; padding:4px 10px; border:1px solid #2a2a4a; border-radius:20px;">Member</span>
+          <span style="color:#7a9ab0; font-size:12px; padding:4px 10px; border:1px solid #2a3e4e; border-radius:20px;">Member</span>
         <% } %>
       <% } %>
     </div>
 
     <% if (org.description) { %>
-      <p style="color:#a0a0b0; margin-bottom:24px;"><%= org.description %></p>
+      <p style="color:#7a9ab0; margin-bottom:24px;"><%= org.description %></p>
     <% } %>
 
     <div class="org-info" style="margin-bottom:24px;">
@@ -80,11 +80,11 @@
         <h3>Join Requests (<%= org.pendingMembers.length %>)</h3>
         <div style="display:flex; flex-direction:column; gap:8px;">
           <% org.pendingMembers.forEach(username => { %>
-            <div style="display:flex; justify-content:space-between; align-items:center; background:#0f0f23; border:1px solid #2a2a4a; border-radius:6px; padding:12px 16px;">
-              <a href="/profile/<%= username %>" style="color:#ffffff; text-decoration:none; font-weight:600;"><%= username %></a>
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#141e26; border:1px solid #2a3e4e; border-radius:6px; padding:12px 16px;">
+              <a href="/profile/<%= username %>" style="color:#e0eaf0; text-decoration:none; font-weight:600;"><%= username %></a>
               <div style="display:flex; gap:8px;">
                 <form action="/organizations/<%= org.id %>/approve/<%= username %>" method="POST">
-                  <button type="submit" style="background:#00e5a0; color:#0f0f23; border:none; padding:6px 14px; border-radius:4px; cursor:pointer; font-weight:600; font-size:13px;">Approve</button>
+                  <button type="submit" style="background:#00e5a0; color:#141e26; border:none; padding:6px 14px; border-radius:4px; cursor:pointer; font-weight:600; font-size:13px;">Approve</button>
                 </form>
                 <form action="/organizations/<%= org.id %>/reject/<%= username %>" method="POST">
                   <button type="submit" style="background:transparent; color:#ff4444; border:1px solid #ff4444; padding:6px 14px; border-radius:4px; cursor:pointer; font-size:13px;">Reject</button>
@@ -104,8 +104,8 @@
         </div>
         <div id="memberList" style="display:flex; flex-direction:column; gap:8px;">
           <% (org.members || []).forEach(username => { %>
-            <div class="member-row" data-username="<%= username.toLowerCase() %>" style="display:flex; justify-content:space-between; align-items:center; background:#0f0f23; border:1px solid #2a2a4a; border-radius:6px; padding:12px 16px;">
-              <a href="/profile/<%= username %>" style="color:#ffffff; text-decoration:none; font-weight:600;">
+            <div class="member-row" data-username="<%= username.toLowerCase() %>" style="display:flex; justify-content:space-between; align-items:center; background:#141e26; border:1px solid #2a3e4e; border-radius:6px; padding:12px 16px;">
+              <a href="/profile/<%= username %>" style="color:#e0eaf0; text-decoration:none; font-weight:600;">
                 <%= username %>
                 <% if (username === org.owner) { %>
                   <span style="color:#00e5a0; font-size:11px; margin-left:6px;">(owner)</span>
@@ -124,17 +124,17 @@
     <div class="org-section">
       <h3>Contests</h3>
       <% if (contests.length === 0) { %>
-        <p style="color:#a0a0b0;">No contests yet.</p>
+        <p style="color:#7a9ab0;">No contests yet.</p>
       <% } else { %>
         <% contests.forEach(contest => { %>
-          <div style="background:#0f0f23; border:1px solid #2a2a4a; border-radius:6px; padding:16px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+          <div style="background:#141e26; border:1px solid #2a3e4e; border-radius:6px; padding:16px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; transition:border-color 0.2s;" onmouseenter="this.style.borderColor='#00e5a0'" onmouseleave="this.style.borderColor='#2a3e4e'">
             <div>
               <div style="display:flex; align-items:center; gap:8px;">
                 <a href="/contests/<%= contest.id %>" style="color:#ffffff; font-weight:600; text-decoration:none; font-size:16px;"><%= contest.name %></a>
                 <% if (contest.visibility === 'private') { %>
                   <span style="color:#f5a623; font-size:11px; padding:2px 8px; border:1px solid #f5a623; border-radius:20px;">🔒 Private</span>
                 <% } else { %>
-                  <span style="color:#a0a0b0; font-size:11px; padding:2px 8px; border:1px solid #2a2a4a; border-radius:20px;">🌐 Public</span>
+                  <span style="color:#7a9ab0; font-size:11px; padding:2px 8px; border:1px solid #2a3e4e; border-radius:20px;">🌐 Public</span>
                 <% } %>
               </div>
               <% if (contest.noTimeLimit) { %>
@@ -146,7 +146,7 @@
                   const cStart = new Date(contest.startTimeUTC || contest.startTime).toLocaleString('en-GB', { timeZone: cTz });
                   const cEnd = new Date(contest.endTimeUTC || contest.endTime).toLocaleString('en-GB', { timeZone: cTz });
                 %>
-                <p style="color:#a0a0b0; font-size:12px; margin:4px 0 0;">
+                <p style="color:#7a9ab0; font-size:12px; margin:4px 0 0;">
                   <%= cStart %> → <%= cEnd %> <%= cTzLabel %>
                 </p>
               <% } %>

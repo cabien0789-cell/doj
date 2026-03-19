@@ -49,17 +49,17 @@
         <a href="/organizations" style="color:#00e5a0; font-size:13px; text-decoration:none;">View all →</a>
       </div>
       <% if (recentContests.length === 0) { %>
-        <div style="text-align:center; color:#a0a0b0; padding:40px 0;">No contests yet.</div>
+        <div style="text-align:center; color:#7a9ab0; padding:40px 0;">No contests yet.</div>
       <% } else { %>
         <% recentContests.forEach(contest => { %>
-          <div style="background:#0f0f23; border:1px solid #2a2a4a; border-radius:8px; padding:16px 20px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; transition:border-color 0.2s;" onmouseenter="this.style.borderColor='#00e5a0'" onmouseleave="this.style.borderColor='#2a2a4a'">
+          <div style="background:#141e26; border:1px solid #2a3e4e; border-radius:8px; padding:16px 20px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; transition:border-color 0.2s;" onmouseenter="this.style.borderColor='#00e5a0'" onmouseleave="this.style.borderColor='#2a3e4e'">
             <div>
               <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
                 <a href="/contests/<%= contest.id %>" style="color:#ffffff; font-weight:600; text-decoration:none; font-size:15px;"><%= contest.name %></a>
                 <% if (contest.visibility === 'private') { %>
                   <span style="color:#f5a623; font-size:11px; padding:2px 8px; border:1px solid #f5a623; border-radius:20px;">🔒 Private</span>
                 <% } else { %>
-                  <span style="color:#a0a0b0; font-size:11px; padding:2px 8px; border:1px solid #2a2a4a; border-radius:20px;">🌐 Public</span>
+                  <span style="color:#7a9ab0; font-size:11px; padding:2px 8px; border:1px solid #2a3e4e; border-radius:20px;">🌐 Public</span>
                 <% } %>
               </div>
               <% if (contest.noTimeLimit) { %>
@@ -71,7 +71,7 @@
                   const cStart = new Date(contest.startTimeUTC || contest.startTime).toLocaleString('en-GB', { timeZone: cTz });
                   const cEnd = new Date(contest.endTimeUTC || contest.endTime).toLocaleString('en-GB', { timeZone: cTz });
                 %>
-                <p style="color:#a0a0b0; font-size:12px; margin:0;"><%= cStart %> → <%= cEnd %> <%= cTzLabel %></p>
+                <p style="color:#7a9ab0; font-size:12px; margin:0;"><%= cStart %> → <%= cEnd %> <%= cTzLabel %></p>
               <% } %>
             </div>
             <% const nowHome = new Date(); %>
@@ -95,7 +95,7 @@
         <a href="/leaderboard" style="color:#00e5a0; font-size:13px; text-decoration:none;">View all →</a>
       </div>
       <% if (topUsers.length === 0) { %>
-        <div style="text-align:center; color:#a0a0b0; padding:40px 0;">No data yet.</div>
+        <div style="text-align:center; color:#7a9ab0; padding:40px 0;">No data yet.</div>
       <% } else { %>
         <table class="problems-table">
           <thead>
@@ -111,15 +111,15 @@
               <tr>
                 <td>
                   <% if (index === 0) { %><span style="color:#f5c518; font-weight:700; font-size:18px;">🥇</span>
-                  <% } else if (index === 1) { %><span style="color:#a0a0b0; font-weight:700; font-size:18px;">🥈</span>
+                  <% } else if (index === 1) { %><span style="color:#c0c0c0; font-weight:700; font-size:18px;">🥈</span>
                   <% } else if (index === 2) { %><span style="color:#cd7f32; font-weight:700; font-size:18px;">🥉</span>
-                  <% } else { %><span style="color:#a0a0b0;"><%= index + 1 %></span><% } %>
+                  <% } else { %><span style="color:#7a9ab0;"><%= index + 1 %></span><% } %>
                 </td>
                 <td>
-                  <a href="/profile/<%= u.username %>" style="color:#ffffff; text-decoration:none; font-weight:600;">
+                  <a href="/profile/<%= u.username %>" style="color:#e0eaf0; text-decoration:none; font-weight:600;">
                     <% if (user && user.username === u.username) { %>
                       <span style="color:#00e5a0;"><%= u.username %></span>
-                      <span style="color:#a0a0b0; font-size:12px;"> (you)</span>
+                      <span style="color:#7a9ab0; font-size:12px;"> (you)</span>
                     <% } else { %>
                       <%= u.username %>
                     <% } %>
