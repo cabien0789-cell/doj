@@ -69,7 +69,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
   <script>
-    const modeMap = { cpp: 'text/x-c++src', c: 'text/x-csrc', java: 'text/x-java', python: 'text/x-python' };
+    const modeMap = { cpp: 'text/x-c++src', c: 'text/x-csrc', python: 'text/x-python' };
     const editor = CodeMirror.fromTextArea(document.getElementById('codeView'), {
       mode: modeMap['<%= submission.language %>'] || 'text/x-c++src',
       theme: 'dracula', lineNumbers: true, readOnly: true
