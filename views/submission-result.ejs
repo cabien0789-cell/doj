@@ -69,7 +69,6 @@
     <div style="margin-top:20px; display:flex; gap:12px;">
       <a href="/problems/<%= problemId %>" class="btn-submit" style="display:inline-block; text-decoration:none;">Back to Problem</a>
       <% if (user) { %>
-        <a href="/submissions/<%= submissionId %>" style="display:inline-block; text-decoration:none; padding:12px 24px; border:1px solid #00e5a0; border-radius:4px; color:#00e5a0; font-size:14px;">View Submission</a>
         <a href="/profile/<%= user.username %>" style="display:inline-block; text-decoration:none; padding:12px 24px; border:1px solid #a0a0b0; border-radius:4px; color:#a0a0b0; font-size:14px;">My Submissions</a>
       <% } %>
     </div>
