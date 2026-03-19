@@ -52,7 +52,7 @@
 
     <div id="orgList">
       <% if (organizations.length === 0) { %>
-        <div style="text-align:center; color:#a0a0b0; padding:60px 0;">No organizations yet.</div>
+        <div style="text-align:center; color:#7a9ab0; padding:60px 0;">No organizations yet.</div>
       <% } else { %>
         <% organizations.forEach(org => { %>
           <div class="org-card"
@@ -61,16 +61,16 @@
             <div style="display:flex; justify-content:space-between; align-items:flex-start;">
               <div>
                 <a href="/organizations/<%= org.id %>" style="font-size:18px; font-weight:700; color:#ffffff; text-decoration:none;"><%= org.name %></a>
-                <p style="color:#a0a0b0; font-size:13px; margin:6px 0 0;">Owner: <strong style="color:#ffffff;"><%= org.owner %></strong> · <%= org.members ? org.members.length : 0 %> members</p>
+                <p style="color:#7a9ab0; font-size:13px; margin:6px 0 0;">Owner: <strong style="color:#e0eaf0;"><%= org.owner %></strong> · <%= org.members ? org.members.length : 0 %> members</p>
                 <% if (org.description) { %>
-                  <p style="color:#a0a0b0; font-size:13px; margin:6px 0 0;"><%= org.description %></p>
+                  <p style="color:#7a9ab0; font-size:13px; margin:6px 0 0;"><%= org.description %></p>
                 <% } %>
               </div>
               <% if (user) { %>
                 <% if (org.owner === user.username) { %>
                   <span style="color:#00e5a0; font-size:12px; font-weight:600; padding:4px 10px; border:1px solid #00e5a0; border-radius:20px;">Owner</span>
                 <% } else if (org.members && org.members.includes(user.username)) { %>
-                  <span style="color:#a0a0b0; font-size:12px; font-weight:600; padding:4px 10px; border:1px solid #2a2a4a; border-radius:20px;">Member</span>
+                  <span style="color:#7a9ab0; font-size:12px; font-weight:600; padding:4px 10px; border:1px solid #2a3e4e; border-radius:20px;">Member</span>
                 <% } else if (org.pendingMembers && org.pendingMembers.includes(user.username)) { %>
                   <span style="color:#f5a623; font-size:12px; font-weight:600; padding:4px 10px; border:1px solid #f5a623; border-radius:20px;">Pending</span>
                 <% } else { %>
@@ -85,7 +85,7 @@
       <% } %>
     </div>
 
-    <div id="noResults" style="display:none; text-align:center; color:#a0a0b0; padding:40px;">No organizations match your search.</div>
+    <div id="noResults" style="display:none; text-align:center; color:#7a9ab0; padding:40px;">No organizations match your search.</div>
   </div>
 
   <script>

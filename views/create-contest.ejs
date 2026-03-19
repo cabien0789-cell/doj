@@ -46,14 +46,14 @@
             <input type="radio" name="visibility" value="public" checked onchange="updateVisibility()">
             <div>
               <div style="color:#00e5a0; font-weight:600; font-size:14px;">🌐 Public</div>
-              <div style="color:#a0a0b0; font-size:12px; margin-top:2px;">Anyone can view and participate</div>
+              <div style="color:#7a9ab0; font-size:12px; margin-top:2px;">Anyone can view and participate</div>
             </div>
           </label>
           <label class="visibility-option" id="opt-private">
             <input type="radio" name="visibility" value="private" onchange="updateVisibility()">
             <div>
               <div style="color:#f5a623; font-weight:600; font-size:14px;">🔒 Private</div>
-              <div style="color:#a0a0b0; font-size:12px; margin-top:2px;">Members only</div>
+              <div style="color:#7a9ab0; font-size:12px; margin-top:2px;">Members only</div>
             </div>
           </label>
         </div>
@@ -76,31 +76,31 @@
 
       <div id="timeLimitFields">
         <div class="form-group">
-          <label>Start Time <span id="tzLabel" style="color:#a0a0b0; font-size:12px;">(UTC — enter time in UTC)</span></label>
+          <label>Start Time <span id="tzLabel" style="color:#7a9ab0; font-size:12px;">(UTC — enter time in UTC)</span></label>
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <input type="date" id="startDate" style="flex:1; min-width:140px;" required />
             <div style="display:flex; gap:4px; align-items:center;">
               <input type="number" id="startHour" min="0" max="23" placeholder="HH" style="width:64px; text-align:center;" required />
-              <span style="color:#a0a0b0;">:</span>
+              <span style="color:#7a9ab0;">:</span>
               <input type="number" id="startMinute" min="0" max="59" placeholder="MM" style="width:64px; text-align:center;" required />
             </div>
           </div>
           <input type="hidden" name="startTime" id="startTime" />
         </div>
         <div class="form-group">
-          <label>End Time <span id="tzLabel2" style="color:#a0a0b0; font-size:12px;">(UTC — enter time in UTC)</span></label>
+          <label>End Time <span id="tzLabel2" style="color:#7a9ab0; font-size:12px;">(UTC — enter time in UTC)</span></label>
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <input type="date" id="endDate" style="flex:1; min-width:140px;" required />
             <div style="display:flex; gap:4px; align-items:center;">
               <input type="number" id="endHour" min="0" max="23" placeholder="HH" style="width:64px; text-align:center;" required />
-              <span style="color:#a0a0b0;">:</span>
+              <span style="color:#7a9ab0;">:</span>
               <input type="number" id="endMinute" min="0" max="59" placeholder="MM" style="width:64px; text-align:center;" required />
             </div>
           </div>
           <input type="hidden" name="endTime" id="endTime" />
         </div>
-        <div id="tzHint" style="background:#1a1a2e; border:1px solid #2a2a4a; border-radius:6px; padding:10px 14px; margin-bottom:16px; color:#a0a0b0; font-size:13px;">
-          💡 Current time: <strong id="currentTimeDisplay" style="color:#ffffff;"></strong>
+        <div id="tzHint" style="background:#141e26; border:1px solid #2a3e4e; border-radius:6px; padding:10px 14px; margin-bottom:16px; color:#7a9ab0; font-size:13px;">
+          💡 Current time: <strong id="currentTimeDisplay" style="color:#e0eaf0;"></strong>
         </div>
       </div>
 
@@ -109,7 +109,7 @@
         <div style="margin-bottom:8px;">
           <input type="text" id="problemSearchInput" placeholder="Search your problems..." class="filter-input" oninput="searchProblems()" />
         </div>
-        <div id="problemSearchResults" style="background:#0f0f23; border:1px solid #2a2a4a; border-radius:6px; max-height:200px; overflow-y:auto; display:none; margin-bottom:8px;"></div>
+        <div id="problemSearchResults" style="background:#141e26; border:1px solid #2a3e4e; border-radius:6px; max-height:200px; overflow-y:auto; display:none; margin-bottom:8px;"></div>
         <div id="selectedProblems" style="display:flex; flex-direction:column; gap:6px;"></div>
         <div id="problemIdsContainer"></div>
       </div>
@@ -128,19 +128,16 @@
     function buildDateTime() {
       const noLimit = document.getElementById('noTimeLimit').checked;
       if (noLimit) return true;
-
       const sd = document.getElementById('startDate').value;
       const sh = document.getElementById('startHour').value;
       const sm = document.getElementById('startMinute').value;
       const ed = document.getElementById('endDate').value;
       const eh = document.getElementById('endHour').value;
       const em = document.getElementById('endMinute').value;
-
       if (!sd || sh === '' || sm === '' || !ed || eh === '' || em === '') {
         alert('Please fill in all date and time fields.');
         return false;
       }
-
       document.getElementById('startTime').value = sd + 'T' + pad(sh) + ':' + pad(sm);
       document.getElementById('endTime').value = ed + 'T' + pad(eh) + ':' + pad(em);
       return true;
@@ -185,16 +182,14 @@
       const q = document.getElementById('problemSearchInput').value.trim();
       const resultsDiv = document.getElementById('problemSearchResults');
       if (q.length === 0) { resultsDiv.style.display = 'none'; return; }
-
       const res = await fetch('/api/my-problems?q=' + encodeURIComponent(q));
       const problems = await res.json();
-
       if (problems.length === 0) {
-        resultsDiv.innerHTML = '<div style="padding:12px 16px; color:#a0a0b0; font-size:13px;">No problems found.</div>';
+        resultsDiv.innerHTML = '<div style="padding:12px 16px; color:#7a9ab0; font-size:13px;">No problems found.</div>';
       } else {
         resultsDiv.innerHTML = problems.map(p => `
-          <div style="padding:10px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #2a2a4a; cursor:pointer;" onmouseenter="this.style.background='#1a1a2e'" onmouseleave="this.style.background=''" onclick="addProblem('${p.id}', '${p.title.replace(/'/g, "\\'")}', '${p.difficulty}')">
-            <span style="color:#ffffff; font-size:14px;">${p.title}</span>
+          <div style="padding:10px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #2a3e4e; cursor:pointer;" onmouseenter="this.style.background='#1a2a36'" onmouseleave="this.style.background=''" onclick="addProblem('${p.id}', '${p.title.replace(/'/g, "\\'")}', '${p.difficulty}')">
+            <span style="color:#e0eaf0; font-size:14px;">${p.title}</span>
             <span class="difficulty-${p.difficulty.toLowerCase()}" style="font-size:12px;">${p.difficulty}</span>
           </div>
         `).join('');
@@ -205,24 +200,21 @@
     function addProblem(id, title, difficulty) {
       if (selectedProblemIds.has(id)) return;
       selectedProblemIds.add(id);
-
       const container = document.getElementById('selectedProblems');
       const div = document.createElement('div');
       div.id = 'selected-' + id;
-      div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:#0f0f23; border:1px solid #2a2a4a; border-radius:6px; padding:10px 14px;';
+      div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:#141e26; border:1px solid #2a3e4e; border-radius:6px; padding:10px 14px;';
       div.innerHTML = `
-        <span style="color:#ffffff; font-size:14px;">${title} <span class="difficulty-${difficulty.toLowerCase()}" style="font-size:12px;">(${difficulty})</span></span>
+        <span style="color:#e0eaf0; font-size:14px;">${title} <span class="difficulty-${difficulty.toLowerCase()}" style="font-size:12px;">(${difficulty})</span></span>
         <button type="button" onclick="removeProblem('${id}')" style="background:transparent; border:1px solid #ff4444; color:#ff4444; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:12px;">Remove</button>
       `;
       container.appendChild(div);
-
       const input = document.createElement('input');
       input.type = 'hidden';
       input.name = 'problemIds[]';
       input.value = id;
       input.id = 'input-' + id;
       document.getElementById('problemIdsContainer').appendChild(input);
-
       document.getElementById('problemSearchInput').value = '';
       document.getElementById('problemSearchResults').style.display = 'none';
     }

@@ -46,14 +46,14 @@
             <input type="radio" name="visibility" value="public" <%= contest.visibility !== 'private' ? 'checked' : '' %> onchange="updateVisibility()">
             <div>
               <div style="color:#00e5a0; font-weight:600; font-size:14px;">🌐 Public</div>
-              <div style="color:#a0a0b0; font-size:12px; margin-top:2px;">Anyone can view and participate</div>
+              <div style="color:#7a9ab0; font-size:12px; margin-top:2px;">Anyone can view and participate</div>
             </div>
           </label>
           <label class="visibility-option <%= contest.visibility === 'private' ? 'selected-private' : '' %>" id="opt-private">
             <input type="radio" name="visibility" value="private" <%= contest.visibility === 'private' ? 'checked' : '' %> onchange="updateVisibility()">
             <div>
               <div style="color:#f5a623; font-weight:600; font-size:14px;">🔒 Private</div>
-              <div style="color:#a0a0b0; font-size:12px; margin-top:2px;">Members only</div>
+              <div style="color:#7a9ab0; font-size:12px; margin-top:2px;">Members only</div>
             </div>
           </label>
         </div>
@@ -97,31 +97,31 @@
 
       <div id="timeLimitFields" style="<%= contest.noTimeLimit ? 'display:none' : '' %>">
         <div class="form-group">
-          <label>Start Time <span id="tzLabel" style="color:#a0a0b0; font-size:12px;">(<%= contest.timezone === 'Vietnam' ? 'Vietnam UTC+7 — enter time in Vietnam time' : 'UTC — enter time in UTC' %>)</span></label>
+          <label>Start Time <span id="tzLabel" style="color:#7a9ab0; font-size:12px;">(<%= contest.timezone === 'Vietnam' ? 'Vietnam UTC+7 — enter time in Vietnam time' : 'UTC — enter time in UTC' %>)</span></label>
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <input type="date" id="startDate" value="<%= initStartDate %>" style="flex:1; min-width:140px;" <%= !contest.noTimeLimit ? 'required' : '' %> />
             <div style="display:flex; gap:4px; align-items:center;">
               <input type="number" id="startHour" min="0" max="23" placeholder="HH" value="<%= initStartHour %>" style="width:64px; text-align:center;" <%= !contest.noTimeLimit ? 'required' : '' %> />
-              <span style="color:#a0a0b0;">:</span>
+              <span style="color:#7a9ab0;">:</span>
               <input type="number" id="startMinute" min="0" max="59" placeholder="MM" value="<%= initStartMinute %>" style="width:64px; text-align:center;" <%= !contest.noTimeLimit ? 'required' : '' %> />
             </div>
           </div>
           <input type="hidden" name="startTime" id="startTime" />
         </div>
         <div class="form-group">
-          <label>End Time <span id="tzLabel2" style="color:#a0a0b0; font-size:12px;">(<%= contest.timezone === 'Vietnam' ? 'Vietnam UTC+7 — enter time in Vietnam time' : 'UTC — enter time in UTC' %>)</span></label>
+          <label>End Time <span id="tzLabel2" style="color:#7a9ab0; font-size:12px;">(<%= contest.timezone === 'Vietnam' ? 'Vietnam UTC+7 — enter time in Vietnam time' : 'UTC — enter time in UTC' %>)</span></label>
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <input type="date" id="endDate" value="<%= initEndDate %>" style="flex:1; min-width:140px;" <%= !contest.noTimeLimit ? 'required' : '' %> />
             <div style="display:flex; gap:4px; align-items:center;">
               <input type="number" id="endHour" min="0" max="23" placeholder="HH" value="<%= initEndHour %>" style="width:64px; text-align:center;" <%= !contest.noTimeLimit ? 'required' : '' %> />
-              <span style="color:#a0a0b0;">:</span>
+              <span style="color:#7a9ab0;">:</span>
               <input type="number" id="endMinute" min="0" max="59" placeholder="MM" value="<%= initEndMinute %>" style="width:64px; text-align:center;" <%= !contest.noTimeLimit ? 'required' : '' %> />
             </div>
           </div>
           <input type="hidden" name="endTime" id="endTime" />
         </div>
-        <div id="tzHint" style="background:#1a1a2e; border:1px solid #2a2a4a; border-radius:6px; padding:10px 14px; margin-bottom:16px; color:#a0a0b0; font-size:13px;">
-          💡 Current time: <strong id="currentTimeDisplay" style="color:#ffffff;"></strong>
+        <div id="tzHint" style="background:#141e26; border:1px solid #2a3e4e; border-radius:6px; padding:10px 14px; margin-bottom:16px; color:#7a9ab0; font-size:13px;">
+          💡 Current time: <strong id="currentTimeDisplay" style="color:#e0eaf0;"></strong>
         </div>
       </div>
 
@@ -130,7 +130,7 @@
         <div style="margin-bottom:8px;">
           <input type="text" id="problemSearchInput" placeholder="Search your problems..." class="filter-input" oninput="searchProblems()" />
         </div>
-        <div id="problemSearchResults" style="background:#0f0f23; border:1px solid #2a2a4a; border-radius:6px; max-height:200px; overflow-y:auto; display:none; margin-bottom:8px;"></div>
+        <div id="problemSearchResults" style="background:#141e26; border:1px solid #2a3e4e; border-radius:6px; max-height:200px; overflow-y:auto; display:none; margin-bottom:8px;"></div>
         <div id="selectedProblems" style="display:flex; flex-direction:column; gap:0;"></div>
         <div id="problemIdsContainer"></div>
       </div>
@@ -144,8 +144,8 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: #0f0f23;
-      border: 1px solid #2a2a4a;
+      background: #141e26;
+      border: 1px solid #2a3e4e;
       border-radius: 6px;
       padding: 10px 14px;
       margin: 3px 0;
@@ -159,7 +159,7 @@
       border-bottom: 3px solid #00e5a0;
     }
     .drag-handle {
-      color: #a0a0b0;
+      color: #7a9ab0;
       font-size: 18px;
       cursor: grab;
       padding: 0 10px 0 0;
@@ -249,16 +249,16 @@
       const res = await fetch('/api/my-problems?q=' + encodeURIComponent(q));
       const problems = await res.json();
       if (problems.length === 0) {
-        resultsDiv.innerHTML = '<div style="padding:12px 16px; color:#a0a0b0; font-size:13px;">No problems found.</div>';
+        resultsDiv.innerHTML = '<div style="padding:12px 16px; color:#7a9ab0; font-size:13px;">No problems found.</div>';
       } else {
         resultsDiv.innerHTML = problems
           .filter(p => !selectedProblemIds.has(p.id))
           .map(p => `
-            <div style="padding:10px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #2a2a4a; cursor:pointer;"
-              onmouseenter="this.style.background='#1a1a2e'"
+            <div style="padding:10px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #2a3e4e; cursor:pointer;"
+              onmouseenter="this.style.background='#1a2a36'"
               onmouseleave="this.style.background=''"
               onclick="addProblem('${p.id}', '${p.title.replace(/'/g, "\\'")}', '${p.difficulty}')">
-              <span style="color:#ffffff; font-size:14px;">${p.title}</span>
+              <span style="color:#e0eaf0; font-size:14px;">${p.title}</span>
               <span class="difficulty-${p.difficulty.toLowerCase()}" style="font-size:12px;">${p.difficulty}</span>
             </div>
           `).join('');
@@ -279,7 +279,7 @@
       div.innerHTML = `
         <div style="display:flex; align-items:center; flex:1; min-width:0;">
           <span class="drag-handle" title="Drag to reorder">⠿</span>
-          <span style="color:#ffffff; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+          <span style="color:#e0eaf0; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
             ${title} <span class="difficulty-${difficulty.toLowerCase()}" style="font-size:12px;">(${difficulty})</span>
           </span>
         </div>
@@ -288,7 +288,6 @@
 
       bindDragEvents(div);
       container.appendChild(div);
-
       syncHiddenInputOrder();
 
       if (!silent) {
@@ -345,13 +344,10 @@
       el.addEventListener('drop', function(e) {
         e.preventDefault();
         if (!dragSrcEl || dragSrcEl === this) return;
-
         const container = document.getElementById('selectedProblems');
         const rect = this.getBoundingClientRect();
         const mid = rect.top + rect.height / 2;
-
         clearAllIndicators();
-
         if (e.clientY < mid) {
           container.insertBefore(dragSrcEl, this);
         } else {
@@ -362,7 +358,6 @@
             container.appendChild(dragSrcEl);
           }
         }
-
         syncHiddenInputOrder();
       });
     }
