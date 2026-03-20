@@ -92,11 +92,10 @@
       </div>
     <% } %>
 
+    <% if (user && user.username === targetUser.username) { %>
     <div style="display:flex; gap:8px; margin-bottom:24px;">
       <button onclick="showTab('submissions')" id="tab-submissions" class="tab-btn tab-active">Recent Submissions</button>
-      <% if (user && user.username === targetUser.username) { %>
-        <button onclick="showTab('myproblems')" id="tab-myproblems" class="tab-btn">My Problems (<%= myProblems.length %>)</button>
-      <% } %>
+      <button onclick="showTab('myproblems')" id="tab-myproblems" class="tab-btn">My Problems (<%= myProblems.length %>)</button>
     </div>
 
     <div id="section-submissions">
@@ -134,7 +133,6 @@
       </table>
     </div>
 
-    <% if (user && user.username === targetUser.username) { %>
     <div id="section-myproblems" style="display:none;">
       <div style="margin-bottom:16px;">
         <input type="text" id="myProblemSearch" placeholder="Search my problems..." class="filter-input" oninput="filterMyProblems()" />
