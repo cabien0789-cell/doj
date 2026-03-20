@@ -33,6 +33,7 @@ async function connectDB() {
   await db.collection('problems').createIndex({ featured: 1 });
   await db.collection('problems').createIndex({ author: 1 });
   await db.collection('notifications').createIndex({ username: 1 });
+  await db.collection('notifications').createIndex({ username: 1, createdAt: -1 });
   console.log('Connected to MongoDB');
 }
 
