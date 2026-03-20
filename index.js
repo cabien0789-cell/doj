@@ -613,7 +613,7 @@ app.get('/profile/:username', async (req, res) => {
   const myProblems = await getProblems().find({
     author: req.params.username,
     deletedFromProfile: { $ne: true }
-  }).sort({ createdAt: -1 }).toArray();
+  }).toArray();
   const myProblemsWithId = myProblems.map(p => ({ ...p, id: p._id.toString() }));
   res.render('profile', {
     user: req.session.user || null,
