@@ -16,7 +16,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.json({ limit: '10mb' }));
 
 app.use(session({
-  secret: 'doj-secret-key',
+  secret: process.env.SESSION_SECRET || 'doj-secret-key',
   resave: false,
   saveUninitialized: false
 }));
@@ -27,6 +27,12 @@ let db;
 async function connectDB() {
   await client.connect();
   db = client.db('doj');
+  await db.collection('submissions').createIndex({ username: 1 });
+  await db.collection('submissions').createIndex({ problemId: 1 });
+  await db.collection('submissions').createIndex({ submittedAt: -1 });
+  await db.collection('problems').createIndex({ featured: 1 });
+  await db.collection('problems').createIndex({ author: 1 });
+  await db.collection('notifications').createIndex({ username: 1 });
   console.log('Connected to MongoDB');
 }
 
@@ -144,9 +150,21 @@ function normalizeOutput(str) {
   return rstripped.join('\n');
 }
 
+function makeTmpDir() {
+  const tmpBase = path.join(__dirname, 'tmp');
+  if (!fs.existsSync(tmpBase)) fs.mkdirSync(tmpBase);
+  const id = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  const dir = path.join(tmpBase, id);
+  fs.mkdirSync(dir);
+  return dir;
+}
+
+function removeTmpDir(dir) {
+  try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}
+}
+
 function judgeCode(code, language, testcases, timeLimit) {
-  const tmpDir = path.join(__dirname, 'tmp');
-  if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
+  const tmpDir = makeTmpDir();
   const timeLimitMs = (timeLimit || 2) * 1000;
   const details = [];
   let passedCount = 0;
@@ -170,6 +188,7 @@ function judgeCode(code, language, testcases, timeLimit) {
     const errMsg = e.stderr ? e.stderr.toString() : (e.message || 'Compilation Error');
     for (let i = 0; i < testcases.length; i++)
       details.push({ status: 'CE', passed: false, output: errMsg, expected: '' });
+    removeTmpDir(tmpDir);
     return { verdict: 'Compilation Error', passed: false, passedCount: 0, total: testcases.length, details };
   }
 
@@ -206,6 +225,7 @@ function judgeCode(code, language, testcases, timeLimit) {
     }
   }
 
+  removeTmpDir(tmpDir);
   const allPassed = passedCount === testcases.length;
   let verdict = 'Accepted';
   if (!allPassed) {
@@ -216,35 +236,36 @@ function judgeCode(code, language, testcases, timeLimit) {
 }
 
 function runCodeOnce(code, language, input) {
-  const tmpDir = path.join(__dirname, 'tmp');
-  if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
-  const inputFile = path.join(tmpDir, 'run_input.txt');
+  const tmpDir = makeTmpDir();
+  const inputFile = path.join(tmpDir, 'input.txt');
   fs.writeFileSync(inputFile, input || '');
   try {
     let output = '';
     if (language === 'python') {
-      const codeFile = path.join(tmpDir, 'run_solution.py');
+      const codeFile = path.join(tmpDir, 'solution.py');
       fs.writeFileSync(codeFile, code);
       output = execSync(`python3 ${codeFile} < ${inputFile}`, { timeout: 10000 }).toString();
     } else if (language === 'cpp') {
-      const codeFile = path.join(tmpDir, 'run_solution.cpp');
-      const outFile = path.join(tmpDir, 'run_solution');
+      const codeFile = path.join(tmpDir, 'solution.cpp');
+      const outFile = path.join(tmpDir, 'solution');
       fs.writeFileSync(codeFile, code);
       execSync(`g++ -o ${outFile} ${codeFile}`, { timeout: 30000 });
       output = execSync(`${outFile} < ${inputFile}`, { timeout: 10000 }).toString();
     } else if (language === 'c') {
-      const codeFile = path.join(tmpDir, 'run_solution.c');
-      const outFile = path.join(tmpDir, 'run_solutionc');
+      const codeFile = path.join(tmpDir, 'solution.c');
+      const outFile = path.join(tmpDir, 'solutionc');
       fs.writeFileSync(codeFile, code);
       execSync(`gcc -o ${outFile} ${codeFile}`, { timeout: 30000 });
       output = execSync(`${outFile} < ${inputFile}`, { timeout: 10000 }).toString();
     } else if (language === 'javascript') {
-      const codeFile = path.join(tmpDir, 'run_solution.js');
+      const codeFile = path.join(tmpDir, 'solution.js');
       fs.writeFileSync(codeFile, code);
       output = execSync(`node ${codeFile} < ${inputFile}`, { timeout: 10000 }).toString();
     }
+    removeTmpDir(tmpDir);
     return { output: output || '(no output)' };
   } catch (e) {
+    removeTmpDir(tmpDir);
     return { error: e.stderr ? e.stderr.toString() : (e.message || 'Error') };
   }
 }
