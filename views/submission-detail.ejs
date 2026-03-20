@@ -51,30 +51,58 @@
 
     <div style="font-size:13px; font-weight:600; color:#7a9ab0; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px;">Test Cases</div>
     <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; margin-bottom:24px;">
-      <% for (let i = 0; i < submission.total; i++) { %>
-        <%
-          const verdict = submission.verdict;
-          let borderColor = '#2a3e4e';
-          let textColor = '#7a9ab0';
-          let statusText = '—';
-          if (i < submission.passedCount) {
-            borderColor = '#00e5a0'; textColor = '#00e5a0'; statusText = 'AC';
-          } else if (verdict === 'Compilation Error') {
-            borderColor = '#38bdf8'; textColor = '#38bdf8'; statusText = 'CE';
-          } else if (verdict === 'Time Limit Exceeded') {
-            borderColor = '#f5a623'; textColor = '#f5a623'; statusText = 'TLE';
-          } else if (verdict === 'Runtime Error') {
-            borderColor = '#f87171'; textColor = '#f87171'; statusText = 'RE';
-          } else {
-            borderColor = '#ff4444'; textColor = '#ff4444'; statusText = 'WA';
-          }
-        %>
-        <div style="background:#141e26; border:1px solid <%= borderColor %>; border-radius:6px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
-          <span style="font-size:13px; color:#7a9ab0;">Test #<%= i + 1 %></span>
-          <span style="font-size:12px; font-weight:600; color:<%= textColor %>;"><%= statusText %></span>
-        </div>
+      <% if (submission.details && submission.details.length > 0) { %>
+        <% submission.details.forEach((tc, i) => { %>
+          <%
+            let borderColor = '#2a3e4e';
+            let textColor = '#7a9ab0';
+            let statusText = '';
+            if (tc.status === 'AC') { borderColor = '#00e5a0'; textColor = '#00e5a0'; statusText = 'AC'; }
+            else if (tc.status === 'WA') { borderColor = '#ff4444'; textColor = '#ff4444'; statusText = 'WA'; }
+            else if (tc.status === 'TLE') { borderColor = '#f5a623'; textColor = '#f5a623'; statusText = 'TLE'; }
+            else if (tc.status === 'RE') { borderColor = '#f87171'; textColor = '#f87171'; statusText = 'RE'; }
+            else if (tc.status === 'CE') { borderColor = '#38bdf8'; textColor = '#38bdf8'; statusText = 'CE'; }
+          %>
+          <div style="background:#141e26; border:1px solid <%= borderColor %>; border-radius:6px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:13px; color:#7a9ab0;">Test #<%= i + 1 %></span>
+            <span style="font-size:12px; font-weight:600; color:<%= textColor %>;">
+              <%= statusText %><% if (tc.execTime !== undefined && tc.status !== 'TLE' && tc.status !== 'CE') { %>&nbsp;<%= tc.execTime %>ms<% } %>
+            </span>
+          </div>
+        <% }) %>
+      <% } else { %>
+        <% for (let i = 0; i < submission.total; i++) { %>
+          <%
+            const verdict = submission.verdict;
+            let borderColor = '#2a3e4e';
+            let textColor = '#7a9ab0';
+            let statusText = '—';
+            if (i < submission.passedCount) {
+              borderColor = '#00e5a0'; textColor = '#00e5a0'; statusText = 'AC';
+            } else if (verdict === 'Compilation Error') {
+              borderColor = '#38bdf8'; textColor = '#38bdf8'; statusText = 'CE';
+            } else if (verdict === 'Time Limit Exceeded') {
+              borderColor = '#f5a623'; textColor = '#f5a623'; statusText = 'TLE';
+            } else if (verdict === 'Runtime Error') {
+              borderColor = '#f87171'; textColor = '#f87171'; statusText = 'RE';
+            } else {
+              borderColor = '#ff4444'; textColor = '#ff4444'; statusText = 'WA';
+            }
+          %>
+          <div style="background:#141e26; border:1px solid <%= borderColor %>; border-radius:6px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:13px; color:#7a9ab0;">Test #<%= i + 1 %></span>
+            <span style="font-size:12px; font-weight:600; color:<%= textColor %>;"><%= statusText %></span>
+          </div>
+        <% } %>
       <% } %>
     </div>
+
+    <% if (submission.details && submission.details.some(tc => tc.status === 'CE')) { %>
+      <div style="background:#141e26; border:1px solid #38bdf8; border-radius:6px; padding:14px; margin-bottom:24px;">
+        <div style="font-size:12px; color:#38bdf8; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Compilation Error</div>
+        <pre style="color:#7a9ab0; font-size:12px; white-space:pre-wrap; word-break:break-all; margin:0;"><%= submission.details.find(tc => tc.status === 'CE').output %></pre>
+      </div>
+    <% } %>
 
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
       <span style="font-size:13px; font-weight:600; color:#7a9ab0; text-transform:uppercase; letter-spacing:1px;">Your Code</span>

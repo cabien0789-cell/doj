@@ -531,7 +531,7 @@ app.post('/problems/:id/submit', requireLogin, async (req, res) => {
   const submission = {
     username: req.session.user.username, problemId: problem.id, problemTitle: problem.title,
     language, verdict: result.verdict, passedCount: result.passedCount, total: result.total,
-    execTime: result.execTime, code, submittedAt: new Date().toISOString()
+    execTime: result.execTime, code, details: result.details, submittedAt: new Date().toISOString()
   };
   const inserted = await getSubmissions().insertOne(submission);
   res.render('submission-result', { user: req.session.user, result, problemId: problem.id, submissionId: inserted.insertedId.toString(), code, language });
@@ -617,7 +617,7 @@ app.get('/profile/:username', async (req, res) => {
   const myProblemsWithId = myProblems.map(p => ({ ...p, id: p._id.toString() }));
   res.render('profile', {
     user: req.session.user || null,
-    targetUser: { username: targetUser.username, email: targetUser.email, createdAt: targetUser._id.getTimestamp().toISOString() },
+    targetUser: { username: targetUser.username, email: targetUser.email, createdAt: (() => { try { return targetUser._id.getTimestamp().toISOString(); } catch(e) { return null; } })() },
     stats, recentSubmissions, myProblems: myProblemsWithId
   });
 });
