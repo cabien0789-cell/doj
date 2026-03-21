@@ -485,7 +485,7 @@ app.get('/leaderboard', async (req, res) => {
 
 app.get('/problems', async (req, res) => {
   const user = req.session.user || null;
-  const featuredProblems = await getProblems().find({ featured: true }).toArray();
+  const featuredProblems = await getProblems().find({ featured: true }, { projection: { title: 1, difficulty: 1, tags: 1, author: 1 } }).toArray();
   const allSubs = await getSubmissions().find().toArray();
   const solvedSet = new Set();
   if (user) allSubs.filter(s => s.username === user.username && s.verdict === 'Accepted').forEach(s => solvedSet.add(s.problemId));
@@ -922,7 +922,7 @@ app.get('/contests/:id', async (req, res) => {
     });
   }
 
-  const allProblems = await getProblems().find().toArray();
+  const allProblems = await getProblems().find({}, { projection: { title: 1, difficulty: 1 } }).toArray();
   const problems = contest.problemIds.map(pid => {
     const p = allProblems.find(p => p._id.toString() === pid);
     return p ? { ...p, id: p._id.toString() } : null;
@@ -963,7 +963,7 @@ app.get('/contests/:id', async (req, res) => {
 app.get('/admin', requireAdmin, async (req, res) => {
   const users = await getUsers().find().toArray();
   const orgs = (await getOrgs().find().toArray()).map(o => ({ ...o, id: o._id.toString() }));
-  const allProblems = await getProblems().find().toArray();
+  const allProblems = await getProblems().find({}, { projection: { title: 1, difficulty: 1, author: 1, featured: 1 } }).toArray();
   const allOrgs = await getOrgs().find().toArray();
   const allContests = await getContests().find().toArray();
   const problems = allProblems.map(p => {
