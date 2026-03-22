@@ -54,7 +54,7 @@
             <tr class="user-row" data-username="<%= u.username.toLowerCase() %>">
               <td><a href="/profile/<%= u.username %>" style="color:#e0eaf0; text-decoration:none;"><%= u.username %></a></td>
               <td style="color:#7a9ab0; font-size:13px;"><%= u.email %></td>
-              <td style="color:<%= u.role === 'admin' ? '#00e5a0' : '#7a9ab0' %>; font-size:13px;"><%= u.role || 'user' %></td>
+              <td style="color:<%= u.role === 'admin' ? '#00e5a0' : u.role === 'org' ? '#f5a623' : '#7a9ab0' %>; font-size:13px;"><%= u.role || 'user' %></td>
               <td>
                 <% if (u.locked) { %>
                   <span style="color:#ff4444; font-size:13px;">🔒 Locked</span>
@@ -62,7 +62,7 @@
                   <span style="color:#00e5a0; font-size:13px;">✓ Active</span>
                 <% } %>
               </td>
-              <td>
+              <td style="display:flex; gap:6px; flex-wrap:wrap;">
                 <% if (u.role !== 'admin') { %>
                   <% if (u.locked) { %>
                     <form action="/admin/users/<%= u.username %>/unlock" method="POST" style="display:inline;">
@@ -71,6 +71,15 @@
                   <% } else { %>
                     <form action="/admin/users/<%= u.username %>/lock" method="POST" style="display:inline;">
                       <button type="submit" onclick="return confirm('Lock account of <%= u.username %>?')" style="background:transparent; color:#ff4444; border:1px solid #ff4444; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px;">Lock</button>
+                    </form>
+                  <% } %>
+                  <% if (u.role === 'org') { %>
+                    <form action="/admin/users/<%= u.username %>/revoke-org" method="POST" style="display:inline;">
+                      <button type="submit" onclick="return confirm('Revoke Org role of <%= u.username %>?')" style="background:transparent; color:#f5a623; border:1px solid #f5a623; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px;">Revoke Org</button>
+                    </form>
+                  <% } else if (!u.role || u.role === 'user') { %>
+                    <form action="/admin/users/<%= u.username %>/grant-org" method="POST" style="display:inline;">
+                      <button type="submit" onclick="return confirm('Grant Org role to <%= u.username %>?')" style="background:transparent; color:#38bdf8; border:1px solid #38bdf8; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px;">Grant Org</button>
                     </form>
                   <% } %>
                 <% } else { %>

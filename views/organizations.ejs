@@ -35,7 +35,7 @@
   <div class="problems-container">
     <div class="problems-header" style="display:flex; justify-content:space-between; align-items:center;">
       <h2>Organizations</h2>
-      <% if (user) { %>
+      <% if (user && (user.role === 'org' || user.role === 'admin')) { %>
         <a href="/organizations/create" class="btn-register" style="text-decoration:none;">+ Create Organization</a>
       <% } %>
     </div>

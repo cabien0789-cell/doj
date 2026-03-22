@@ -58,6 +58,12 @@ async function requireAdmin(req, res, next) {
   next();
 }
 
+function requireOrg(req, res, next) {
+  if (!req.session.user) return res.redirect('/login');
+  if (req.session.user.role !== 'org' && req.session.user.role !== 'admin') return res.redirect('/organizations');
+  next();
+}
+
 function emailTemplate(bodyContent) {
   return `
   <div style="background:#f4f4f4; padding:40px 20px; font-family:'Segoe UI',Arial,sans-serif;">
@@ -632,9 +638,9 @@ app.get('/organizations', async (req, res) => {
   res.render('organizations', { user: req.session.user || null, organizations: orgsWithId });
 });
 
-app.get('/organizations/create', requireLogin, (req, res) => res.render('create-organization', { user: req.session.user, error: undefined }));
+app.get('/organizations/create', requireOrg, (req, res) => res.render('create-organization', { user: req.session.user, error: undefined }));
 
-app.post('/organizations/create', requireLogin, async (req, res) => {
+app.post('/organizations/create', requireOrg, async (req, res) => {
   const { name, description } = req.body;
   if (!name || name.trim().length < 3) return res.render('create-organization', { user: req.session.user, error: 'Organization name must be at least 3 characters.' });
   if (await getOrgs().findOne({ name: name.trim() })) return res.render('create-organization', { user: req.session.user, error: 'Organization name already exists.' });
@@ -966,6 +972,18 @@ app.post('/admin/users/:username/lock', requireAdmin, async (req, res) => {
 app.post('/admin/users/:username/unlock', requireAdmin, async (req, res) => {
   await getUsers().updateOne({ username: req.params.username }, { $set: { locked: false } });
   await sendNotification(req.params.username, 'Your account has been unlocked by an administrator.');
+  res.redirect('/admin');
+});
+
+app.post('/admin/users/:username/grant-org', requireAdmin, async (req, res) => {
+  await getUsers().updateOne({ username: req.params.username }, { $set: { role: 'org' } });
+  await sendNotification(req.params.username, 'You have been granted Organization role. You can now create organizations.');
+  res.redirect('/admin');
+});
+
+app.post('/admin/users/:username/revoke-org', requireAdmin, async (req, res) => {
+  await getUsers().updateOne({ username: req.params.username }, { $set: { role: 'user' } });
+  await sendNotification(req.params.username, 'Your Organization role has been revoked.');
   res.redirect('/admin');
 });
 
