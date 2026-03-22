@@ -140,6 +140,12 @@
 
     <div class="problem-right">
       <% if (user) { %>
+        <% if (typeof submitError !== 'undefined' && submitError) { %>
+          <div style="background:#2a1a1a; border:1px solid #ff4444; border-radius:6px; padding:12px 16px; margin-bottom:14px; color:#ff4444; font-size:13px;">
+            ⚠ <%= submitError %>
+          </div>
+        <% } %>
+
         <form action="/problems/<%= problem.id %>/submit" method="POST" id="submitForm">
           <div class="editor-header">
             <select name="language" class="language-select" id="languageSelect">

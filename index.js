@@ -53,8 +53,7 @@ function requireLogin(req, res, next) {
 
 async function requireAdmin(req, res, next) {
   if (!req.session.user) return res.redirect('/login');
-  const user = await getUsers().findOne({ username: req.session.user.username });
-  if (!user || user.role !== 'admin') return res.redirect('/');
+  if (req.session.user.role !== 'admin') return res.redirect('/');
   next();
 }
 
@@ -62,6 +61,23 @@ function requireOrg(req, res, next) {
   if (!req.session.user) return res.redirect('/login');
   if (req.session.user.role !== 'org' && req.session.user.role !== 'admin') return res.redirect('/organizations');
   next();
+}
+
+// ─── RATE LIMIT ───────────────────────────────────────────
+const submitRateLimit = new Map();
+
+function checkSubmitRateLimit(username) {
+  const now = Date.now();
+  const windowMs = 2 * 60 * 1000;
+  const maxSubmits = 4;
+  if (!submitRateLimit.has(username)) {
+    submitRateLimit.set(username, []);
+  }
+  const timestamps = submitRateLimit.get(username).filter(t => now - t < windowMs);
+  if (timestamps.length >= maxSubmits) return false;
+  timestamps.push(now);
+  submitRateLimit.set(username, timestamps);
+  return true;
 }
 
 function emailTemplate(bodyContent) {
@@ -298,15 +314,12 @@ app.get('/', async (req, res) => {
     .slice(0, 3)
     .map(c => ({ ...c, id: c._id.toString() }));
 
-  const allSolves = await getSolves().find().toArray();
-  const userMap = {};
-  allSolves.forEach(s => {
-    if (!userMap[s.username]) userMap[s.username] = { username: s.username, solved: 0 };
-    userMap[s.username].solved++;
-  });
-  const topUsers = Object.values(userMap)
-    .sort((a, b) => b.solved - a.solved)
-    .slice(0, 5);
+  const topUsers = await getSolves().aggregate([
+    { $group: { _id: '$username', solved: { $sum: 1 } } },
+    { $sort: { solved: -1 } },
+    { $limit: 5 },
+    { $project: { _id: 0, username: '$_id', solved: 1 } }
+  ]).toArray();
 
   res.render('index', { user: req.session.user || null, recentContests, topUsers });
 });
@@ -464,17 +477,11 @@ app.get('/api/my-problems', requireLogin, async (req, res) => {
 // ─── LEADERBOARD ──────────────────────────────────────────
 
 app.get('/leaderboard', async (req, res) => {
-  const allSolves = await getSolves().find().toArray();
-  const userMap = {};
-  allSolves.forEach(s => {
-    if (!userMap[s.username]) userMap[s.username] = { username: s.username, solved: 0, lastSolvedAt: null };
-    userMap[s.username].solved++;
-    if (!userMap[s.username].lastSolvedAt || s.solvedAt > userMap[s.username].lastSolvedAt) {
-      userMap[s.username].lastSolvedAt = s.solvedAt;
-    }
-  });
-  const leaderboard = Object.values(userMap)
-    .sort((a, b) => b.solved !== a.solved ? b.solved - a.solved : new Date(a.lastSolvedAt) - new Date(b.lastSolvedAt));
+  const leaderboard = await getSolves().aggregate([
+    { $group: { _id: '$username', solved: { $sum: 1 }, lastSolvedAt: { $max: '$solvedAt' } } },
+    { $sort: { solved: -1, lastSolvedAt: 1 } },
+    { $project: { _id: 0, username: '$_id', solved: 1, lastSolvedAt: 1 } }
+  ]).toArray();
   res.render('leaderboard', { user: req.session.user || null, leaderboard });
 });
 
@@ -483,19 +490,26 @@ app.get('/leaderboard', async (req, res) => {
 app.get('/problems', async (req, res) => {
   const user = req.session.user || null;
   const featuredProblems = await getProblems().find({ featured: true }, { projection: { title: 1, difficulty: 1, tags: 1, author: 1 } }).toArray();
-  const allOrgs = await getOrgs().find().toArray();
-  const allContests = await getContests().find().toArray();
+  const featuredIds = featuredProblems.map(p => p._id.toString());
+
+  const relatedContests = await getContests().find({ problemIds: { $in: featuredIds } }, { projection: { orgId: 1, problemIds: 1 } }).toArray();
+  const relatedOrgIds = [...new Set(relatedContests.map(c => c.orgId))].filter(Boolean);
+  const relatedOrgs = relatedOrgIds.length > 0
+    ? await getOrgs().find({ _id: { $in: relatedOrgIds.map(id => { try { return new ObjectId(id); } catch(e) { return null; } }).filter(Boolean) } }, { projection: { name: 1 } }).toArray()
+    : [];
+
   const solvedSet = new Set();
   if (user) {
-    const userSolves = await getSolves().find({ username: user.username }).toArray();
+    const userSolves = await getSolves().find({ username: user.username }, { projection: { problemId: 1 } }).toArray();
     userSolves.forEach(s => solvedSet.add(s.problemId));
   }
+
   const problems = featuredProblems.map(p => {
     const pid = p._id.toString();
-    const contest = allContests.find(c => c.problemIds && c.problemIds.includes(pid));
+    const contest = relatedContests.find(c => c.problemIds && c.problemIds.includes(pid));
     let orgName = null, orgId = null;
     if (contest) {
-      const org = allOrgs.find(o => o._id.toString() === contest.orgId);
+      const org = relatedOrgs.find(o => o._id.toString() === contest.orgId);
       if (org) { orgName = org.name; orgId = org._id.toString(); }
     }
     return { ...p, id: pid, solved: solvedSet.has(pid), orgName, orgId };
@@ -537,6 +551,27 @@ app.get('/problems/:id', async (req, res) => {
 
 app.post('/problems/:id/submit', requireLogin, async (req, res) => {
   const { code, language } = req.body;
+  const role = req.session.user.role;
+
+  if (role !== 'admin' && role !== 'org') {
+    if (!checkSubmitRateLimit(req.session.user.username)) {
+      let problem;
+      try { problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/problems'); }
+      if (!problem) return res.redirect('/problems');
+      problem.id = problem._id.toString();
+      const mySubmissions = await getSubmissions().find(
+        { username: req.session.user.username, problemId: problem.id },
+        { projection: { code: 0 } }
+      ).sort({ submittedAt: -1 }).limit(5).toArray();
+      return res.render('problem-detail', {
+        user: req.session.user,
+        problem,
+        mySubmissions,
+        submitError: 'You are submitting too fast. Please wait a moment before trying again.'
+      });
+    }
+  }
+
   let problem;
   try { problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/problems'); }
   if (!problem) return res.redirect('/problems');
@@ -746,16 +781,7 @@ app.post('/organizations/:id/contests/create', requireLogin, async (req, res) =>
   const startTimeUTC = isNoLimit ? null : toUTC(req.body.startTime, timezone);
   const endTimeUTC = isNoLimit ? null : toUTC(req.body.endTime, timezone);
   if (!isNoLimit) {
-    const now = new Date();
-    const start = new Date(startTimeUTC);
-    const end = new Date(endTimeUTC);
-    const minStart = new Date(now.getTime() + 60 * 60000);
-    const minEnd = new Date(now.getTime() + 2 * 60 * 60000);
-    const minEndFromStart = new Date(start.getTime() + 15 * 60000);
-    let validationError = null;
-    if (start < minStart) validationError = 'Start time must be at least 1 hour from now.';
-    else if (end < minEnd) validationError = 'End time must be at least 2 hours from now.';
-    else if (end < minEndFromStart) validationError = 'End time must be at least 15 minutes after start time.';
+    const validationError = validateContestTime(startTimeUTC, endTimeUTC);
     if (validationError) return res.render('create-contest', { user: req.session.user, orgId: org._id.toString(), error: validationError, serverTime: getServerTime() });
   }
   await getContests().insertOne({
@@ -772,8 +798,7 @@ app.get('/contests/:id/edit', requireLogin, async (req, res) => {
   let contest;
   try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
   if (!contest) return res.redirect('/organizations');
-  const orgs = await getOrgs().find().toArray();
-  const matchOrg = orgs.find(o => o._id.toString() === contest.orgId);
+  const matchOrg = await getOrgs().findOne({ _id: new ObjectId(contest.orgId) });
   if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
   contest.id = contest._id.toString();
   const myProblems = await getProblems().find({ author: req.session.user.username, deletedFromProfile: { $ne: true } }).toArray();
@@ -789,8 +814,7 @@ app.post('/contests/:id/edit', requireLogin, async (req, res) => {
   let contest;
   try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
   if (!contest) return res.redirect('/organizations');
-  const orgs = await getOrgs().find().toArray();
-  const matchOrg = orgs.find(o => o._id.toString() === contest.orgId);
+  const matchOrg = await getOrgs().findOne({ _id: new ObjectId(contest.orgId) });
   if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
   const { name, timezone, noTimeLimit, visibility } = req.body;
   let problemIds = req.body['problemIds[]'] || req.body.problemIds || [];
@@ -799,16 +823,7 @@ app.post('/contests/:id/edit', requireLogin, async (req, res) => {
   const startTimeUTC = isNoLimit ? null : toUTC(req.body.startTime, timezone);
   const endTimeUTC = isNoLimit ? null : toUTC(req.body.endTime, timezone);
   if (!isNoLimit) {
-    const now = new Date();
-    const start = new Date(startTimeUTC);
-    const end = new Date(endTimeUTC);
-    const minStart = new Date(now.getTime() + 60 * 60000);
-    const minEnd = new Date(now.getTime() + 2 * 60 * 60000);
-    const minEndFromStart = new Date(start.getTime() + 15 * 60000);
-    let validationError = null;
-    if (start < minStart) validationError = 'Start time must be at least 1 hour from now.';
-    else if (end < minEnd) validationError = 'End time must be at least 2 hours from now.';
-    else if (end < minEndFromStart) validationError = 'End time must be at least 15 minutes after start time.';
+    const validationError = validateContestTime(startTimeUTC, endTimeUTC);
     if (validationError) {
       contest.id = contest._id.toString();
       contest.startTime = req.body.startTime ? req.body.startTime.slice(0, 16) : contest.startTime;
@@ -840,8 +855,7 @@ app.get('/contests/:id/problems/create', requireLogin, async (req, res) => {
   let contest;
   try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
   if (!contest) return res.redirect('/organizations');
-  const orgs = await getOrgs().find().toArray();
-  const matchOrg = orgs.find(o => o._id.toString() === contest.orgId);
+  const matchOrg = await getOrgs().findOne({ _id: new ObjectId(contest.orgId) });
   if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
   contest.id = contest._id.toString();
   res.render('create-problem-contest', { user: req.session.user, contestId: contest.id, contestName: contest.name, error: undefined });
@@ -851,8 +865,7 @@ app.post('/contests/:id/problems/create', requireLogin, async (req, res) => {
   let contest;
   try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
   if (!contest) return res.redirect('/organizations');
-  const orgs = await getOrgs().find().toArray();
-  const matchOrg = orgs.find(o => o._id.toString() === contest.orgId);
+  const matchOrg = await getOrgs().findOne({ _id: new ObjectId(contest.orgId) });
   if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
 
   const { title, difficulty, statement, inputFormat, outputFormat, timeLimit, constraints, explanation } = req.body;
@@ -882,8 +895,7 @@ app.post('/contests/:id/delete', requireLogin, async (req, res) => {
   try {
     const contest = await getContests().findOne({ _id: new ObjectId(req.params.id) });
     if (!contest) return res.redirect('/organizations');
-    const orgs = await getOrgs().find().toArray();
-    const matchOrg = orgs.find(o => o._id.toString() === contest.orgId);
+    const matchOrg = await getOrgs().findOne({ _id: new ObjectId(contest.orgId) });
     if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
     await getContests().deleteOne({ _id: new ObjectId(req.params.id) });
     res.redirect('/organizations/' + contest.orgId);
@@ -896,8 +908,7 @@ app.get('/contests/:id', async (req, res) => {
   if (!contest) return res.redirect('/organizations');
   contest.id = contest._id.toString();
 
-  const orgs = await getOrgs().find().toArray();
-  const matchOrg = orgs.find(o => o._id.toString() === contest.orgId);
+  const matchOrg = await getOrgs().findOne({ _id: new ObjectId(contest.orgId) });
   const isOwner = req.session.user && matchOrg && matchOrg.owner === req.session.user.username;
   const isMember = req.session.user && matchOrg && matchOrg.members && matchOrg.members.includes(req.session.user.username);
   const isAdmin = req.session.user && req.session.user.role === 'admin';
@@ -908,9 +919,10 @@ app.get('/contests/:id', async (req, res) => {
     });
   }
 
-  const allProblems = await getProblems().find({}, { projection: { title: 1, difficulty: 1 } }).toArray();
+  const contestProblemObjectIds = contest.problemIds.map(pid => { try { return new ObjectId(pid); } catch(e) { return null; } }).filter(Boolean);
+  const problemDocs = await getProblems().find({ _id: { $in: contestProblemObjectIds } }, { projection: { title: 1, difficulty: 1 } }).toArray();
   const problems = contest.problemIds.map(pid => {
-    const p = allProblems.find(p => p._id.toString() === pid);
+    const p = problemDocs.find(p => p._id.toString() === pid);
     return p ? { ...p, id: p._id.toString() } : null;
   }).filter(p => p !== null);
 
@@ -948,15 +960,14 @@ app.get('/admin', requireAdmin, async (req, res) => {
   const users = await getUsers().find().toArray();
   const orgs = (await getOrgs().find().toArray()).map(o => ({ ...o, id: o._id.toString() }));
   const allProblems = await getProblems().find({}, { projection: { title: 1, difficulty: 1, author: 1, featured: 1 } }).toArray();
-  const allOrgs = await getOrgs().find().toArray();
-  const allContests = await getContests().find().toArray();
+  const allContests = await getContests().find({}, { projection: { orgId: 1, problemIds: 1 } }).toArray();
   const problems = allProblems.map(p => {
     const pid = p._id.toString();
     const contest = allContests.find(c => c.problemIds && c.problemIds.includes(pid));
     let orgName = null, orgId = null;
     if (contest) {
-      const org = allOrgs.find(o => o._id.toString() === contest.orgId);
-      if (org) { orgName = org.name; orgId = org._id.toString(); }
+      const org = orgs.find(o => o.id === contest.orgId);
+      if (org) { orgName = org.name; orgId = org.id; }
     }
     return { ...p, id: pid, orgName, orgId };
   });
