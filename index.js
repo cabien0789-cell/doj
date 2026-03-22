@@ -27,9 +27,10 @@ let db;
 async function connectDB() {
   await client.connect();
   db = client.db('doj');
-  await db.collection('submissions').createIndex({ username: 1 });
-  await db.collection('submissions').createIndex({ problemId: 1 });
-  await db.collection('submissions').createIndex({ submittedAt: -1 });
+  await db.collection('submissions').createIndex({ username: 1, problemId: 1, submittedAt: -1 });
+  await db.collection('solves').createIndex({ username: 1, problemId: 1 }, { unique: true });
+  await db.collection('solves').createIndex({ problemId: 1 });
+  await db.collection('solves').createIndex({ username: 1 });
   await db.collection('problems').createIndex({ featured: 1 });
   await db.collection('problems').createIndex({ author: 1 });
   await db.collection('notifications').createIndex({ username: 1 });
@@ -42,6 +43,7 @@ function getProblems() { return db.collection('problems'); }
 function getOrgs() { return db.collection('organizations'); }
 function getContests() { return db.collection('contests'); }
 function getSubmissions() { return db.collection('submissions'); }
+function getSolves() { return db.collection('solves'); }
 function getNotifications() { return db.collection('notifications'); }
 
 function requireLogin(req, res, next) {
@@ -290,18 +292,13 @@ app.get('/', async (req, res) => {
     .slice(0, 3)
     .map(c => ({ ...c, id: c._id.toString() }));
 
-  const allSubs = await getSubmissions().find().sort({ submittedAt: 1 }).toArray();
+  const allSolves = await getSolves().find().toArray();
   const userMap = {};
-  allSubs.forEach(s => {
-    if (!userMap[s.username]) userMap[s.username] = { username: s.username, solved: new Set(), totalSubmissions: 0, accepted: 0 };
-    userMap[s.username].totalSubmissions++;
-    if (s.verdict === 'Accepted') {
-      userMap[s.username].accepted++;
-      userMap[s.username].solved.add(s.problemId);
-    }
+  allSolves.forEach(s => {
+    if (!userMap[s.username]) userMap[s.username] = { username: s.username, solved: 0 };
+    userMap[s.username].solved++;
   });
   const topUsers = Object.values(userMap)
-    .map(u => ({ username: u.username, solved: u.solved.size, totalSubmissions: u.totalSubmissions, accepted: u.accepted }))
     .sort((a, b) => b.solved - a.solved)
     .slice(0, 5);
 
@@ -461,23 +458,17 @@ app.get('/api/my-problems', requireLogin, async (req, res) => {
 // ─── LEADERBOARD ──────────────────────────────────────────
 
 app.get('/leaderboard', async (req, res) => {
-  const allSubs = await getSubmissions().find().sort({ submittedAt: 1 }).toArray();
+  const allSolves = await getSolves().find().toArray();
   const userMap = {};
-  allSubs.forEach(s => {
-    if (!userMap[s.username]) userMap[s.username] = { username: s.username, solved: new Set(), solvedTime: {}, totalSubmissions: 0, accepted: 0 };
-    userMap[s.username].totalSubmissions++;
-    if (s.verdict === 'Accepted') {
-      userMap[s.username].accepted++;
-      if (!userMap[s.username].solved.has(s.problemId)) {
-        userMap[s.username].solved.add(s.problemId);
-        userMap[s.username].solvedTime[s.problemId] = s.submittedAt;
-      }
+  allSolves.forEach(s => {
+    if (!userMap[s.username]) userMap[s.username] = { username: s.username, solved: 0, lastSolvedAt: null };
+    userMap[s.username].solved++;
+    if (!userMap[s.username].lastSolvedAt || s.solvedAt > userMap[s.username].lastSolvedAt) {
+      userMap[s.username].lastSolvedAt = s.solvedAt;
     }
   });
-  const leaderboard = Object.values(userMap).map(u => {
-    const lastSolvedTime = u.solved.size > 0 ? Object.values(u.solvedTime).sort().slice(-1)[0] : null;
-    return { username: u.username, solved: u.solved.size, totalSubmissions: u.totalSubmissions, accepted: u.accepted, lastSolvedTime };
-  }).sort((a, b) => b.solved !== a.solved ? b.solved - a.solved : new Date(a.lastSolvedTime) - new Date(b.lastSolvedTime));
+  const leaderboard = Object.values(userMap)
+    .sort((a, b) => b.solved !== a.solved ? b.solved - a.solved : new Date(a.lastSolvedAt) - new Date(b.lastSolvedAt));
   res.render('leaderboard', { user: req.session.user || null, leaderboard });
 });
 
@@ -486,17 +477,13 @@ app.get('/leaderboard', async (req, res) => {
 app.get('/problems', async (req, res) => {
   const user = req.session.user || null;
   const featuredProblems = await getProblems().find({ featured: true }, { projection: { title: 1, difficulty: 1, tags: 1, author: 1 } }).toArray();
-  const allSubs = await getSubmissions().find().toArray();
-  const solvedSet = new Set();
-  if (user) allSubs.filter(s => s.username === user.username && s.verdict === 'Accepted').forEach(s => solvedSet.add(s.problemId));
-  const subsByProblem = {};
-  allSubs.forEach(s => {
-    if (!subsByProblem[s.problemId]) subsByProblem[s.problemId] = { total: 0, accepted: 0 };
-    subsByProblem[s.problemId].total++;
-    if (s.verdict === 'Accepted') subsByProblem[s.problemId].accepted++;
-  });
   const allOrgs = await getOrgs().find().toArray();
   const allContests = await getContests().find().toArray();
+  const solvedSet = new Set();
+  if (user) {
+    const userSolves = await getSolves().find({ username: user.username }).toArray();
+    userSolves.forEach(s => solvedSet.add(s.problemId));
+  }
   const problems = featuredProblems.map(p => {
     const pid = p._id.toString();
     const contest = allContests.find(c => c.problemIds && c.problemIds.includes(pid));
@@ -505,7 +492,7 @@ app.get('/problems', async (req, res) => {
       const org = allOrgs.find(o => o._id.toString() === contest.orgId);
       if (org) { orgName = org.name; orgId = org._id.toString(); }
     }
-    return { ...p, id: pid, solved: solvedSet.has(pid), totalSubmissions: (subsByProblem[pid] || {}).total || 0, acceptedSubmissions: (subsByProblem[pid] || {}).accepted || 0, orgName, orgId };
+    return { ...p, id: pid, solved: solvedSet.has(pid), orgName, orgId };
   });
   res.render('problems', { user, problems });
 });
@@ -535,10 +522,10 @@ app.get('/problems/:id', async (req, res) => {
   if (!problem) return res.redirect('/problems');
   problem.id = problem._id.toString();
   const user = req.session.user || null;
-  const allProblemSubs = await getSubmissions().find({ problemId: problem.id }).toArray();
-  problem.totalSubmissions = allProblemSubs.length;
-  problem.acceptedSubmissions = allProblemSubs.filter(s => s.verdict === 'Accepted').length;
-  const mySubmissions = user ? allProblemSubs.filter(s => s.username === user.username).sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt)).slice(0, 5).map(s => ({ ...s, id: s._id.toString() })) : [];
+  const mySubmissions = user ? await getSubmissions().find(
+    { username: user.username, problemId: problem.id },
+    { projection: { code: 0 } }
+  ).sort({ submittedAt: -1 }).limit(5).toArray() : [];
   res.render('problem-detail', { user, problem, mySubmissions });
 });
 
@@ -550,13 +537,29 @@ app.post('/problems/:id/submit', requireLogin, async (req, res) => {
   problem.id = problem._id.toString();
   const allTestcases = problem.testcases || [...(problem.sampleTestcases || []), ...(problem.hiddenTestcases || [])];
   const result = judgeCode(code, language, allTestcases, problem.timeLimit);
+  const now = new Date().toISOString();
   const submission = {
     username: req.session.user.username, problemId: problem.id, problemTitle: problem.title,
     language, verdict: result.verdict, passedCount: result.passedCount, total: result.total,
-    execTime: result.execTime, code, details: result.details, submittedAt: new Date().toISOString()
+    execTime: result.execTime, submittedAt: now
   };
-  const inserted = await getSubmissions().insertOne(submission);
-  res.render('submission-result', { user: req.session.user, result, problemId: problem.id, submissionId: inserted.insertedId.toString(), code, language });
+  await getSubmissions().insertOne(submission);
+  const allMySubs = await getSubmissions().find(
+    { username: req.session.user.username, problemId: problem.id },
+    { projection: { _id: 1 } }
+  ).sort({ submittedAt: -1 }).toArray();
+  if (allMySubs.length > 5) {
+    const toDelete = allMySubs.slice(5).map(s => s._id);
+    await getSubmissions().deleteMany({ _id: { $in: toDelete } });
+  }
+  if (result.verdict === 'Accepted') {
+    await getSolves().updateOne(
+      { username: req.session.user.username, problemId: problem.id },
+      { $setOnInsert: { username: req.session.user.username, problemId: problem.id, solvedAt: now } },
+      { upsert: true }
+    );
+  }
+  res.render('submission-result', { user: req.session.user, result, problemId: problem.id, code, language });
 });
 
 app.get('/problems/:id/edit', requireLogin, async (req, res) => {
@@ -603,35 +606,12 @@ app.post('/problems/:id/remove-from-profile', requireLogin, async (req, res) => 
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
 
-// ─── SUBMISSION DETAIL ────────────────────────────────────
-
-app.get('/submissions/:id', requireLogin, async (req, res) => {
-  let submission;
-  try { submission = await getSubmissions().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/'); }
-  if (!submission || submission.username !== req.session.user.username) return res.redirect('/');
-  submission.id = submission._id.toString();
-  res.render('submission-detail', { user: req.session.user, submission });
-});
-
 // ─── PROFILE ──────────────────────────────────────────────
 
 app.get('/profile/:username', async (req, res) => {
   const targetUser = await getUsers().findOne({ username: req.params.username });
   if (!targetUser) return res.redirect('/');
-  const userSubs = await getSubmissions().find({ username: req.params.username }).sort({ submittedAt: -1 }).toArray();
-  const solvedSet = new Set(userSubs.filter(s => s.verdict === 'Accepted').map(s => s.problemId));
-  const langStats = {};
-  userSubs.forEach(s => { langStats[s.language] = (langStats[s.language] || 0) + 1; });
-  const stats = {
-    totalSubmissions: userSubs.length, solved: solvedSet.size,
-    accepted: userSubs.filter(s => s.verdict === 'Accepted').length,
-    wrongAnswer: userSubs.filter(s => s.verdict === 'Wrong Answer').length,
-    tle: userSubs.filter(s => s.verdict === 'Time Limit Exceeded').length,
-    re: userSubs.filter(s => s.verdict === 'Runtime Error').length,
-    ce: userSubs.filter(s => s.verdict === 'Compilation Error').length,
-    langStats
-  };
-  const recentSubmissions = userSubs.slice(0, 20).map(s => ({ ...s, id: s._id.toString() }));
+  const solved = await getSolves().countDocuments({ username: req.params.username });
   const myProblems = await getProblems().find({
     author: req.params.username,
     deletedFromProfile: { $ne: true }
@@ -640,7 +620,7 @@ app.get('/profile/:username', async (req, res) => {
   res.render('profile', {
     user: req.session.user || null,
     targetUser: { username: targetUser.username, email: targetUser.email, createdAt: (() => { try { return targetUser._id.getTimestamp().toISOString(); } catch(e) { return null; } })() },
-    stats, recentSubmissions, myProblems: myProblemsWithId
+    solved, myProblems: myProblemsWithId
   });
 });
 
@@ -931,24 +911,22 @@ app.get('/contests/:id', async (req, res) => {
   const startUTC = contest.startTimeUTC || contest.startTime;
   const endUTC = contest.endTimeUTC || contest.endTime;
 
-  let allSubs;
+  let allSolves;
   if (contest.noTimeLimit) {
-    allSubs = await getSubmissions().find({ problemId: { $in: contest.problemIds } }).toArray();
+    allSolves = await getSolves().find({ problemId: { $in: contest.problemIds } }).toArray();
   } else {
-    allSubs = await getSubmissions().find({ problemId: { $in: contest.problemIds }, submittedAt: { $gte: startUTC, $lte: endUTC } }).toArray();
+    allSolves = await getSolves().find({ problemId: { $in: contest.problemIds }, solvedAt: { $gte: startUTC, $lte: endUTC } }).toArray();
   }
 
   const scoreMap = {};
-  allSubs.forEach(s => {
-    if (!scoreMap[s.username]) scoreMap[s.username] = { solved: new Set(), lastAC: null };
-    if (s.verdict === 'Accepted') {
-      scoreMap[s.username].solved.add(s.problemId);
-      if (!scoreMap[s.username].lastAC || s.submittedAt > scoreMap[s.username].lastAC) scoreMap[s.username].lastAC = s.submittedAt;
-    }
+  allSolves.forEach(s => {
+    if (!scoreMap[s.username]) scoreMap[s.username] = { solved: 0, lastAC: null };
+    scoreMap[s.username].solved++;
+    if (!scoreMap[s.username].lastAC || s.solvedAt > scoreMap[s.username].lastAC) scoreMap[s.username].lastAC = s.solvedAt;
   });
 
   const scoreboard = Object.entries(scoreMap)
-    .map(([username, data]) => ({ username, solved: data.solved.size, lastAC: data.lastAC }))
+    .map(([username, data]) => ({ username, solved: data.solved, lastAC: data.lastAC }))
     .sort((a, b) => b.solved - a.solved || new Date(a.lastAC) - new Date(b.lastAC));
 
   res.render('contest-detail', {

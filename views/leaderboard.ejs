@@ -43,13 +43,11 @@
           <th>Rank</th>
           <th>Username</th>
           <th>Problems Solved</th>
-          <th>Total Submissions</th>
-          <th>Acceptance Rate</th>
         </tr>
       </thead>
       <tbody>
         <% if (leaderboard.length === 0) { %>
-          <tr><td colspan="5" class="no-problems">No data yet.</td></tr>
+          <tr><td colspan="3" class="no-problems">No data yet.</td></tr>
         <% } else { %>
           <% leaderboard.forEach((entry, index) => { %>
             <tr>
@@ -70,10 +68,6 @@
                 </a>
               </td>
               <td style="color:#00e5a0; font-weight:700; font-size:16px;"><%= entry.solved %></td>
-              <td style="color:#a0a0b0;"><%= entry.totalSubmissions %></td>
-              <td style="color:#f5a623;">
-                <%= entry.totalSubmissions > 0 ? Math.round(entry.accepted / entry.totalSubmissions * 100) + '%' : '—' %>
-              </td>
             </tr>
           <% }) %>
         <% } %>

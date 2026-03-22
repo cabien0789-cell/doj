@@ -103,7 +103,6 @@
               <th>Rank</th>
               <th>Username</th>
               <th>Solved</th>
-              <th>Acceptance</th>
             </tr>
           </thead>
           <tbody>
@@ -126,9 +125,6 @@
                   </a>
                 </td>
                 <td style="color:#00e5a0; font-weight:700;"><%= u.solved %></td>
-                <td style="color:#f5a623;">
-                  <%= u.totalSubmissions > 0 ? Math.round(u.accepted / u.totalSubmissions * 100) + '%' : '—' %>
-                </td>
               </tr>
             <% }) %>
           </tbody>

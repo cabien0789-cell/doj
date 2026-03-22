@@ -69,7 +69,6 @@
             <th>Organization</th>
             <th>Tags</th>
             <th>Difficulty</th>
-            <th>Acceptance</th>
             <% if (user) { %><th>Status</th><% } %>
           </tr>
         </thead>
@@ -101,13 +100,6 @@
                 <% } %>
               </td>
               <td class="difficulty-<%= problem.difficulty.toLowerCase() %>"><%= problem.difficulty %></td>
-              <td style="color:#a0a0b0; font-size:13px;">
-                <% if (problem.totalSubmissions > 0) { %>
-                  <span style="color:#00e5a0;"><%= Math.round(problem.acceptedSubmissions / problem.totalSubmissions * 100) %>%</span>
-                <% } else { %>
-                  —
-                <% } %>
-              </td>
               <% if (user) { %>
                 <td>
                   <% if (problem.solved) { %>

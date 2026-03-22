@@ -49,91 +49,17 @@
 
     <div class="profile-stats">
       <div class="profile-stat-card">
-        <span class="profile-stat-number"><%= stats.solved %></span>
+        <span class="profile-stat-number" style="color:#00e5a0;"><%= solved %></span>
         <span class="profile-stat-label">Problems Solved</span>
       </div>
-      <div class="profile-stat-card">
-        <span class="profile-stat-number"><%= stats.totalSubmissions %></span>
-        <span class="profile-stat-label">Total Submissions</span>
-      </div>
-      <div class="profile-stat-card">
-        <span class="profile-stat-number" style="color:#00e5a0;"><%= stats.accepted %></span>
-        <span class="profile-stat-label">Accepted</span>
-      </div>
-      <div class="profile-stat-card">
-        <span class="profile-stat-number" style="color:#ff4444;"><%= stats.wrongAnswer %></span>
-        <span class="profile-stat-label">Wrong Answer</span>
-      </div>
-      <div class="profile-stat-card">
-        <span class="profile-stat-number" style="color:#f5a623;"><%= stats.tle %></span>
-        <span class="profile-stat-label">Time Limit Exceeded</span>
-      </div>
-      <div class="profile-stat-card">
-        <span class="profile-stat-number" style="color:#38bdf8;"><%= stats.ce %></span>
-        <span class="profile-stat-label">Compilation Error</span>
-      </div>
     </div>
-
-    <% if (stats.totalSubmissions > 0 && stats.langStats) { %>
-      <div style="background-color:#141e26; border:1px solid #2a3e4e; border-radius:8px; padding:20px 24px; margin-bottom:32px;">
-        <div style="font-size:14px; font-weight:600; color:#7a9ab0; text-transform:uppercase; letter-spacing:1px; margin-bottom:16px;">Languages Used</div>
-        <div style="display:flex; gap:12px; flex-wrap:wrap;">
-          <% const langColors = { cpp: '#00e5a0', c: '#38bdf8', python: '#facc15', javascript: '#f7df1e' }; %>
-          <% const langLabels = { cpp: 'C++', c: 'C', python: 'Python', javascript: 'JavaScript' }; %>
-          <% Object.entries(stats.langStats).sort((a,b) => b[1]-a[1]).forEach(([lang, count]) => { %>
-            <div style="display:flex; align-items:center; gap:8px; background:#0e1820; padding:8px 16px; border-radius:20px; border:1px solid #2a3e4e;">
-              <span style="width:10px; height:10px; border-radius:50%; background:<%= langColors[lang] || '#00e5a0' %>; display:inline-block;"></span>
-              <span style="color:#e0eaf0; font-size:14px; font-weight:600;"><%= langLabels[lang] || lang.toUpperCase() %></span>
-              <span style="color:#7a9ab0; font-size:13px;"><%= count %> submissions</span>
-              <span style="color:#7a9ab0; font-size:12px;">(<%= Math.round(count / stats.totalSubmissions * 100) %>%)</span>
-            </div>
-          <% }) %>
-        </div>
-      </div>
-    <% } %>
 
     <% if (user && user.username === targetUser.username) { %>
     <div style="display:flex; gap:8px; margin-bottom:24px;">
-      <button onclick="showTab('submissions')" id="tab-submissions" class="tab-btn tab-active">Recent Submissions</button>
-      <button onclick="showTab('myproblems')" id="tab-myproblems" class="tab-btn">My Problems (<%= myProblems.length %>)</button>
+      <button onclick="showTab('myproblems')" id="tab-myproblems" class="tab-btn tab-active">My Problems (<%= myProblems.length %>)</button>
     </div>
 
-    <div id="section-submissions">
-      <table class="problems-table">
-        <thead>
-          <tr>
-            <th>Time</th>
-            <th>Problem</th>
-            <th>Language</th>
-            <th>Verdict</th>
-            <th>Score</th>
-            <% if (user && user.username === targetUser.username) { %>
-              <th>Code</th>
-            <% } %>
-          </tr>
-        </thead>
-        <tbody>
-          <% if (recentSubmissions.length === 0) { %>
-            <tr><td colspan="6" class="no-problems">No submissions yet.</td></tr>
-          <% } else { %>
-            <% recentSubmissions.forEach(s => { %>
-              <tr>
-                <td style="color:#7a9ab0; font-size:13px;"><%= new Date(s.submittedAt).toLocaleString('en-GB', { hour12: false }) %></td>
-                <td><a href="/problems/<%= s.problemId %>"><%= s.problemTitle %></a></td>
-                <td><%= s.language === 'javascript' ? 'JavaScript' : s.language.toUpperCase() %></td>
-                <td class="verdict-<%= s.verdict.replace(/\s+/g,'').toLowerCase() %>"><%= s.verdict %></td>
-                <td><%= s.passedCount %>/<%= s.total %></td>
-                <% if (user && user.username === targetUser.username) { %>
-                  <td><a href="/submissions/<%= s.id %>" style="color:#00e5a0; text-decoration:none; font-size:13px;">View</a></td>
-                <% } %>
-              </tr>
-            <% }) %>
-          <% } %>
-        </tbody>
-      </table>
-    </div>
-
-    <div id="section-myproblems" style="display:none;">
+    <div id="section-myproblems">
       <div style="margin-bottom:16px;">
         <input type="text" id="myProblemSearch" placeholder="Search my problems..." class="filter-input" oninput="filterMyProblems()" />
       </div>
@@ -175,7 +101,7 @@
 
   <script>
     function showTab(tab) {
-      ['submissions', 'myproblems'].forEach(t => {
+      ['myproblems'].forEach(t => {
         const section = document.getElementById('section-' + t);
         const btn = document.getElementById('tab-' + t);
         if (section) section.style.display = t === tab ? 'block' : 'none';
