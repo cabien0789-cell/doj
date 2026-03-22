@@ -528,7 +528,7 @@ app.post('/problems/create', requireLogin, async (req, res) => {
   await getProblems().insertOne({
     title, difficulty, statement, inputFormat, outputFormat,
     constraints: constraints || '', explanation: explanation || '',
-    sampleTestcases, hiddenTestcases, testcases: [...sampleTestcases, ...hiddenTestcases],
+    sampleTestcases, hiddenTestcases,
     tags, timeLimit: parseInt(timeLimit) || 2,
     author: req.session.user.username, createdAt: new Date().toISOString(),
     featured: false, deletedFromProfile: false
@@ -576,7 +576,7 @@ app.post('/problems/:id/submit', requireLogin, async (req, res) => {
   try { problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/problems'); }
   if (!problem) return res.redirect('/problems');
   problem.id = problem._id.toString();
-  const allTestcases = problem.testcases || [...(problem.sampleTestcases || []), ...(problem.hiddenTestcases || [])];
+  const allTestcases = [...(problem.sampleTestcases || []), ...(problem.hiddenTestcases || [])];
   const result = judgeCode(code, language, allTestcases, problem.timeLimit);
   const now = new Date().toISOString();
   const submission = {
@@ -622,7 +622,7 @@ app.post('/problems/:id/edit', requireLogin, async (req, res) => {
     await getProblems().updateOne({ _id: new ObjectId(req.params.id) }, { $set: {
       title, difficulty, statement, inputFormat, outputFormat,
       constraints: constraints || '', explanation: explanation || '',
-      sampleTestcases, hiddenTestcases, testcases: [...sampleTestcases, ...hiddenTestcases],
+      sampleTestcases, hiddenTestcases,
       tags, timeLimit: parseInt(timeLimit) || 2
     }});
   } catch (e) { return res.redirect('/problems'); }
@@ -877,7 +877,7 @@ app.post('/contests/:id/problems/create', requireLogin, async (req, res) => {
   const inserted = await getProblems().insertOne({
     title, difficulty, statement, inputFormat, outputFormat,
     constraints: constraints || '', explanation: explanation || '',
-    sampleTestcases, hiddenTestcases, testcases: [...sampleTestcases, ...hiddenTestcases],
+    sampleTestcases, hiddenTestcases,
     tags, timeLimit: parseInt(timeLimit) || 2,
     author: req.session.user.username, createdAt: new Date().toISOString(),
     featured: false, deletedFromProfile: false
