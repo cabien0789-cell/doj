@@ -18,7 +18,8 @@ app.use(express.json({ limit: '2mb' }));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'doj-secret-key',
   resave: false,
-  saveUninitialized: false
+  saveUninitialized: false,
+  cookie: { maxAge: 2 * 60 * 60 * 1000 }
 }));
 
 const client = new MongoClient(process.env.MONGODB_URI);
@@ -35,6 +36,7 @@ async function connectDB() {
   await db.collection('problems').createIndex({ author: 1 });
   await db.collection('notifications').createIndex({ username: 1 });
   await db.collection('notifications').createIndex({ username: 1, createdAt: -1 });
+  await db.collection('submissions').deleteMany({ status: 'pending' });
   console.log('Connected to MongoDB');
 }
 
@@ -70,14 +72,67 @@ function checkSubmitRateLimit(username) {
   const now = Date.now();
   const windowMs = 2 * 60 * 1000;
   const maxSubmits = 4;
-  if (!submitRateLimit.has(username)) {
-    submitRateLimit.set(username, []);
-  }
+  if (!submitRateLimit.has(username)) submitRateLimit.set(username, []);
   const timestamps = submitRateLimit.get(username).filter(t => now - t < windowMs);
   if (timestamps.length >= maxSubmits) return false;
   timestamps.push(now);
   submitRateLimit.set(username, timestamps);
   return true;
+}
+
+// ─── JUDGE QUEUE ──────────────────────────────────────────
+const judgeQueue = [];
+let judgeRunning = false;
+
+async function processQueue() {
+  if (judgeRunning || judgeQueue.length === 0) return;
+  judgeRunning = true;
+  const task = judgeQueue.shift();
+  try {
+    const result = judgeCode(task.code, task.language, task.testcases, task.timeLimit);
+    const now = new Date().toISOString();
+    await getSubmissions().updateOne(
+      { _id: new ObjectId(task.submissionId) },
+      {
+        $set: {
+          verdict: result.verdict, passedCount: result.passedCount,
+          total: result.total, execTime: result.execTime,
+          submittedAt: now, status: 'done', result
+        }
+      }
+    );
+    const allMySubs = await getSubmissions().find(
+      { username: task.username, problemId: task.problemId, status: 'done' },
+      { projection: { _id: 1 } }
+    ).sort({ submittedAt: -1 }).toArray();
+    if (allMySubs.length > 5) {
+      const toDelete = allMySubs.slice(5).map(s => s._id);
+      await getSubmissions().deleteMany({ _id: { $in: toDelete } });
+    }
+    if (result.verdict === 'Accepted') {
+      await getSolves().updateOne(
+        { username: task.username, problemId: task.problemId },
+        { $setOnInsert: { username: task.username, problemId: task.problemId, solvedAt: now } },
+        { upsert: true }
+      );
+    }
+  } catch (e) {
+    await getSubmissions().updateOne(
+      { _id: new ObjectId(task.submissionId) },
+      { $set: { status: 'done', verdict: 'Runtime Error', passedCount: 0, total: 0, execTime: 0, result: { verdict: 'Runtime Error', passedCount: 0, total: 0, details: [], execTime: 0 } } }
+    );
+  }
+  judgeRunning = false;
+  if (judgeQueue.length > 0) processQueue();
+}
+
+// ─── DELETE PROBLEM AND RELATED ───────────────────────────
+async function deleteProblemAndRelated(problemId) {
+  const pid = problemId.toString();
+  await getProblems().deleteOne({ _id: new ObjectId(pid) });
+  await getSubmissions().deleteMany({ problemId: pid });
+  await getSolves().deleteMany({ problemId: pid });
+  await getContests().updateMany({ problemIds: pid }, { $pull: { problemIds: pid } });
 }
 
 function emailTemplate(bodyContent) {
@@ -134,14 +189,17 @@ async function sendEmail(to, subject, htmlContent) {
 
 async function sendNotification(username, message) {
   await getNotifications().insertOne({ username, message, read: false, createdAt: new Date().toISOString() });
+  const all = await getNotifications().find({ username }).sort({ createdAt: -1 }).toArray();
+  if (all.length > 8) {
+    const toDelete = all.slice(8).map(n => n._id);
+    await getNotifications().deleteMany({ _id: { $in: toDelete } });
+  }
 }
 
 function toUTC(datetimeLocal, timezone) {
   if (!datetimeLocal) return null;
   const clean = datetimeLocal.slice(0, 16);
-  if (timezone === 'Vietnam') {
-    return new Date(clean + ':00+07:00').toISOString();
-  }
+  if (timezone === 'Vietnam') return new Date(clean + ':00+07:00').toISOString();
   return new Date(clean + ':00Z').toISOString();
 }
 
@@ -169,9 +227,7 @@ function getServerTime() {
 function normalizeOutput(str) {
   const lines = str.split('\n');
   const rstripped = lines.map(line => line.replace(/\s+$/, ''));
-  while (rstripped.length > 0 && rstripped[rstripped.length - 1] === '') {
-    rstripped.pop();
-  }
+  while (rstripped.length > 0 && rstripped[rstripped.length - 1] === '') rstripped.pop();
   return rstripped.join('\n');
 }
 
@@ -543,8 +599,8 @@ app.get('/problems/:id', async (req, res) => {
   problem.id = problem._id.toString();
   const user = req.session.user || null;
   const mySubmissions = user ? await getSubmissions().find(
-    { username: user.username, problemId: problem.id },
-    { projection: { code: 0 } }
+    { username: user.username, problemId: problem.id, status: { $ne: 'pending' } },
+    { projection: { result: 0, status: 0 } }
   ).sort({ submittedAt: -1 }).limit(5).toArray() : [];
   res.render('problem-detail', { user, problem, mySubmissions });
 });
@@ -555,52 +611,50 @@ app.post('/problems/:id/submit', requireLogin, async (req, res) => {
 
   if (role !== 'admin' && role !== 'org') {
     if (!checkSubmitRateLimit(req.session.user.username)) {
-      let problem;
-      try { problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/problems'); }
-      if (!problem) return res.redirect('/problems');
-      problem.id = problem._id.toString();
-      const mySubmissions = await getSubmissions().find(
-        { username: req.session.user.username, problemId: problem.id },
-        { projection: { code: 0 } }
-      ).sort({ submittedAt: -1 }).limit(5).toArray();
-      return res.render('problem-detail', {
-        user: req.session.user,
-        problem,
-        mySubmissions,
-        submitError: 'You are submitting too fast. Please wait a moment before trying again.'
-      });
+      return res.json({ error: 'You are submitting too fast. Please wait a moment before trying again.' });
     }
   }
 
   let problem;
-  try { problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/problems'); }
-  if (!problem) return res.redirect('/problems');
+  try { problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.json({ error: 'Problem not found.' }); }
+  if (!problem) return res.json({ error: 'Problem not found.' });
   problem.id = problem._id.toString();
-  const allTestcases = [...(problem.sampleTestcases || []), ...(problem.hiddenTestcases || [])];
-  const result = judgeCode(code, language, allTestcases, problem.timeLimit);
-  const now = new Date().toISOString();
-  const submission = {
-    username: req.session.user.username, problemId: problem.id, problemTitle: problem.title,
-    language, verdict: result.verdict, passedCount: result.passedCount, total: result.total,
-    execTime: result.execTime, submittedAt: now
-  };
-  await getSubmissions().insertOne(submission);
-  const allMySubs = await getSubmissions().find(
-    { username: req.session.user.username, problemId: problem.id },
-    { projection: { _id: 1 } }
-  ).sort({ submittedAt: -1 }).toArray();
-  if (allMySubs.length > 5) {
-    const toDelete = allMySubs.slice(5).map(s => s._id);
-    await getSubmissions().deleteMany({ _id: { $in: toDelete } });
-  }
-  if (result.verdict === 'Accepted') {
-    await getSolves().updateOne(
-      { username: req.session.user.username, problemId: problem.id },
-      { $setOnInsert: { username: req.session.user.username, problemId: problem.id, solvedAt: now } },
-      { upsert: true }
-    );
-  }
-  res.render('submission-result', { user: req.session.user, result, problemId: problem.id, code, language });
+
+  const inserted = await getSubmissions().insertOne({
+    username: req.session.user.username,
+    problemId: problem.id,
+    problemTitle: problem.title,
+    language,
+    status: 'pending',
+    submittedAt: new Date().toISOString()
+  });
+
+  judgeQueue.push({
+    submissionId: inserted.insertedId.toString(),
+    code, language,
+    testcases: [...(problem.sampleTestcases || []), ...(problem.hiddenTestcases || [])],
+    timeLimit: problem.timeLimit,
+    username: req.session.user.username,
+    problemId: problem.id,
+    problemTitle: problem.title
+  });
+  processQueue();
+
+  res.json({ submissionId: inserted.insertedId.toString() });
+});
+
+app.get('/submissions/:id/status', requireLogin, async (req, res) => {
+  let sub;
+  try { sub = await getSubmissions().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.json({ status: 'error' }); }
+  if (!sub || sub.username !== req.session.user.username) return res.json({ status: 'error' });
+  if (sub.status === 'pending') return res.json({ status: 'pending' });
+  const result = sub.result;
+  await getSubmissions().updateOne({ _id: new ObjectId(req.params.id) }, { $unset: { result: '', status: '' } });
+  res.json({ status: 'done', result, problemId: sub.problemId, language: sub.language });
+});
+
+app.get('/submission-result', requireLogin, (req, res) => {
+  res.render('submission-result', {});
 });
 
 app.get('/problems/:id/edit', requireLogin, async (req, res) => {
@@ -633,7 +687,7 @@ app.post('/problems/:id/delete', requireLogin, async (req, res) => {
   try {
     const problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) });
     if (!problem || problem.author !== req.session.user.username) return res.redirect('/problems');
-    await getProblems().deleteOne({ _id: new ObjectId(req.params.id) });
+    await deleteProblemAndRelated(problem._id);
   } catch (e) {}
   res.redirect('/problems');
 });
@@ -642,7 +696,7 @@ app.post('/problems/:id/remove-from-profile', requireLogin, async (req, res) => 
   try {
     const problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) });
     if (!problem || problem.author !== req.session.user.username) return res.status(403).json({ error: 'Forbidden' });
-    await getProblems().updateOne({ _id: new ObjectId(req.params.id) }, { $set: { deletedFromProfile: true } });
+    await deleteProblemAndRelated(problem._id);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'Error' }); }
 });
@@ -1045,8 +1099,8 @@ app.post('/admin/problems/:id/delete', requireAdmin, async (req, res) => {
   try {
     const problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) });
     if (problem) {
-      await getProblems().deleteOne({ _id: new ObjectId(req.params.id) });
       await sendNotification(problem.author, `Your problem "${problem.title}" has been deleted by an administrator.`);
+      await deleteProblemAndRelated(problem._id);
     }
   } catch (e) {}
   res.redirect('/admin');

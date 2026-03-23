@@ -140,29 +140,23 @@
 
     <div class="problem-right">
       <% if (user) { %>
-        <% if (typeof submitError !== 'undefined' && submitError) { %>
-          <div style="background:#2a1a1a; border:1px solid #ff4444; border-radius:6px; padding:12px 16px; margin-bottom:14px; color:#ff4444; font-size:13px;">
-            ⚠ <%= submitError %>
-          </div>
-        <% } %>
+        <div id="submitErrorBox" style="display:none; background:#2a1a1a; border:1px solid #ff4444; border-radius:6px; padding:12px 16px; margin-bottom:14px; color:#ff4444; font-size:13px;"></div>
 
-        <form action="/problems/<%= problem.id %>/submit" method="POST" id="submitForm">
-          <div class="editor-header">
-            <select name="language" class="language-select" id="languageSelect">
-              <option value="cpp">C++</option>
-              <option value="c">C</option>
-              <option value="python">Python</option>
-              <option value="javascript">JavaScript (Node.js)</option>
-            </select>
-          </div>
-          <div id="editorWrapper">
-            <textarea name="code" id="codeArea"></textarea>
-          </div>
-          <div class="editor-actions">
-            <button type="button" class="btn-run" id="runBtn" onclick="runCode()">▶ Run Code</button>
-            <button type="submit" class="btn-submit" id="submitBtn">Submit</button>
-          </div>
-        </form>
+        <div class="editor-header">
+          <select name="language" class="language-select" id="languageSelect">
+            <option value="cpp">C++</option>
+            <option value="c">C</option>
+            <option value="python">Python</option>
+            <option value="javascript">JavaScript (Node.js)</option>
+          </select>
+        </div>
+        <div id="editorWrapper">
+          <textarea name="code" id="codeArea"></textarea>
+        </div>
+        <div class="editor-actions">
+          <button type="button" class="btn-run" id="runBtn" onclick="runCode()">▶ Run Code</button>
+          <button type="button" class="btn-submit" id="submitBtn" onclick="submitCode()">Submit</button>
+        </div>
 
         <div id="runPanel" style="display:none;">
           <div class="run-panel">
@@ -217,11 +211,82 @@
       editor.setValue(defaultCode[this.value]);
     });
 
-    document.getElementById('submitForm').addEventListener('submit', function() {
+    let pollingInterval = null;
+
+    async function submitCode() {
       editor.save();
-      document.getElementById('submitBtn').textContent = 'Judging...';
-      document.getElementById('submitBtn').disabled = true;
-    });
+      const code = document.getElementById('codeArea').value;
+      const language = document.getElementById('languageSelect').value;
+      const submitBtn = document.getElementById('submitBtn');
+      const runBtn = document.getElementById('runBtn');
+      const errorBox = document.getElementById('submitErrorBox');
+
+      errorBox.style.display = 'none';
+      submitBtn.textContent = 'Judging...';
+      submitBtn.disabled = true;
+      runBtn.disabled = true;
+
+      try {
+        const res = await fetch('/problems/<%= problem.id %>/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, language })
+        });
+        const data = await res.json();
+
+        if (data.error) {
+          errorBox.textContent = '⚠ ' + data.error;
+          errorBox.style.display = 'block';
+          submitBtn.textContent = 'Submit';
+          submitBtn.disabled = false;
+          runBtn.disabled = false;
+          return;
+        }
+
+        const submissionId = data.submissionId;
+        const pendingData = {
+          code,
+          language,
+          user: { username: '<%= user.username %>', role: '<%= user.role %>' }
+        };
+
+        pollingInterval = setInterval(async () => {
+          try {
+            const statusRes = await fetch('/submissions/' + submissionId + '/status');
+            const statusData = await statusRes.json();
+            if (statusData.status === 'done') {
+              clearInterval(pollingInterval);
+              pendingData.result = statusData.result;
+              pendingData.problemId = statusData.problemId;
+              pendingData.language = statusData.language;
+              sessionStorage.setItem('submissionResult', JSON.stringify(pendingData));
+              window.location.href = '/submission-result';
+            } else if (statusData.status === 'error') {
+              clearInterval(pollingInterval);
+              errorBox.textContent = '⚠ An error occurred. Please try again.';
+              errorBox.style.display = 'block';
+              submitBtn.textContent = 'Submit';
+              submitBtn.disabled = false;
+              runBtn.disabled = false;
+            }
+          } catch (e) {
+            clearInterval(pollingInterval);
+            errorBox.textContent = '⚠ An error occurred. Please try again.';
+            errorBox.style.display = 'block';
+            submitBtn.textContent = 'Submit';
+            submitBtn.disabled = false;
+            runBtn.disabled = false;
+          }
+        }, 2000);
+
+      } catch (e) {
+        errorBox.textContent = '⚠ An error occurred. Please try again.';
+        errorBox.style.display = 'block';
+        submitBtn.textContent = 'Submit';
+        submitBtn.disabled = false;
+        runBtn.disabled = false;
+      }
+    }
 
     function runCode() {
       document.getElementById('runPanel').style.display = 'block';
