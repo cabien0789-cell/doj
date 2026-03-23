@@ -67,6 +67,7 @@ function requireOrg(req, res, next) {
 
 // ─── RATE LIMIT ───────────────────────────────────────────
 const submitRateLimit = new Map();
+let tmpDirCounter = 0;
 
 function checkSubmitRateLimit(username) {
   const now = Date.now();
@@ -188,7 +189,7 @@ function normalizeOutput(str) {
 function makeTmpDir() {
   const tmpBase = path.join(__dirname, 'tmp');
   if (!fs.existsSync(tmpBase)) fs.mkdirSync(tmpBase);
-  const id = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  const id = Date.now() + '_' + (++tmpDirCounter) + '_' + Math.random().toString(36).slice(2, 8);
   const dir = path.join(tmpBase, id);
   fs.mkdirSync(dir);
   return dir;
