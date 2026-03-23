@@ -3,7 +3,7 @@ const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const { MongoClient, ObjectId } = require('mongodb');
-const { execSync } = require('child_process');
+const { spawn } = require('child_process');
 const fetch = require('node-fetch');
 const fs = require('fs');
 
@@ -78,52 +78,6 @@ function checkSubmitRateLimit(username) {
   timestamps.push(now);
   submitRateLimit.set(username, timestamps);
   return true;
-}
-
-// ─── JUDGE QUEUE ──────────────────────────────────────────
-const judgeQueue = [];
-let judgeRunning = false;
-
-async function processQueue() {
-  if (judgeRunning || judgeQueue.length === 0) return;
-  judgeRunning = true;
-  const task = judgeQueue.shift();
-  try {
-    const result = judgeCode(task.code, task.language, task.testcases, task.timeLimit);
-    const now = new Date().toISOString();
-    await getSubmissions().updateOne(
-      { _id: new ObjectId(task.submissionId) },
-      {
-        $set: {
-          verdict: result.verdict, passedCount: result.passedCount,
-          total: result.total, execTime: result.execTime,
-          submittedAt: now, status: 'done', result
-        }
-      }
-    );
-    const allMySubs = await getSubmissions().find(
-      { username: task.username, problemId: task.problemId, status: 'done' },
-      { projection: { _id: 1 } }
-    ).sort({ submittedAt: -1 }).toArray();
-    if (allMySubs.length > 5) {
-      const toDelete = allMySubs.slice(5).map(s => s._id);
-      await getSubmissions().deleteMany({ _id: { $in: toDelete } });
-    }
-    if (result.verdict === 'Accepted') {
-      await getSolves().updateOne(
-        { username: task.username, problemId: task.problemId },
-        { $setOnInsert: { username: task.username, problemId: task.problemId, solvedAt: now } },
-        { upsert: true }
-      );
-    }
-  } catch (e) {
-    await getSubmissions().updateOne(
-      { _id: new ObjectId(task.submissionId) },
-      { $set: { status: 'done', verdict: 'Runtime Error', passedCount: 0, total: 0, execTime: 0, result: { verdict: 'Runtime Error', passedCount: 0, total: 0, details: [], execTime: 0 } } }
-    );
-  }
-  judgeRunning = false;
-  if (judgeQueue.length > 0) processQueue();
 }
 
 // ─── DELETE PROBLEM AND RELATED ───────────────────────────
@@ -244,7 +198,46 @@ function removeTmpDir(dir) {
   try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}
 }
 
-function judgeCode(code, language, testcases, timeLimit) {
+function runProcessAsync(cmd, args, inputData, timeoutMs) {
+  return new Promise((resolve) => {
+    const proc = spawn(cmd, args, { stdio: ['pipe', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+    let finished = false;
+
+    const timer = setTimeout(() => {
+      if (!finished) {
+        finished = true;
+        try { proc.kill('SIGKILL'); } catch (e) {}
+        resolve({ timedOut: true, stdout: '', stderr: '' });
+      }
+    }, timeoutMs);
+
+    proc.stdout.on('data', d => { stdout += d.toString(); });
+    proc.stderr.on('data', d => { stderr += d.toString(); });
+
+    proc.on('close', (code) => {
+      if (!finished) {
+        finished = true;
+        clearTimeout(timer);
+        resolve({ timedOut: false, code, stdout, stderr });
+      }
+    });
+
+    proc.on('error', (err) => {
+      if (!finished) {
+        finished = true;
+        clearTimeout(timer);
+        resolve({ timedOut: false, code: 1, stdout: '', stderr: err.message });
+      }
+    });
+
+    if (inputData) proc.stdin.write(inputData);
+    proc.stdin.end();
+  });
+}
+
+async function judgeCodeAsync(code, language, testcases, timeLimit) {
   const tmpDir = makeTmpDir();
   const timeLimitMs = (timeLimit || 2) * 1000;
   const details = [];
@@ -256,17 +249,31 @@ function judgeCode(code, language, testcases, timeLimit) {
       const codeFile = path.join(tmpDir, 'solution.cpp');
       const outFile = path.join(tmpDir, 'solution');
       fs.writeFileSync(codeFile, code);
-      execSync(`g++ -o ${outFile} ${codeFile}`, { timeout: 30000 });
+      const compileResult = await runProcessAsync('g++', ['-o', outFile, codeFile], null, 30000);
+      if (compileResult.code !== 0) {
+        const errMsg = compileResult.stderr || 'Compilation Error';
+        for (let i = 0; i < testcases.length; i++)
+          details.push({ status: 'CE', passed: false, output: errMsg, expected: '' });
+        removeTmpDir(tmpDir);
+        return { verdict: 'Compilation Error', passed: false, passedCount: 0, total: testcases.length, details };
+      }
       compiledPath = outFile;
     } else if (language === 'c') {
       const codeFile = path.join(tmpDir, 'solution.c');
       const outFile = path.join(tmpDir, 'solutionc');
       fs.writeFileSync(codeFile, code);
-      execSync(`gcc -o ${outFile} ${codeFile}`, { timeout: 30000 });
+      const compileResult = await runProcessAsync('gcc', ['-o', outFile, codeFile], null, 30000);
+      if (compileResult.code !== 0) {
+        const errMsg = compileResult.stderr || 'Compilation Error';
+        for (let i = 0; i < testcases.length; i++)
+          details.push({ status: 'CE', passed: false, output: errMsg, expected: '' });
+        removeTmpDir(tmpDir);
+        return { verdict: 'Compilation Error', passed: false, passedCount: 0, total: testcases.length, details };
+      }
       compiledPath = outFile;
     }
   } catch (e) {
-    const errMsg = e.stderr ? e.stderr.toString() : (e.message || 'Compilation Error');
+    const errMsg = e.message || 'Compilation Error';
     for (let i = 0; i < testcases.length; i++)
       details.push({ status: 'CE', passed: false, output: errMsg, expected: '' });
     removeTmpDir(tmpDir);
@@ -275,34 +282,39 @@ function judgeCode(code, language, testcases, timeLimit) {
 
   for (let i = 0; i < testcases.length; i++) {
     const tc = testcases[i];
-    if (!tc.input || !tc.output) { details.push({ status: 'WA', passed: false, output: '', expected: '' }); continue; }
-    const inputFile = path.join(tmpDir, 'input.txt');
-    fs.writeFileSync(inputFile, tc.input);
+    if (!tc.input || !tc.output) {
+      details.push({ status: 'WA', passed: false, output: '', expected: '' });
+      continue;
+    }
     const startTime = Date.now();
     try {
-      let output = '';
+      let runResult;
       if (language === 'python') {
         const codeFile = path.join(tmpDir, 'solution.py');
         fs.writeFileSync(codeFile, code);
-        output = execSync(`python3 ${codeFile} < ${inputFile}`, { timeout: timeLimitMs }).toString();
+        runResult = await runProcessAsync('python3', [codeFile], tc.input, timeLimitMs);
       } else if (language === 'cpp' || language === 'c') {
-        output = execSync(`${compiledPath} < ${inputFile}`, { timeout: timeLimitMs }).toString();
+        runResult = await runProcessAsync(compiledPath, [], tc.input, timeLimitMs);
       } else if (language === 'javascript') {
         const codeFile = path.join(tmpDir, 'solution.js');
         fs.writeFileSync(codeFile, code);
-        output = execSync(`node ${codeFile} < ${inputFile}`, { timeout: timeLimitMs }).toString();
+        runResult = await runProcessAsync('node', [codeFile], tc.input, timeLimitMs);
       }
       const execTime = Date.now() - startTime;
-      const normalizedOutput = normalizeOutput(output);
-      const normalizedExpected = normalizeOutput(tc.output);
-      const passed = normalizedOutput === normalizedExpected;
-      if (passed) passedCount++;
-      details.push({ status: passed ? 'AC' : 'WA', passed, output: '', expected: '', execTime });
+      if (runResult.timedOut) {
+        details.push({ status: 'TLE', passed: false, output: '', expected: '', execTime });
+      } else if (runResult.code !== 0) {
+        details.push({ status: 'RE', passed: false, output: runResult.stderr ? runResult.stderr.split('\n')[0] : 'Runtime Error', expected: '', execTime });
+      } else {
+        const normalizedOutput = normalizeOutput(runResult.stdout);
+        const normalizedExpected = normalizeOutput(tc.output);
+        const passed = normalizedOutput === normalizedExpected;
+        if (passed) passedCount++;
+        details.push({ status: passed ? 'AC' : 'WA', passed, output: '', expected: '', execTime });
+      }
     } catch (e) {
       const execTime = Date.now() - startTime;
-      const isTimeout = e.signal === 'SIGTERM' || (e.message && e.message.includes('ETIMEDOUT'));
-      if (isTimeout) details.push({ status: 'TLE', passed: false, output: '', expected: '', execTime });
-      else details.push({ status: 'RE', passed: false, output: e.stderr ? e.stderr.toString().split('\n')[0] : (e.message || 'Runtime Error'), expected: '', execTime });
+      details.push({ status: 'RE', passed: false, output: e.message || 'Runtime Error', expected: '', execTime });
     }
   }
 
@@ -316,38 +328,52 @@ function judgeCode(code, language, testcases, timeLimit) {
   return { verdict, passed: allPassed, passedCount, total: testcases.length, details, execTime: Math.max(...details.map(d => d.execTime || 0)) };
 }
 
-function runCodeOnce(code, language, input) {
+async function runCodeOnce(code, language, input) {
   const tmpDir = makeTmpDir();
-  const inputFile = path.join(tmpDir, 'input.txt');
-  fs.writeFileSync(inputFile, input || '');
   try {
-    let output = '';
-    if (language === 'python') {
-      const codeFile = path.join(tmpDir, 'solution.py');
-      fs.writeFileSync(codeFile, code);
-      output = execSync(`python3 ${codeFile} < ${inputFile}`, { timeout: 10000 }).toString();
-    } else if (language === 'cpp') {
+    let compiledPath = null;
+    if (language === 'cpp') {
       const codeFile = path.join(tmpDir, 'solution.cpp');
       const outFile = path.join(tmpDir, 'solution');
       fs.writeFileSync(codeFile, code);
-      execSync(`g++ -o ${outFile} ${codeFile}`, { timeout: 30000 });
-      output = execSync(`${outFile} < ${inputFile}`, { timeout: 10000 }).toString();
+      const compileResult = await runProcessAsync('g++', ['-o', outFile, codeFile], null, 30000);
+      if (compileResult.code !== 0) {
+        removeTmpDir(tmpDir);
+        return { error: compileResult.stderr || 'Compilation Error' };
+      }
+      compiledPath = outFile;
     } else if (language === 'c') {
       const codeFile = path.join(tmpDir, 'solution.c');
       const outFile = path.join(tmpDir, 'solutionc');
       fs.writeFileSync(codeFile, code);
-      execSync(`gcc -o ${outFile} ${codeFile}`, { timeout: 30000 });
-      output = execSync(`${outFile} < ${inputFile}`, { timeout: 10000 }).toString();
+      const compileResult = await runProcessAsync('gcc', ['-o', outFile, codeFile], null, 30000);
+      if (compileResult.code !== 0) {
+        removeTmpDir(tmpDir);
+        return { error: compileResult.stderr || 'Compilation Error' };
+      }
+      compiledPath = outFile;
+    }
+
+    let runResult;
+    if (language === 'python') {
+      const codeFile = path.join(tmpDir, 'solution.py');
+      fs.writeFileSync(codeFile, code);
+      runResult = await runProcessAsync('python3', [codeFile], input || '', 10000);
+    } else if (language === 'cpp' || language === 'c') {
+      runResult = await runProcessAsync(compiledPath, [], input || '', 10000);
     } else if (language === 'javascript') {
       const codeFile = path.join(tmpDir, 'solution.js');
       fs.writeFileSync(codeFile, code);
-      output = execSync(`node ${codeFile} < ${inputFile}`, { timeout: 10000 }).toString();
+      runResult = await runProcessAsync('node', [codeFile], input || '', 10000);
     }
+
     removeTmpDir(tmpDir);
-    return { output: output || '(no output)' };
+    if (runResult.timedOut) return { error: 'Time Limit Exceeded' };
+    if (runResult.code !== 0) return { error: runResult.stderr || 'Runtime Error' };
+    return { output: runResult.stdout || '(no output)' };
   } catch (e) {
     removeTmpDir(tmpDir);
-    return { error: e.stderr ? e.stderr.toString() : (e.message || 'Error') };
+    return { error: e.message || 'Error' };
   }
 }
 
@@ -515,9 +541,9 @@ app.get('/notifications/count', requireLogin, async (req, res) => {
 
 // ─── RUN CODE ─────────────────────────────────────────────
 
-app.post('/run', requireLogin, (req, res) => {
+app.post('/run', requireLogin, async (req, res) => {
   const { code, language, input } = req.body;
-  res.json(runCodeOnce(code, language, input));
+  res.json(await runCodeOnce(code, language, input));
 });
 
 // ─── API MY PROBLEMS ──────────────────────────────────────
@@ -629,18 +655,52 @@ app.post('/problems/:id/submit', requireLogin, async (req, res) => {
     submittedAt: new Date().toISOString()
   });
 
-  judgeQueue.push({
-    submissionId: inserted.insertedId.toString(),
-    code, language,
-    testcases: [...(problem.sampleTestcases || []), ...(problem.hiddenTestcases || [])],
-    timeLimit: problem.timeLimit,
-    username: req.session.user.username,
-    problemId: problem.id,
-    problemTitle: problem.title
-  });
-  processQueue();
+  const submissionId = inserted.insertedId.toString();
+  const username = req.session.user.username;
+  const problemId = problem.id;
+  const testcases = [...(problem.sampleTestcases || []), ...(problem.hiddenTestcases || [])];
+  const timeLimit = problem.timeLimit;
 
-  res.json({ submissionId: inserted.insertedId.toString() });
+  judgeCodeAsync(code, language, testcases, timeLimit).then(async (result) => {
+    try {
+      const now = new Date().toISOString();
+      await getSubmissions().updateOne(
+        { _id: new ObjectId(submissionId) },
+        {
+          $set: {
+            verdict: result.verdict, passedCount: result.passedCount,
+            total: result.total, execTime: result.execTime,
+            submittedAt: now, status: 'done', result
+          }
+        }
+      );
+      const allMySubs = await getSubmissions().find(
+        { username, problemId, status: 'done' },
+        { projection: { _id: 1 } }
+      ).sort({ submittedAt: -1 }).toArray();
+      if (allMySubs.length > 5) {
+        const toDelete = allMySubs.slice(5).map(s => s._id);
+        await getSubmissions().deleteMany({ _id: { $in: toDelete } });
+      }
+      if (result.verdict === 'Accepted') {
+        await getSolves().updateOne(
+          { username, problemId },
+          { $setOnInsert: { username, problemId, solvedAt: now } },
+          { upsert: true }
+        );
+      }
+    } catch (e) {
+      console.error('Judge save error:', e.message);
+    }
+  }).catch(async (e) => {
+    console.error('Judge error:', e.message);
+    await getSubmissions().updateOne(
+      { _id: new ObjectId(submissionId) },
+      { $set: { status: 'done', verdict: 'Runtime Error', passedCount: 0, total: 0, execTime: 0, result: { verdict: 'Runtime Error', passedCount: 0, total: 0, details: [], execTime: 0 } } }
+    );
+  });
+
+  res.json({ submissionId });
 });
 
 app.get('/submissions/:id/status', requireLogin, async (req, res) => {

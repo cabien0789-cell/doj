@@ -117,7 +117,7 @@
     }
 
     async function removeFromProfile(id, title) {
-      if (!confirm(`Bạn có chắc muốn xóa "${title}" không?\n\nĐề bài này sẽ bị xóa hoàn toàn khỏi hệ thống, bao gồm tất cả contest đang chứa nó.`)) return;
+      if (!confirm(`Are you sure you want to delete "${title}"?\n\nThis problem will be permanently deleted from the entire system, including all contests that contain it.`)) return;
       const res = await fetch('/problems/' + id + '/remove-from-profile', { method: 'POST' });
       if (res.ok) {
         const row = document.querySelector(`.my-problem-row[data-title="${title.toLowerCase()}"]`);
