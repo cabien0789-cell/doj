@@ -80,6 +80,110 @@ function checkSubmitRateLimit(username) {
   return true;
 }
 
+// ─── JUDGE CONCURRENCY CONTROL ────────────────────────────
+const MAX_CPP_CONCURRENT = 2;
+const MAX_TOTAL_POINTS = 6;
+const CPP_POINTS = 2;
+const SCRIPT_POINTS = 1;
+
+let currentCppCount = 0;
+let currentTotalPoints = 0;
+const cppQueue = [];
+const scriptQueue = [];
+
+function isCppLanguage(language) {
+  return language === 'cpp' || language === 'c';
+}
+
+function tryDispatch() {
+  // Thử lấy từ hàng đợi C/C++ trước
+  while (cppQueue.length > 0 && currentCppCount < MAX_CPP_CONCURRENT && currentTotalPoints + CPP_POINTS <= MAX_TOTAL_POINTS) {
+    const task = cppQueue.shift();
+    currentCppCount++;
+    currentTotalPoints += CPP_POINTS;
+    runJudgeTask(task);
+  }
+  // Thử lấy từ hàng đợi Python/JS
+  while (scriptQueue.length > 0 && currentTotalPoints + SCRIPT_POINTS <= MAX_TOTAL_POINTS) {
+    const task = scriptQueue.shift();
+    currentTotalPoints += SCRIPT_POINTS;
+    runJudgeTask(task);
+  }
+}
+
+async function runJudgeTask(task) {
+  try {
+    const result = await judgeCodeAsync(task.code, task.language, task.testcases, task.timeLimit);
+    await saveJudgeResult(task, result);
+  } catch (e) {
+    console.error('Judge error:', e.message);
+    await saveJudgeError(task);
+  } finally {
+    if (isCppLanguage(task.language)) {
+      currentCppCount--;
+      currentTotalPoints -= CPP_POINTS;
+    } else {
+      currentTotalPoints -= SCRIPT_POINTS;
+    }
+    tryDispatch();
+  }
+}
+
+async function saveJudgeResult(task, result) {
+  const now = new Date().toISOString();
+  await getSubmissions().updateOne(
+    { _id: new ObjectId(task.submissionId) },
+    {
+      $set: {
+        verdict: result.verdict, passedCount: result.passedCount,
+        total: result.total, execTime: result.execTime,
+        submittedAt: now, status: 'done', result
+      }
+    }
+  );
+  const allMySubs = await getSubmissions().find(
+    { username: task.username, problemId: task.problemId, status: 'done' },
+    { projection: { _id: 1 } }
+  ).sort({ submittedAt: -1 }).toArray();
+  if (allMySubs.length > 5) {
+    const toDelete = allMySubs.slice(5).map(s => s._id);
+    await getSubmissions().deleteMany({ _id: { $in: toDelete } });
+  }
+  if (result.verdict === 'Accepted') {
+    await getSolves().updateOne(
+      { username: task.username, problemId: task.problemId },
+      { $setOnInsert: { username: task.username, problemId: task.problemId, solvedAt: now } },
+      { upsert: true }
+    );
+  }
+}
+
+async function saveJudgeError(task) {
+  await getSubmissions().updateOne(
+    { _id: new ObjectId(task.submissionId) },
+    { $set: { status: 'done', verdict: 'Runtime Error', passedCount: 0, total: 0, execTime: 0, result: { verdict: 'Runtime Error', passedCount: 0, total: 0, details: [], execTime: 0 } } }
+  );
+}
+
+function submitToJudge(task) {
+  if (isCppLanguage(task.language)) {
+    if (currentCppCount < MAX_CPP_CONCURRENT && currentTotalPoints + CPP_POINTS <= MAX_TOTAL_POINTS) {
+      currentCppCount++;
+      currentTotalPoints += CPP_POINTS;
+      runJudgeTask(task);
+    } else {
+      cppQueue.push(task);
+    }
+  } else {
+    if (currentTotalPoints + SCRIPT_POINTS <= MAX_TOTAL_POINTS) {
+      currentTotalPoints += SCRIPT_POINTS;
+      runJudgeTask(task);
+    } else {
+      scriptQueue.push(task);
+    }
+  }
+}
+
 // ─── DELETE PROBLEM AND RELATED ───────────────────────────
 async function deleteProblemAndRelated(problemId) {
   const pid = problemId.toString();
@@ -188,11 +292,13 @@ function normalizeOutput(str) {
 function makeTmpDir() {
   const tmpBase = path.join(__dirname, 'tmp');
   if (!fs.existsSync(tmpBase)) fs.mkdirSync(tmpBase);
-  const id = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  const id = Date.now() + '_' + (++tmpDirCounter) + '_' + Math.random().toString(36).slice(2, 8);
   const dir = path.join(tmpBase, id);
   fs.mkdirSync(dir);
   return dir;
 }
+
+let tmpDirCounter = 0;
 
 function removeTmpDir(dir) {
   try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}
@@ -655,52 +761,18 @@ app.post('/problems/:id/submit', requireLogin, async (req, res) => {
     submittedAt: new Date().toISOString()
   });
 
-  const submissionId = inserted.insertedId.toString();
-  const username = req.session.user.username;
-  const problemId = problem.id;
-  const testcases = [...(problem.sampleTestcases || []), ...(problem.hiddenTestcases || [])];
-  const timeLimit = problem.timeLimit;
+  const task = {
+    submissionId: inserted.insertedId.toString(),
+    code, language,
+    testcases: [...(problem.sampleTestcases || []), ...(problem.hiddenTestcases || [])],
+    timeLimit: problem.timeLimit,
+    username: req.session.user.username,
+    problemId: problem.id,
+    problemTitle: problem.title
+  };
 
-  judgeCodeAsync(code, language, testcases, timeLimit).then(async (result) => {
-    try {
-      const now = new Date().toISOString();
-      await getSubmissions().updateOne(
-        { _id: new ObjectId(submissionId) },
-        {
-          $set: {
-            verdict: result.verdict, passedCount: result.passedCount,
-            total: result.total, execTime: result.execTime,
-            submittedAt: now, status: 'done', result
-          }
-        }
-      );
-      const allMySubs = await getSubmissions().find(
-        { username, problemId, status: 'done' },
-        { projection: { _id: 1 } }
-      ).sort({ submittedAt: -1 }).toArray();
-      if (allMySubs.length > 5) {
-        const toDelete = allMySubs.slice(5).map(s => s._id);
-        await getSubmissions().deleteMany({ _id: { $in: toDelete } });
-      }
-      if (result.verdict === 'Accepted') {
-        await getSolves().updateOne(
-          { username, problemId },
-          { $setOnInsert: { username, problemId, solvedAt: now } },
-          { upsert: true }
-        );
-      }
-    } catch (e) {
-      console.error('Judge save error:', e.message);
-    }
-  }).catch(async (e) => {
-    console.error('Judge error:', e.message);
-    await getSubmissions().updateOne(
-      { _id: new ObjectId(submissionId) },
-      { $set: { status: 'done', verdict: 'Runtime Error', passedCount: 0, total: 0, execTime: 0, result: { verdict: 'Runtime Error', passedCount: 0, total: 0, details: [], execTime: 0 } } }
-    );
-  });
-
-  res.json({ submissionId });
+  submitToJudge(task);
+  res.json({ submissionId: task.submissionId });
 });
 
 app.get('/submissions/:id/status', requireLogin, async (req, res) => {
