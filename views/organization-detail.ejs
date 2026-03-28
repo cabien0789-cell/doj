@@ -57,6 +57,7 @@
       <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:32px;">
         <% if (org.owner === user.username) { %>
           <a href="/organizations/<%= org.id %>/contests/create" class="btn-register" style="text-decoration:none;">+ Create Contest</a>
+          <a href="/organizations/<%= org.id %>/edit" class="btn-outline" style="text-decoration:none;">✏ Edit Organization</a>
           <button onclick="confirmAction('delete-org-form', 'Are you sure you want to delete this organization? This cannot be undone.')" class="btn-danger">Delete Organization</button>
           <form id="delete-org-form" action="/organizations/<%= org.id %>/delete" method="POST" style="display:none;"></form>
         <% } else if (org.members && org.members.includes(user.username)) { %>

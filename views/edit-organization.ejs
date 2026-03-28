@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Organization - DOJ</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">DOJ</a>
+      <a href="/problems" class="nav-link">Problems</a>
+      <a href="/organizations" class="nav-link">Organizations</a>
+      <a href="/leaderboard" class="nav-link">Leaderboard</a>
+      <% if (user && user.role === 'admin') { %>
+        <a href="/admin" class="nav-link">Admin</a>
+      <% } %>
+    </div>
+    <div class="nav-right">
+      <a href="/notifications" class="notif-btn">
+        🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+      </a>
+      <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
+      <a href="/logout" class="btn-logout">Logout</a>
+    </div>
+  </nav>
+
+  <div class="create-container">
+    <h2>Edit Organization</h2>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="error-msg"><%= error %></div>
+    <% } %>
+    <form action="/organizations/<%= org.id %>/edit" method="POST">
+      <div class="form-group">
+        <label>Organization Name</label>
+        <input type="text" name="name" value="<%= org.name %>" placeholder="Enter organization name" required />
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea name="description" rows="4" placeholder="Describe your organization..."><%= org.description || '' %></textarea>
+      </div>
+      <div style="display:flex; gap:12px; align-items:center;">
+        <button type="submit" class="btn-submit">Save Changes</button>
+        <a href="/organizations/<%= org.id %>" style="color:#7a9ab0; font-size:14px; text-decoration:none;">Cancel</a>
+      </div>
+    </form>
+  </div>
+
+  <script>
+  fetch('/notifications/count').then(r => r.json()).then(data => {
+    if (data.count > 0) {
+      const badge = document.getElementById('notifBadge');
+      badge.textContent = data.count;
+      badge.style.display = 'inline-block';
+    }
+  });
+  </script>
+</body>
+</html>

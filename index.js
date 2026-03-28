@@ -96,14 +96,12 @@ function isCppLanguage(language) {
 }
 
 function tryDispatch() {
-  // Thử lấy từ hàng đợi C/C++ trước
   while (cppQueue.length > 0 && currentCppCount < MAX_CPP_CONCURRENT && currentTotalPoints + CPP_POINTS <= MAX_TOTAL_POINTS) {
     const task = cppQueue.shift();
     currentCppCount++;
     currentTotalPoints += CPP_POINTS;
     runJudgeTask(task);
   }
-  // Thử lấy từ hàng đợi Python/JS
   while (scriptQueue.length > 0 && currentTotalPoints + SCRIPT_POINTS <= MAX_TOTAL_POINTS) {
     const task = scriptQueue.shift();
     currentTotalPoints += SCRIPT_POINTS;
@@ -427,7 +425,7 @@ async function judgeCodeAsync(code, language, testcases, timeLimit) {
   let verdict = 'Accepted';
   if (!allPassed) {
     const firstFail = details.find(d => !d.passed);
-    if (firstFail) verdict = firstFail.status === 'TLE' ? 'Time Limit Exceeded' : firstFail.status === 'RE' ? 'Runtime Error' : 'Wrong Answer';
+    if (firstFail) verdict = firstFail.status === 'TLE' ? 'Time Limit Exceeded' : firstFail.status === 'RE' ? 'Runtime Error' : firstFail.status === 'CE' ? 'Compilation Error' : 'Wrong Answer';
   }
   return { verdict, passed: allPassed, passedCount, total: testcases.length, details, execTime: Math.max(...details.map(d => d.execTime || 0)) };
 }
@@ -868,6 +866,33 @@ app.post('/organizations/create', requireOrg, async (req, res) => {
     owner: req.session.user.username, members: [req.session.user.username], pendingMembers: []
   });
   res.redirect('/organizations/' + result.insertedId.toString());
+});
+
+app.get('/organizations/:id/edit', requireLogin, async (req, res) => {
+  let org;
+  try { org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
+  if (!org) return res.redirect('/organizations');
+  if (org.owner !== req.session.user.username) return res.redirect('/organizations/' + req.params.id);
+  org.id = org._id.toString();
+  res.render('edit-organization', { user: req.session.user, org, error: undefined });
+});
+
+app.post('/organizations/:id/edit', requireLogin, async (req, res) => {
+  let org;
+  try { org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
+  if (!org) return res.redirect('/organizations');
+  if (org.owner !== req.session.user.username) return res.redirect('/organizations/' + req.params.id);
+  org.id = org._id.toString();
+  const { name, description } = req.body;
+  if (!name || name.trim().length < 3) {
+    return res.render('edit-organization', { user: req.session.user, org, error: 'Organization name must be at least 3 characters.' });
+  }
+  const duplicate = await getOrgs().findOne({ name: name.trim(), _id: { $ne: new ObjectId(req.params.id) } });
+  if (duplicate) {
+    return res.render('edit-organization', { user: req.session.user, org, error: 'Organization name already exists.' });
+  }
+  await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, { $set: { name: name.trim(), description: description || '' } });
+  res.redirect('/organizations/' + req.params.id);
 });
 
 app.get('/organizations/:id', async (req, res) => {
