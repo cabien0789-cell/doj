@@ -37,7 +37,9 @@
       <div class="profile-avatar"><%= targetUser.username.charAt(0).toUpperCase() %></div>
       <div class="profile-info">
         <h2><%= targetUser.username %></h2>
-        <p style="color:#7a9ab0; font-size:14px; margin-bottom:4px;"><%= targetUser.email %></p>
+        <% if (user && user.username === targetUser.username) { %>
+          <p style="color:#7a9ab0; font-size:14px; margin-bottom:4px;"><%= targetUser.email %></p>
+        <% } %>
         <p style="color:#7a9ab0; font-size:13px;">
           Member since <strong style="color:#ffffff;"><%= targetUser.createdAt ? new Date(targetUser.createdAt).toLocaleDateString('en-GB') : '—' %></strong>
         </p>
