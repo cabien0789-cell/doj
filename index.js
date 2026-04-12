@@ -775,6 +775,10 @@ app.get('/problems/:id/edit', requireLogin, async (req, res) => {
 });
 
 app.post('/problems/:id/edit', requireLogin, async (req, res) => {
+  let problem;
+  try { problem = await getProblems().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/problems'); }
+  if (!problem) return res.redirect('/problems');
+  if (problem.author !== req.session.user.username) return res.redirect('/problems/' + req.params.id);
   const { title, difficulty, statement, inputFormat, outputFormat, timeLimit, constraints, explanation } = req.body;
   const sampleTestcases = parseTestcases(req.body['sampleInput[]'] || req.body.sampleInput, req.body['sampleOutput[]'] || req.body.sampleOutput);
   const hiddenTestcases = parseTestcases(req.body['hiddenInput[]'] || req.body.hiddenInput, req.body['hiddenOutput[]'] || req.body.hiddenOutput);
@@ -1136,7 +1140,6 @@ app.get('/contests/:id', async (req, res) => {
     .map(([username, data]) => ({ username, solved: data.solved, lastAC: data.lastAC }))
     .sort((a, b) => b.solved - a.solved || new Date(a.lastAC) - new Date(b.lastAC));
 
-  // Lấy danh sách bài user đã giải trong contest này
   const userSolvedInContest = new Set();
   if (req.session.user) {
     const userSolves = contest.noTimeLimit
@@ -1159,18 +1162,13 @@ app.get('/admin', requireAdmin, async (req, res) => {
   const users = await getUsers().find().toArray();
   const orgs = (await getOrgs().find().toArray()).map(o => ({ ...o, id: o._id.toString() }));
   const allProblems = await getProblems().find({}, { projection: { title: 1, difficulty: 1, author: 1, featured: 1 } }).toArray();
-  const allContests = await getContests().find({}, { projection: { orgId: 1, problemIds: 1 } }).toArray();
-  const problems = allProblems.map(p => {
-    const pid = p._id.toString();
-    const contest = allContests.find(c => c.problemIds && c.problemIds.includes(pid));
-    let orgName = null, orgId = null;
-    if (contest) {
-      const org = orgs.find(o => o.id === contest.orgId);
-      if (org) { orgName = org.name; orgId = org.id; }
-    }
-    return { ...p, id: pid, orgName, orgId };
+  const problems = allProblems.map(p => ({ ...p, id: p._id.toString() }));
+  const allContests = await getContests().find({}, { projection: { orgId: 1, name: 1 } }).toArray();
+  const contests = allContests.map(c => {
+    const org = orgs.find(o => o.id === c.orgId);
+    return { ...c, id: c._id.toString(), orgOwner: org ? org.owner : '—' };
   });
-  res.render('admin', { user: req.session.user, users, orgs, problems });
+  res.render('admin', { user: req.session.user, users, orgs, problems, contests });
 });
 
 app.post('/admin/users/:username/lock', requireAdmin, async (req, res) => {
@@ -1197,28 +1195,6 @@ app.post('/admin/users/:username/revoke-org', requireAdmin, async (req, res) => 
   res.redirect('/admin');
 });
 
-app.post('/admin/orgs/:id/lock', requireAdmin, async (req, res) => {
-  try {
-    const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
-    if (org) {
-      await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, { $set: { locked: true } });
-      await sendNotification(org.owner, `Your organization "${org.name}" has been locked by an administrator.`);
-    }
-  } catch (e) {}
-  res.redirect('/admin');
-});
-
-app.post('/admin/orgs/:id/unlock', requireAdmin, async (req, res) => {
-  try {
-    const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
-    if (org) {
-      await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, { $set: { locked: false } });
-      await sendNotification(org.owner, `Your organization "${org.name}" has been unlocked by an administrator.`);
-    }
-  } catch (e) {}
-  res.redirect('/admin');
-});
-
 app.post('/admin/orgs/:id/delete', requireAdmin, async (req, res) => {
   try {
     const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
@@ -1226,6 +1202,13 @@ app.post('/admin/orgs/:id/delete', requireAdmin, async (req, res) => {
       await getOrgs().deleteOne({ _id: new ObjectId(req.params.id) });
       await sendNotification(org.owner, `Your organization "${org.name}" has been deleted by an administrator.`);
     }
+  } catch (e) {}
+  res.redirect('/admin');
+});
+
+app.post('/admin/contests/:id/delete', requireAdmin, async (req, res) => {
+  try {
+    await getContests().deleteOne({ _id: new ObjectId(req.params.id) });
   } catch (e) {}
   res.redirect('/admin');
 });

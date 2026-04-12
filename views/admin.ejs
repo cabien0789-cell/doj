@@ -31,6 +31,7 @@
     <div style="display:flex; gap:8px; margin-bottom:24px; flex-wrap:wrap;">
       <button onclick="showSection('users')" id="tab-users" class="tab-btn tab-active">Users</button>
       <button onclick="showSection('orgs')" id="tab-orgs" class="tab-btn">Organizations</button>
+      <button onclick="showSection('contests')" id="tab-contests" class="tab-btn">Contests</button>
       <button onclick="showSection('problems')" id="tab-problems" class="tab-btn">Problems</button>
     </div>
 
@@ -103,7 +104,6 @@
             <th>Name</th>
             <th>Owner</th>
             <th>Members</th>
-            <th>Status</th>
             <th>Action</th>
           </tr>
         </thead>
@@ -114,24 +114,37 @@
               <td style="color:#7a9ab0;"><%= org.owner %></td>
               <td style="color:#7a9ab0;"><%= org.members ? org.members.length : 0 %></td>
               <td>
-                <% if (org.locked) { %>
-                  <span style="color:#ff4444; font-size:13px;">🔒 Locked</span>
-                <% } else { %>
-                  <span style="color:#00e5a0; font-size:13px;">✓ Active</span>
-                <% } %>
-              </td>
-              <td style="display:flex; gap:6px; flex-wrap:wrap;">
-                <% if (org.locked) { %>
-                  <form action="/admin/orgs/<%= org.id %>/unlock" method="POST">
-                    <button type="submit" onclick="return confirm('Unlock organization <%= org.name %>?')" style="background:#00e5a0; color:#141e26; border:none; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:600;">Unlock</button>
-                  </form>
-                <% } else { %>
-                  <form action="/admin/orgs/<%= org.id %>/lock" method="POST">
-                    <button type="submit" onclick="return confirm('Lock organization <%= org.name %>?')" style="background:transparent; color:#f5a623; border:1px solid #f5a623; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px;">Lock</button>
-                  </form>
-                <% } %>
                 <form action="/admin/orgs/<%= org.id %>/delete" method="POST">
                   <button type="submit" onclick="return confirm('Delete organization <%= org.name %>? This cannot be undone.')" style="background:transparent; color:#ff4444; border:1px solid #ff4444; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px;">Delete</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- CONTESTS -->
+    <div id="section-contests" style="display:none;">
+      <div style="margin-bottom:16px;">
+        <input type="text" id="contestSearch" placeholder="Search contests..." class="filter-input" oninput="filterContests()" />
+      </div>
+      <table class="problems-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Owner</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% contests.forEach(contest => { %>
+            <tr class="contest-row" data-name="<%= contest.name.toLowerCase() %>">
+              <td><a href="/contests/<%= contest.id %>" style="color:#e0eaf0; text-decoration:none;"><%= contest.name %></a></td>
+              <td style="color:#7a9ab0;"><%= contest.orgOwner %></td>
+              <td>
+                <form action="/admin/contests/<%= contest.id %>/delete" method="POST">
+                  <button type="submit" onclick="return confirm('Delete contest <%= contest.name %>? This cannot be undone.')" style="background:transparent; color:#ff4444; border:1px solid #ff4444; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px;">Delete</button>
                 </form>
               </td>
             </tr>
@@ -150,7 +163,6 @@
           <tr>
             <th>Title</th>
             <th>Author</th>
-            <th>Organization</th>
             <th>Difficulty</th>
             <th>Featured</th>
             <th>Action</th>
@@ -161,13 +173,6 @@
             <tr class="problem-row" data-title="<%= problem.title.toLowerCase() %>">
               <td><a href="/problems/<%= problem.id %>" style="color:#e0eaf0; text-decoration:none;"><%= problem.title %></a></td>
               <td style="color:#7a9ab0;"><%= problem.author %></td>
-              <td style="color:#7a9ab0; font-size:13px;">
-                <% if (problem.orgName) { %>
-                  <a href="/organizations/<%= problem.orgId %>" style="color:#7a9ab0; text-decoration:none;"><%= problem.orgName %></a>
-                <% } else { %>
-                  —
-                <% } %>
-              </td>
               <td class="difficulty-<%= problem.difficulty.toLowerCase() %>"><%= problem.difficulty %></td>
               <td>
                 <% if (problem.featured) { %>
@@ -199,7 +204,7 @@
 
   <script>
     function showSection(section) {
-      ['users', 'orgs', 'problems'].forEach(s => {
+      ['users', 'orgs', 'contests', 'problems'].forEach(s => {
         document.getElementById('section-' + s).style.display = s === section ? 'block' : 'none';
         document.getElementById('tab-' + s).className = s === section ? 'tab-btn tab-active' : 'tab-btn';
       });
@@ -215,6 +220,13 @@
     function filterOrgs() {
       const search = document.getElementById('orgSearch').value.toLowerCase();
       document.querySelectorAll('.org-row').forEach(row => {
+        row.style.display = row.dataset.name.includes(search) ? '' : 'none';
+      });
+    }
+
+    function filterContests() {
+      const search = document.getElementById('contestSearch').value.toLowerCase();
+      document.querySelectorAll('.contest-row').forEach(row => {
         row.style.display = row.dataset.name.includes(search) ? '' : 'none';
       });
     }
