@@ -66,7 +66,7 @@
           <tr>
             <th>#</th>
             <th>Title</th>
-            <th>Organization</th>
+            <th>Author</th>
             <th>Tags</th>
             <th>Difficulty</th>
             <% if (user) { %><th>Status</th><% } %>
@@ -82,7 +82,7 @@
               <td><a href="/problems/<%= problem.id %>"><%= problem.title %></a></td>
               <td style="color:#a0a0b0; font-size:13px;">
                 <% if (problem.orgName) { %>
-                  <a href="/organizations/<%= problem.orgId %>" style="color:#a0a0c0; text-decoration:none; font-size:13px;"><%= problem.orgName %></a>
+                  <a href="/profile/<%= problem.orgName %>" style="color:#a0a0c0; text-decoration:none; font-size:13px;"><%= problem.orgName %></a>
                 <% } else { %>
                   —
                 <% } %>

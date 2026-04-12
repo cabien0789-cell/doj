@@ -174,17 +174,25 @@
               <th>#</th>
               <th>Title</th>
               <th>Difficulty</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
             <% if (problems.length === 0) { %>
-              <tr><td colspan="3" class="no-problems">No problems in this contest.</td></tr>
+              <tr><td colspan="4" class="no-problems">No problems in this contest.</td></tr>
             <% } else { %>
               <% problems.forEach((problem, index) => { %>
                 <tr>
                   <td><%= index + 1 %></td>
                   <td><a href="/problems/<%= problem.id %>"><%= problem.title %></a></td>
                   <td class="difficulty-<%= problem.difficulty.toLowerCase() %>"><%= problem.difficulty %></td>
+                  <td>
+                    <% if (user && userSolvedInContest.includes(problem.id)) { %>
+                      <span style="color:#00e5a0; font-weight:600;">✓ Solved</span>
+                    <% } else { %>
+                      <span style="color:#7a9ab0;">—</span>
+                    <% } %>
+                  </td>
                 </tr>
               <% }) %>
             <% } %>

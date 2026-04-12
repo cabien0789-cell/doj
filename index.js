@@ -488,15 +488,8 @@ function parseTestcases(inputRaw, outputRaw) {
 // ─── ROUTES ───────────────────────────────────────────────
 
 app.get('/', async (req, res) => {
-  const allContests = await getContests().find().toArray();
-  const recentContests = allContests
-    .sort((a, b) => {
-      const aTime = a.startTimeUTC || a.startTime || '';
-      const bTime = b.startTimeUTC || b.startTime || '';
-      return bTime.localeCompare(aTime);
-    })
-    .slice(0, 3)
-    .map(c => ({ ...c, id: c._id.toString() }));
+  const allContests = await getContests().find().sort({ _id: -1 }).limit(3).toArray();
+  const recentContests = allContests.map(c => ({ ...c, id: c._id.toString() }));
 
   const topUsers = await getSolves().aggregate([
     { $group: { _id: '$username', solved: { $sum: 1 } } },
@@ -674,13 +667,6 @@ app.get('/leaderboard', async (req, res) => {
 app.get('/problems', async (req, res) => {
   const user = req.session.user || null;
   const featuredProblems = await getProblems().find({ featured: true }, { projection: { title: 1, difficulty: 1, tags: 1, author: 1 } }).toArray();
-  const featuredIds = featuredProblems.map(p => p._id.toString());
-
-  const relatedContests = await getContests().find({ problemIds: { $in: featuredIds } }, { projection: { orgId: 1, problemIds: 1 } }).toArray();
-  const relatedOrgIds = [...new Set(relatedContests.map(c => c.orgId))].filter(Boolean);
-  const relatedOrgs = relatedOrgIds.length > 0
-    ? await getOrgs().find({ _id: { $in: relatedOrgIds.map(id => { try { return new ObjectId(id); } catch(e) { return null; } }).filter(Boolean) } }, { projection: { name: 1 } }).toArray()
-    : [];
 
   const solvedSet = new Set();
   if (user) {
@@ -690,13 +676,7 @@ app.get('/problems', async (req, res) => {
 
   const problems = featuredProblems.map(p => {
     const pid = p._id.toString();
-    const contest = relatedContests.find(c => c.problemIds && c.problemIds.includes(pid));
-    let orgName = null, orgId = null;
-    if (contest) {
-      const org = relatedOrgs.find(o => o._id.toString() === contest.orgId);
-      if (org) { orgName = org.name; orgId = org._id.toString(); }
-    }
-    return { ...p, id: pid, solved: solvedSet.has(pid), orgName, orgId };
+    return { ...p, id: pid, solved: solvedSet.has(pid), orgName: p.author, orgId: null };
   });
   res.render('problems', { user, problems });
 });
@@ -1124,7 +1104,7 @@ app.get('/contests/:id', async (req, res) => {
 
   if (contest.visibility === 'private' && !isMember && !isAdmin) {
     return res.render('contest-detail', {
-      user: req.session.user || null, contest, problems: [], scoreboard: [], isOwner: false, accessDenied: true
+      user: req.session.user || null, contest, problems: [], scoreboard: [], isOwner: false, accessDenied: true, solvedSet: []
     });
   }
 
@@ -1156,10 +1136,20 @@ app.get('/contests/:id', async (req, res) => {
     .map(([username, data]) => ({ username, solved: data.solved, lastAC: data.lastAC }))
     .sort((a, b) => b.solved - a.solved || new Date(a.lastAC) - new Date(b.lastAC));
 
+  // Lấy danh sách bài user đã giải trong contest này
+  const userSolvedInContest = new Set();
+  if (req.session.user) {
+    const userSolves = contest.noTimeLimit
+      ? await getSolves().find({ username: req.session.user.username, problemId: { $in: contest.problemIds } }).toArray()
+      : await getSolves().find({ username: req.session.user.username, problemId: { $in: contest.problemIds }, solvedAt: { $gte: startUTC, $lte: endUTC } }).toArray();
+    userSolves.forEach(s => userSolvedInContest.add(s.problemId));
+  }
+
   res.render('contest-detail', {
     user: req.session.user || null,
     contest: { ...contest, startTimeUTC: startUTC, endTimeUTC: endUTC },
-    problems, scoreboard, isOwner, accessDenied: false
+    problems, scoreboard, isOwner, accessDenied: false,
+    userSolvedInContest: [...userSolvedInContest]
   });
 });
 
