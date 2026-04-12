@@ -1208,7 +1208,12 @@ app.post('/admin/orgs/:id/delete', requireAdmin, async (req, res) => {
 
 app.post('/admin/contests/:id/delete', requireAdmin, async (req, res) => {
   try {
-    await getContests().deleteOne({ _id: new ObjectId(req.params.id) });
+    const contest = await getContests().findOne({ _id: new ObjectId(req.params.id) });
+    if (contest) {
+      const org = await getOrgs().findOne({ _id: new ObjectId(contest.orgId) });
+      await getContests().deleteOne({ _id: new ObjectId(req.params.id) });
+      if (org) await sendNotification(org.owner, `Your contest "${contest.name}" has been deleted by an administrator.`);
+    }
   } catch (e) {}
   res.redirect('/admin');
 });
