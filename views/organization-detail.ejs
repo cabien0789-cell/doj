@@ -58,6 +58,7 @@
         <% if (org.owner === user.username) { %>
           <a href="/organizations/<%= org.id %>/contests/create" class="btn-register" style="text-decoration:none;">+ Create Contest</a>
           <a href="/organizations/<%= org.id %>/edit" class="btn-outline" style="text-decoration:none;">✏ Edit Organization</a>
+          <button onclick="toggleMembers()" id="manageBtn" class="btn-outline">👥 Manage Members</button>
           <button onclick="confirmAction('delete-org-form', 'Are you sure you want to delete this organization? This cannot be undone.')" class="btn-danger">Delete Organization</button>
           <form id="delete-org-form" action="/organizations/<%= org.id %>/delete" method="POST" style="display:none;"></form>
         <% } else if (org.members && org.members.includes(user.username)) { %>
@@ -76,48 +77,50 @@
       </div>
     <% } %>
 
-    <% if (user && org.owner === user.username && org.pendingMembers && org.pendingMembers.length > 0) { %>
-      <div class="org-section">
-        <h3>Join Requests (<%= org.pendingMembers.length %>)</h3>
-        <div style="display:flex; flex-direction:column; gap:8px;">
-          <% org.pendingMembers.forEach(username => { %>
-            <div style="display:flex; justify-content:space-between; align-items:center; background:#141e26; border:1px solid #2a3e4e; border-radius:6px; padding:12px 16px;">
-              <a href="/profile/<%= username %>" style="color:#e0eaf0; text-decoration:none; font-weight:600;"><%= username %></a>
-              <div style="display:flex; gap:8px;">
-                <form action="/organizations/<%= org.id %>/approve/<%= username %>" method="POST">
-                  <button type="submit" style="background:#00e5a0; color:#141e26; border:none; padding:6px 14px; border-radius:4px; cursor:pointer; font-weight:600; font-size:13px;">Approve</button>
-                </form>
-                <form action="/organizations/<%= org.id %>/reject/<%= username %>" method="POST">
-                  <button type="submit" style="background:transparent; color:#ff4444; border:1px solid #ff4444; padding:6px 14px; border-radius:4px; cursor:pointer; font-size:13px;">Reject</button>
-                </form>
-              </div>
-            </div>
-          <% }) %>
-        </div>
-      </div>
-    <% } %>
-
     <% if (user && org.owner === user.username) { %>
-      <div class="org-section">
-        <h3>Members (<%= org.members ? org.members.length : 0 %>)</h3>
-        <div style="margin-bottom:12px;">
-          <input type="text" id="memberSearch" placeholder="Search members..." class="filter-input" oninput="filterMembers()" />
-        </div>
-        <div id="memberList" style="display:flex; flex-direction:column; gap:8px;">
-          <% (org.members || []).forEach(username => { %>
-            <div class="member-row" data-username="<%= username.toLowerCase() %>" style="display:flex; justify-content:space-between; align-items:center; background:#141e26; border:1px solid #2a3e4e; border-radius:6px; padding:12px 16px;">
-              <a href="/profile/<%= username %>" style="color:#e0eaf0; text-decoration:none; font-weight:600;">
-                <%= username %>
-                <% if (username === org.owner) { %>
-                  <span style="color:#00e5a0; font-size:11px; margin-left:6px;">(owner)</span>
-                <% } %>
-              </a>
-              <% if (username !== org.owner) { %>
-                <button onclick="confirmAction('kick-<%= username %>-form', 'Are you sure you want to kick <%= username %>?')" style="background:transparent; color:#ff4444; border:1px solid #ff4444; padding:6px 14px; border-radius:4px; cursor:pointer; font-size:13px;">Kick</button>
-                <form id="kick-<%= username %>-form" action="/organizations/<%= org.id %>/kick/<%= username %>" method="POST" style="display:none;"></form>
-              <% } %>
+      <div id="memberPanel" style="display:none; margin-bottom:32px;">
+        <% if (org.pendingMembers && org.pendingMembers.length > 0) { %>
+          <div class="org-section">
+            <h3>Join Requests (<%= org.pendingMembers.length %>)</h3>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <% org.pendingMembers.forEach(username => { %>
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#141e26; border:1px solid #2a3e4e; border-radius:6px; padding:12px 16px;">
+                  <a href="/profile/<%= username %>" style="color:#e0eaf0; text-decoration:none; font-weight:600;"><%= username %></a>
+                  <div style="display:flex; gap:8px;">
+                    <form action="/organizations/<%= org.id %>/approve/<%= username %>" method="POST">
+                      <button type="submit" style="background:#00e5a0; color:#141e26; border:none; padding:6px 14px; border-radius:4px; cursor:pointer; font-weight:600; font-size:13px;">Approve</button>
+                    </form>
+                    <form action="/organizations/<%= org.id %>/reject/<%= username %>" method="POST">
+                      <button type="submit" style="background:transparent; color:#ff4444; border:1px solid #ff4444; padding:6px 14px; border-radius:4px; cursor:pointer; font-size:13px;">Reject</button>
+                    </form>
+                  </div>
+                </div>
+              <% }) %>
             </div>
-          <% }) %>
+          </div>
+        <% } %>
+
+        <div class="org-section">
+          <h3>Members (<%= org.members ? org.members.length : 0 %>)</h3>
+          <div style="margin-bottom:12px;">
+            <input type="text" id="memberSearch" placeholder="Search members..." class="filter-input" oninput="filterMembers()" />
+          </div>
+          <div id="memberList" style="display:flex; flex-direction:column; gap:8px;">
+            <% (org.members || []).forEach(username => { %>
+              <div class="member-row" data-username="<%= username.toLowerCase() %>" style="display:flex; justify-content:space-between; align-items:center; background:#141e26; border:1px solid #2a3e4e; border-radius:6px; padding:12px 16px;">
+                <a href="/profile/<%= username %>" style="color:#e0eaf0; text-decoration:none; font-weight:600;">
+                  <%= username %>
+                  <% if (username === org.owner) { %>
+                    <span style="color:#00e5a0; font-size:11px; margin-left:6px;">(owner)</span>
+                  <% } %>
+                </a>
+                <% if (username !== org.owner) { %>
+                  <button onclick="confirmAction('kick-<%= username %>-form', 'Are you sure you want to kick <%= username %>?')" style="background:transparent; color:#ff4444; border:1px solid #ff4444; padding:6px 14px; border-radius:4px; cursor:pointer; font-size:13px;">Kick</button>
+                  <form id="kick-<%= username %>-form" action="/organizations/<%= org.id %>/kick/<%= username %>" method="POST" style="display:none;"></form>
+                <% } %>
+              </div>
+            <% }) %>
+          </div>
         </div>
       </div>
     <% } %>
@@ -171,6 +174,18 @@
   <script>
     function confirmAction(formId, message) {
       if (confirm(message)) document.getElementById(formId).submit();
+    }
+
+    function toggleMembers() {
+      const panel = document.getElementById('memberPanel');
+      const btn = document.getElementById('manageBtn');
+      if (panel.style.display === 'none') {
+        panel.style.display = 'block';
+        btn.textContent = '👥 Hide Members';
+      } else {
+        panel.style.display = 'none';
+        btn.textContent = '👥 Manage Members';
+      }
     }
 
     function filterMembers() {
