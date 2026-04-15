@@ -885,7 +885,13 @@ app.get('/organizations/:id', async (req, res) => {
   if (!org) return res.redirect('/organizations');
   org.id = org._id.toString();
   const allContests = await getContests().find({ orgId: org.id }).toArray();
-  const contests = allContests.map(c => ({ ...c, id: c._id.toString() }));
+  const contests = allContests.map(c => ({ ...c, id: c._id.toString() })).sort((a, b) => {
+    const aPinned = a.pinnedAt ? 1 : 0;
+    const bPinned = b.pinnedAt ? 1 : 0;
+    if (aPinned !== bPinned) return bPinned - aPinned;
+    if (a.pinnedAt && b.pinnedAt) return new Date(b.pinnedAt) - new Date(a.pinnedAt);
+    return a._id.toString() < b._id.toString() ? -1 : 1;
+  });
   res.render('organization-detail', { user: req.session.user || null, org, contests });
 });
 
@@ -951,6 +957,28 @@ app.post('/organizations/:id/delete', requireLogin, async (req, res) => {
     await getOrgs().deleteOne({ _id: new ObjectId(req.params.id) });
   } catch (e) {}
   res.redirect('/organizations');
+});
+
+app.post('/contests/:id/pin', requireLogin, async (req, res) => {
+  try {
+    const contest = await getContests().findOne({ _id: new ObjectId(req.params.id) });
+    if (!contest) return res.redirect('/organizations');
+    const org = await getOrgs().findOne({ _id: new ObjectId(contest.orgId) });
+    if (!org || org.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
+    await getContests().updateOne({ _id: new ObjectId(req.params.id) }, { $set: { pinnedAt: new Date().toISOString() } });
+    res.redirect('/organizations/' + contest.orgId);
+  } catch (e) { res.redirect('/organizations'); }
+});
+
+app.post('/contests/:id/unpin', requireLogin, async (req, res) => {
+  try {
+    const contest = await getContests().findOne({ _id: new ObjectId(req.params.id) });
+    if (!contest) return res.redirect('/organizations');
+    const org = await getOrgs().findOne({ _id: new ObjectId(contest.orgId) });
+    if (!org || org.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
+    await getContests().updateOne({ _id: new ObjectId(req.params.id) }, { $unset: { pinnedAt: '' } });
+    res.redirect('/organizations/' + contest.orgId);
+  } catch (e) { res.redirect('/organizations'); }
 });
 
 // ─── CONTESTS ─────────────────────────────────────────────

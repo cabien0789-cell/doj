@@ -84,13 +84,19 @@
     <% } %>
 
     <div id="section-contests">
+      <div style="margin-bottom:16px;">
+        <input type="text" id="contestSearch" placeholder="Search contests..." class="filter-input" oninput="filterContests()" />
+      </div>
       <% if (contests.length === 0) { %>
         <p style="color:#7a9ab0;">No contests yet.</p>
       <% } else { %>
         <% contests.forEach(contest => { %>
-          <div style="background:#141e26; border:1px solid #2a3e4e; border-radius:6px; padding:16px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; transition:border-color 0.2s;" onmouseenter="this.style.borderColor='#00e5a0'" onmouseleave="this.style.borderColor='#2a3e4e'">
+          <div class="contest-row" data-name="<%= contest.name.toLowerCase() %>" style="background:#141e26; border:1px solid #2a3e4e; border-radius:6px; padding:16px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; transition:border-color 0.2s;<%= contest.pinnedAt ? ' border-color:#f5a623;' : '' %>" onmouseenter="this.style.borderColor='<%= contest.pinnedAt ? '#f5a623' : '#00e5a0' %>'" onmouseleave="this.style.borderColor='<%= contest.pinnedAt ? '#f5a623' : '#2a3e4e' %>'">
             <div>
               <div style="display:flex; align-items:center; gap:8px;">
+                <% if (contest.pinnedAt) { %>
+                  <span style="color:#f5a623; font-size:12px;">📌</span>
+                <% } %>
                 <a href="/contests/<%= contest.id %>" style="color:#ffffff; font-weight:600; text-decoration:none; font-size:16px;"><%= contest.name %></a>
                 <% if (contest.visibility === 'private') { %>
                   <span style="color:#f5a623; font-size:11px; padding:2px 8px; border:1px solid #f5a623; border-radius:20px;">🔒 Private</span>
@@ -112,16 +118,29 @@
                 </p>
               <% } %>
             </div>
-            <% const now = new Date(); %>
-            <% if (contest.noTimeLimit) { %>
-              <span class="status-live">● Live</span>
-            <% } else if (now < new Date(contest.startTimeUTC || contest.startTime)) { %>
-              <span class="status-upcoming">Upcoming</span>
-            <% } else if (now > new Date(contest.endTimeUTC || contest.endTime)) { %>
-              <span class="status-ended">Ended</span>
-            <% } else { %>
-              <span class="status-live">● Live</span>
-            <% } %>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <% if (user && org.owner === user.username) { %>
+                <% if (contest.pinnedAt) { %>
+                  <form action="/contests/<%= contest.id %>/unpin" method="POST" style="display:inline;">
+                    <button type="submit" title="Unpin" style="background:transparent; color:#f5a623; border:1px solid #f5a623; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px; white-space:nowrap;">📌 Unpin</button>
+                  </form>
+                <% } else { %>
+                  <form action="/contests/<%= contest.id %>/pin" method="POST" style="display:inline;">
+                    <button type="submit" title="Pin" style="background:transparent; color:#7a9ab0; border:1px solid #2a3e4e; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px; white-space:nowrap;">📌 Pin</button>
+                  </form>
+                <% } %>
+              <% } %>
+              <% const now = new Date(); %>
+              <% if (contest.noTimeLimit) { %>
+                <span class="status-live">● Live</span>
+              <% } else if (now < new Date(contest.startTimeUTC || contest.startTime)) { %>
+                <span class="status-upcoming">Upcoming</span>
+              <% } else if (now > new Date(contest.endTimeUTC || contest.endTime)) { %>
+                <span class="status-ended">Ended</span>
+              <% } else { %>
+                <span class="status-live">● Live</span>
+              <% } %>
+            </div>
           </div>
         <% }) %>
       <% } %>
@@ -186,6 +205,13 @@
       ['contests', 'members'].forEach(t => {
         document.getElementById('section-' + t).style.display = t === tab ? 'block' : 'none';
         document.getElementById('tab-' + t).className = t === tab ? 'tab-btn tab-active' : 'tab-btn';
+      });
+    }
+
+    function filterContests() {
+      const search = document.getElementById('contestSearch').value.toLowerCase();
+      document.querySelectorAll('.contest-row').forEach(row => {
+        row.style.display = row.dataset.name.includes(search) ? '' : 'none';
       });
     }
 
