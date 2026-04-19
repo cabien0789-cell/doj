@@ -191,6 +191,19 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
   <script>
+    function copyText(btn, id) {
+      const text = document.getElementById('tc-' + id).textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = '✓ Copied';
+        btn.style.color = '#00e5a0';
+        setTimeout(() => {
+          btn.textContent = '📋 Copy';
+          btn.style.color = '#a0a0b0';
+        }, 2000);
+      });
+    }
+
+    <% if (user) { %>
     const defaultCode = {
       cpp: `#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    \n    return 0;\n}`,
       c: `#include <stdio.h>\n\nint main() {\n    \n    return 0;\n}`,
@@ -329,19 +342,6 @@
       btn.disabled = false;
     }
 
-    function copyText(btn, id) {
-      const text = document.getElementById('tc-' + id).textContent;
-      navigator.clipboard.writeText(text).then(() => {
-        btn.textContent = '✓ Copied';
-        btn.style.color = '#00e5a0';
-        setTimeout(() => {
-          btn.textContent = '📋 Copy';
-          btn.style.color = '#a0a0b0';
-        }, 2000);
-      });
-    }
-
-    <% if (user) { %>
     fetch('/notifications/count').then(r => r.json()).then(data => {
       if (data.count > 0) {
         const badge = document.getElementById('notifBadge');
