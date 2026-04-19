@@ -21,10 +21,10 @@
       <% } %>
     </div>
     <div class="nav-right">
+      <% if (contestId) { %>
+        <a href="/contests/<%= contestId %>" class="btn-register" style="text-decoration:none;">← Back to Contest</a>
+      <% } %>
       <% if (user) { %>
-        <% if (contestId) { %>
-          <a href="/contests/<%= contestId %>" class="nav-link" style="color:#00e5a0;">← Back to Contest</a>
-        <% } %>
         <a href="/notifications" class="notif-btn">
           🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
         </a>
@@ -43,7 +43,7 @@
         <h2><%= problem.title %></h2>
         <span class="difficulty-<%= problem.difficulty.toLowerCase() %>"><%= problem.difficulty %></span>
         <% if (user && user.username === problem.author) { %>
-          <a href="/problems/<%= problem.id %>/edit" style="color:#f5a623; font-size:13px; text-decoration:none; margin-left:8px;">✏ Edit</a>
+          <a href="/problems/<%= problem.id %>/edit<%= contestId ? '?contestId=' + contestId : '' %>" style="color:#f5a623; font-size:13px; text-decoration:none; margin-left:8px;">✏ Edit</a>
           <form action="/problems/<%= problem.id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('Delete this problem?')">
             <button type="submit" style="background:none; border:none; color:#ff4444; font-size:13px; cursor:pointer; margin-left:8px;">🗑 Delete</button>
           </form>

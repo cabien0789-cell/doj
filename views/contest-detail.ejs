@@ -19,8 +19,8 @@
       <% } %>
     </div>
     <div class="nav-right">
+      <a href="/organizations/<%= orgId %>" class="btn-register" style="text-decoration:none;">← Back to Organization</a>
       <% if (user) { %>
-        <a href="/organizations/<%= orgId %>" class="nav-link" style="color:#00e5a0;">← Back to Organization</a>
         <a href="/notifications" class="notif-btn">
           🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
         </a>

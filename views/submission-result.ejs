@@ -20,7 +20,7 @@
     </div>
     <div class="nav-right">
       <span id="userNavLinks" style="display:none; align-items:center; gap:16px;">
-        <a href="#" id="backToContestBtn" class="nav-link" style="color:#00e5a0; display:none;">← Back to Contest</a>
+        <a href="#" id="backToContestBtn" class="btn-register" style="text-decoration:none; display:none;">← Back to Contest</a>
         <a href="/notifications" class="notif-btn">
           🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
         </a>
@@ -84,7 +84,7 @@
         if (contestId) {
           const backToContestBtn = document.getElementById('backToContestBtn');
           backToContestBtn.href = '/contests/' + contestId;
-          backToContestBtn.style.display = 'inline';
+          backToContestBtn.style.display = 'inline-block';
         }
         fetch('/notifications/count').then(r => r.json()).then(d => {
           if (d.count > 0) {

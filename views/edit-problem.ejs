@@ -16,6 +16,9 @@
       <a href="/leaderboard" class="nav-link">Leaderboard</a>
     </div>
     <div class="nav-right">
+      <% if (contestId) { %>
+        <a href="/contests/<%= contestId %>" class="btn-register" style="text-decoration:none;">← Back to Contest</a>
+      <% } %>
       <a href="/profile/<%= user.username %>" class="nav-username"><%= user.username %></a>
       <a href="/logout" class="btn-logout">Logout</a>
     </div>
@@ -30,6 +33,7 @@
       <div class="error-msg"><%= error %></div>
     <% } %>
     <form id="editProblemForm" action="/problems/<%= problem.id %>/edit" method="POST">
+      <input type="hidden" name="contestId" value="<%= contestId || '' %>">
       <div class="form-group">
         <label>Title</label>
         <input type="text" name="title" value="<%= problem.title %>" required />

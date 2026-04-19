@@ -773,7 +773,8 @@ app.get('/problems/:id/edit', requireLogin, async (req, res) => {
   if (!problem) return res.redirect('/problems');
   if (problem.author !== req.session.user.username) return res.redirect('/problems/' + req.params.id);
   problem.id = problem._id.toString();
-  res.render('edit-problem', { user: req.session.user, problem, error: undefined });
+  const contestId = req.query.contestId || null;
+  res.render('edit-problem', { user: req.session.user, problem, error: undefined, contestId });
 });
 
 app.post('/problems/:id/edit', requireLogin, async (req, res) => {
@@ -794,7 +795,9 @@ app.post('/problems/:id/edit', requireLogin, async (req, res) => {
       tags, timeLimit: parseInt(timeLimit) || 2
     }});
   } catch (e) { return res.redirect('/problems'); }
-  res.redirect('/problems/' + req.params.id);
+  const contestId = req.body.contestId || null;
+  const redirectUrl = '/problems/' + req.params.id + (contestId ? '?contestId=' + contestId : '');
+  res.redirect(redirectUrl);
 });
 
 app.post('/problems/:id/delete', requireLogin, async (req, res) => {
