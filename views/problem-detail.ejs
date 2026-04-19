@@ -22,6 +22,9 @@
     </div>
     <div class="nav-right">
       <% if (user) { %>
+        <% if (contestId) { %>
+          <a href="/contests/<%= contestId %>" class="nav-link" style="color:#00e5a0;">← Back to Contest</a>
+        <% } %>
         <a href="/notifications" class="notif-btn">
           🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
         </a>
@@ -247,7 +250,8 @@
         const pendingData = {
           code,
           language,
-          user: { username: '<%= user.username %>', role: '<%= user.role %>' }
+          user: { username: '<%= user.username %>', role: '<%= user.role %>' },
+          contestId: <%= contestId ? `'${contestId}'` : 'null' %>
         };
 
         pollingInterval = setInterval(async () => {

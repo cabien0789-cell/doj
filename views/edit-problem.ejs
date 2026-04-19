@@ -22,11 +22,14 @@
   </nav>
 
   <div class="create-container">
-    <h2>Edit Problem</h2>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+      <h2 style="margin:0;">Edit Problem</h2>
+      <button type="submit" form="editProblemForm" class="btn-submit" style="margin:0;">Save Changes</button>
+    </div>
     <% if (typeof error !== 'undefined' && error) { %>
       <div class="error-msg"><%= error %></div>
     <% } %>
-    <form action="/problems/<%= problem.id %>/edit" method="POST">
+    <form id="editProblemForm" action="/problems/<%= problem.id %>/edit" method="POST">
       <div class="form-group">
         <label>Title</label>
         <input type="text" name="title" value="<%= problem.title %>" required />
@@ -78,7 +81,7 @@
         <textarea name="constraints" rows="3"><%= problem.constraints || '' %></textarea>
       </div>
       <div class="form-group">
-        <label>Explanation</label>
+        <label>Explanation <span style="color:#7a9ab0; font-size:12px; font-weight:400;">(optional)</span></label>
         <textarea name="explanation" rows="4"><%= problem.explanation || '' %></textarea>
       </div>
 

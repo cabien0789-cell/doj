@@ -20,6 +20,7 @@
     </div>
     <div class="nav-right">
       <% if (user) { %>
+        <a href="/organizations/<%= orgId %>" class="nav-link" style="color:#00e5a0;">← Back to Organization</a>
         <a href="/notifications" class="notif-btn">
           🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
         </a>
@@ -184,7 +185,7 @@
               <% problems.forEach((problem, index) => { %>
                 <tr>
                   <td><%= index + 1 %></td>
-                  <td><a href="/problems/<%= problem.id %>"><%= problem.title %></a></td>
+                  <td><a href="/problems/<%= problem.id %>?contestId=<%= contest.id %>"><%= problem.title %></a></td>
                   <td class="difficulty-<%= problem.difficulty.toLowerCase() %>"><%= problem.difficulty %></td>
                   <td>
                     <% if (user && userSolvedInContest.includes(problem.id)) { %>

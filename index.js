@@ -17,9 +17,10 @@ app.use(express.json({ limit: '2mb' }));
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'doj-secret-key',
-  resave: false,
+  resave: true,
+  rolling: true,
   saveUninitialized: false,
-  cookie: { maxAge: 2 * 60 * 60 * 1000 }
+  cookie: { maxAge: 2 * 24 * 60 * 60 * 1000 }
 }));
 
 const client = new MongoClient(process.env.MONGODB_URI);
@@ -710,7 +711,8 @@ app.get('/problems/:id', async (req, res) => {
     { username: user.username, problemId: problem.id, status: { $ne: 'pending' } },
     { projection: { result: 0, status: 0 } }
   ).sort({ submittedAt: -1 }).limit(5).toArray() : [];
-  res.render('problem-detail', { user, problem, mySubmissions });
+  const contestId = req.query.contestId || null;
+  res.render('problem-detail', { user, problem, mySubmissions, contestId });
 });
 
 app.post('/problems/:id/submit', requireLogin, async (req, res) => {
@@ -1136,7 +1138,7 @@ app.get('/contests/:id', async (req, res) => {
 
   if (contest.visibility === 'private' && !isMember && !isAdmin) {
     return res.render('contest-detail', {
-      user: req.session.user || null, contest, problems: [], scoreboard: [], isOwner: false, accessDenied: true, solvedSet: []
+      user: req.session.user || null, contest, problems: [], scoreboard: [], isOwner: false, accessDenied: true, solvedSet: [], orgId: contest.orgId
     });
   }
 
@@ -1180,7 +1182,8 @@ app.get('/contests/:id', async (req, res) => {
     user: req.session.user || null,
     contest: { ...contest, startTimeUTC: startUTC, endTimeUTC: endUTC },
     problems, scoreboard, isOwner, accessDenied: false,
-    userSolvedInContest: [...userSolvedInContest]
+    userSolvedInContest: [...userSolvedInContest],
+    orgId: contest.orgId
   });
 });
 

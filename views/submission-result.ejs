@@ -20,6 +20,7 @@
     </div>
     <div class="nav-right">
       <span id="userNavLinks" style="display:none; align-items:center; gap:16px;">
+        <a href="#" id="backToContestBtn" class="nav-link" style="color:#00e5a0; display:none;">← Back to Contest</a>
         <a href="/notifications" class="notif-btn">
           🔔 <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
         </a>
@@ -69,7 +70,7 @@
       const data = JSON.parse(stored);
       sessionStorage.removeItem('submissionResult');
 
-      const { result, code, language, problemId, user } = data;
+      const { result, code, language, problemId, user, contestId } = data;
 
       // Navbar
       if (user) {
@@ -79,6 +80,11 @@
         document.getElementById('navUsername').href = '/profile/' + user.username;
         if (user.role === 'admin') {
           document.getElementById('adminNavLink').style.display = 'inline';
+        }
+        if (contestId) {
+          const backToContestBtn = document.getElementById('backToContestBtn');
+          backToContestBtn.href = '/contests/' + contestId;
+          backToContestBtn.style.display = 'inline';
         }
         fetch('/notifications/count').then(r => r.json()).then(d => {
           if (d.count > 0) {
@@ -124,7 +130,7 @@
       }
 
       // Back button
-      document.getElementById('backBtn').href = '/problems/' + problemId;
+      document.getElementById('backBtn').href = '/problems/' + problemId + (contestId ? '?contestId=' + contestId : '');
 
       // Code editor
       const modeMap = { cpp: 'text/x-c++src', c: 'text/x-csrc', python: 'text/x-python', javascript: 'text/javascript' };
