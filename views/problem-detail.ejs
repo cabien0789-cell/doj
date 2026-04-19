@@ -247,11 +247,12 @@
         }
 
         const submissionId = data.submissionId;
+        const contestIdValue = '<%- contestId || "" %>';
         const pendingData = {
           code,
           language,
           user: { username: '<%= user.username %>', role: '<%= user.role %>' },
-          contestId: <%= contestId ? `'${contestId}'` : 'null' %>
+          contestId: contestIdValue || null
         };
 
         pollingInterval = setInterval(async () => {
