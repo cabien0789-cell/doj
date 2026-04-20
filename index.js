@@ -682,24 +682,7 @@ app.get('/problems', async (req, res) => {
   res.render('problems', { user, problems });
 });
 
-app.get('/problems/create', requireLogin, (req, res) => res.render('create-problem', { user: req.session.user, error: undefined }));
 
-app.post('/problems/create', requireLogin, async (req, res) => {
-  const { title, difficulty, statement, inputFormat, outputFormat, timeLimit, constraints, explanation } = req.body;
-  const sampleTestcases = parseTestcases(req.body['sampleInput[]'] || req.body.sampleInput, req.body['sampleOutput[]'] || req.body.sampleOutput);
-  const hiddenTestcases = parseTestcases(req.body['hiddenInput[]'] || req.body.hiddenInput, req.body['hiddenOutput[]'] || req.body.hiddenOutput);
-  let tags = req.body['tags[]'] || req.body.tags || [];
-  if (!Array.isArray(tags)) tags = [tags];
-  await getProblems().insertOne({
-    title, difficulty, statement, inputFormat, outputFormat,
-    constraints: constraints || '', explanation: explanation || '',
-    sampleTestcases, hiddenTestcases,
-    tags, timeLimit: parseInt(timeLimit) || 2,
-    author: req.session.user.username, createdAt: new Date().toISOString(),
-    featured: false, deletedFromProfile: false
-  });
-  res.redirect('/problems');
-});
 
 app.get('/problems/:id', async (req, res) => {
   let problem;
