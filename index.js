@@ -830,12 +830,13 @@ app.get('/organizations', async (req, res) => {
 app.get('/organizations/create', requireOrg, (req, res) => res.render('create-organization', { user: req.session.user, error: undefined }));
 
 app.post('/organizations/create', requireOrg, async (req, res) => {
-  const { name, description } = req.body;
+  const { name, description, hidden } = req.body;
   if (!name || name.trim().length < 3) return res.render('create-organization', { user: req.session.user, error: 'Organization name must be at least 3 characters.' });
   if (await getOrgs().findOne({ name: name.trim() })) return res.render('create-organization', { user: req.session.user, error: 'Organization name already exists.' });
   const result = await getOrgs().insertOne({
     name: name.trim(), description: description || '',
-    owner: req.session.user.username, members: [req.session.user.username], pendingMembers: []
+    owner: req.session.user.username, members: [req.session.user.username], pendingMembers: [],
+    hidden: hidden === 'true'
   });
   res.redirect('/organizations/' + result.insertedId.toString());
 });
@@ -855,7 +856,7 @@ app.post('/organizations/:id/edit', requireLogin, async (req, res) => {
   if (!org) return res.redirect('/organizations');
   if (org.owner !== req.session.user.username) return res.redirect('/organizations/' + req.params.id);
   org.id = org._id.toString();
-  const { name, description } = req.body;
+  const { name, description, hidden } = req.body;
   if (!name || name.trim().length < 3) {
     return res.render('edit-organization', { user: req.session.user, org, error: 'Organization name must be at least 3 characters.' });
   }
@@ -863,7 +864,7 @@ app.post('/organizations/:id/edit', requireLogin, async (req, res) => {
   if (duplicate) {
     return res.render('edit-organization', { user: req.session.user, org, error: 'Organization name already exists.' });
   }
-  await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, { $set: { name: name.trim(), description: description || '' } });
+  await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, { $set: { name: name.trim(), description: description || '', hidden: hidden === 'true' } });
   res.redirect('/organizations/' + req.params.id);
 });
 
@@ -872,6 +873,12 @@ app.get('/organizations/:id', async (req, res) => {
   try { org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
   if (!org) return res.redirect('/organizations');
   org.id = org._id.toString();
+  const user = req.session.user || null;
+  const isMember = user && org.members && org.members.includes(user.username);
+  const isAdmin = user && user.role === 'admin';
+  if (org.hidden === true && !isMember && !isAdmin) {
+    return res.render('organization-detail', { user, org, contests: [], accessDenied: true });
+  }
   const allContests = await getContests().find({ orgId: org.id }).toArray();
   const contests = allContests.map(c => ({ ...c, id: c._id.toString() })).sort((a, b) => {
     const aPinned = a.pinnedAt ? 1 : 0;
@@ -880,7 +887,7 @@ app.get('/organizations/:id', async (req, res) => {
     if (a.pinnedAt && b.pinnedAt) return new Date(b.pinnedAt) - new Date(a.pinnedAt);
     return a._id.toString() < b._id.toString() ? -1 : 1;
   });
-  res.render('organization-detail', { user: req.session.user || null, org, contests });
+  res.render('organization-detail', { user, org, contests, accessDenied: false });
 });
 
 app.post('/organizations/:id/request', requireLogin, async (req, res) => {
