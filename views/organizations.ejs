@@ -60,7 +60,14 @@
             data-member="<%= user && org.members && org.members.includes(user.username) ? 'true' : 'false' %>">
             <div style="display:flex; justify-content:space-between; align-items:flex-start;">
               <div>
-                <a href="/organizations/<%= org.id %>" style="font-size:18px; font-weight:700; color:#ffffff; text-decoration:none;"><%= org.name %></a>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <a href="/organizations/<%= org.id %>" style="font-size:18px; font-weight:700; color:#ffffff; text-decoration:none;"><%= org.name %></a>
+                  <% if (org.hidden) { %>
+                    <span style="color:#f5a623; font-size:11px; padding:2px 8px; border:1px solid #f5a623; border-radius:20px;">🔒 Hidden</span>
+                  <% } else { %>
+                    <span style="color:#7a9ab0; font-size:11px; padding:2px 8px; border:1px solid #2a3e4e; border-radius:20px;">🌐 Public</span>
+                  <% } %>
+                </div>
                 <p style="color:#7a9ab0; font-size:13px; margin:6px 0 0;">Owner: <strong style="color:#e0eaf0;"><%= org.owner %></strong> · <%= org.members ? org.members.length : 0 %> members</p>
                 <% if (org.description) { %>
                   <p style="color:#7a9ab0; font-size:13px; margin:6px 0 0;"><%= org.description %></p>
