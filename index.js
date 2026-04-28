@@ -770,6 +770,20 @@ app.post('/problems/:id/edit', requireLogin, async (req, res) => {
   const hiddenTestcases = parseTestcases(req.body['hiddenInput[]'] || req.body.hiddenInput, req.body['hiddenOutput[]'] || req.body.hiddenOutput);
   let tags = req.body['tags[]'] || req.body.tags || [];
   if (!Array.isArray(tags)) tags = [tags];
+  const contestId = req.body.contestId || null;
+  const redirectUrl = '/problems/' + req.params.id + (contestId ? '?contestId=' + contestId : '');
+  const allFields = [title, difficulty, statement, inputFormat, outputFormat, constraints, explanation, ...tags,
+    ...sampleTestcases.map(tc => tc.input + tc.output),
+    ...hiddenTestcases.map(tc => tc.input + tc.output)
+  ].join('');
+  const sizeBytes = Buffer.byteLength(allFields, 'utf8');
+  const role = req.session.user.role;
+  if (role === 'org') {
+    if (sizeBytes > 0.4 * 1024 * 1024) return res.render('edit-problem', { user: req.session.user, problem, error: 'Problem size exceeds the 0.4MB limit.', contestId });
+  }
+  if (role === 'admin') {
+    if (sizeBytes > 0.85 * 1024 * 1024) return res.render('edit-problem', { user: req.session.user, problem, error: 'Problem size exceeds the 0.85MB limit.', contestId });
+  }
   try {
     await getProblems().updateOne({ _id: new ObjectId(req.params.id) }, { $set: {
       title, difficulty, statement, inputFormat, outputFormat,
@@ -778,8 +792,6 @@ app.post('/problems/:id/edit', requireLogin, async (req, res) => {
       tags, timeLimit: parseInt(timeLimit) || 2
     }});
   } catch (e) { return res.redirect('/problems'); }
-  const contestId = req.body.contestId || null;
-  const redirectUrl = '/problems/' + req.params.id + (contestId ? '?contestId=' + contestId : '');
   res.redirect(redirectUrl);
 });
 
@@ -831,6 +843,10 @@ app.get('/organizations/create', requireOrg, (req, res) => res.render('create-or
 
 app.post('/organizations/create', requireOrg, async (req, res) => {
   const { name, description, hidden } = req.body;
+  if (req.session.user.role === 'org') {
+    const orgCount = await getOrgs().countDocuments({ owner: req.session.user.username });
+    if (orgCount >= 15) return res.render('create-organization', { user: req.session.user, error: 'You have reached the maximum limit of 15 organizations.' });
+  }
   if (!name || name.trim().length < 3) return res.render('create-organization', { user: req.session.user, error: 'Organization name must be at least 3 characters.' });
   if (await getOrgs().findOne({ name: name.trim() })) return res.render('create-organization', { user: req.session.user, error: 'Organization name already exists.' });
   const result = await getOrgs().insertOne({
@@ -959,7 +975,7 @@ app.post('/contests/:id/pin', requireLogin, async (req, res) => {
     const contest = await getContests().findOne({ _id: new ObjectId(req.params.id) });
     if (!contest) return res.redirect('/organizations');
     const org = await getOrgs().findOne({ _id: new ObjectId(contest.orgId) });
-    if (!org || org.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
+    if (!org || (org.owner !== req.session.user.username && req.session.user.role !== 'admin')) return res.redirect('/contests/' + req.params.id);
     await getContests().updateOne({ _id: new ObjectId(req.params.id) }, { $set: { pinnedAt: new Date().toISOString() } });
     res.redirect('/organizations/' + contest.orgId);
   } catch (e) { res.redirect('/organizations'); }
@@ -970,7 +986,7 @@ app.post('/contests/:id/unpin', requireLogin, async (req, res) => {
     const contest = await getContests().findOne({ _id: new ObjectId(req.params.id) });
     if (!contest) return res.redirect('/organizations');
     const org = await getOrgs().findOne({ _id: new ObjectId(contest.orgId) });
-    if (!org || org.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
+    if (!org || (org.owner !== req.session.user.username && req.session.user.role !== 'admin')) return res.redirect('/contests/' + req.params.id);
     await getContests().updateOne({ _id: new ObjectId(req.params.id) }, { $unset: { pinnedAt: '' } });
     res.redirect('/organizations/' + contest.orgId);
   } catch (e) { res.redirect('/organizations'); }
@@ -981,7 +997,7 @@ app.post('/contests/:id/unpin', requireLogin, async (req, res) => {
 app.get('/organizations/:id/contests/create', requireLogin, async (req, res) => {
   let org;
   try { org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
-  if (!org || org.owner !== req.session.user.username) return res.redirect('/organizations');
+  if (!org || (org.owner !== req.session.user.username && req.session.user.role !== 'admin')) return res.redirect('/organizations');
   org.id = org._id.toString();
   res.render('create-contest', { user: req.session.user, orgId: org.id, error: undefined, serverTime: getServerTime() });
 });
@@ -989,7 +1005,7 @@ app.get('/organizations/:id/contests/create', requireLogin, async (req, res) => 
 app.post('/organizations/:id/contests/create', requireLogin, async (req, res) => {
   let org;
   try { org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
-  if (!org || org.owner !== req.session.user.username) return res.redirect('/organizations');
+  if (!org || (org.owner !== req.session.user.username && req.session.user.role !== 'admin')) return res.redirect('/organizations');
   const { name, timezone, noTimeLimit, visibility } = req.body;
   let problemIds = req.body['problemIds[]'] || req.body.problemIds || [];
   if (!Array.isArray(problemIds)) problemIds = [problemIds];
@@ -1015,7 +1031,7 @@ app.get('/contests/:id/edit', requireLogin, async (req, res) => {
   try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
   if (!contest) return res.redirect('/organizations');
   const matchOrg = await getOrgs().findOne({ _id: new ObjectId(contest.orgId) });
-  if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
+  if (!matchOrg || (matchOrg.owner !== req.session.user.username && req.session.user.role !== 'admin')) return res.redirect('/contests/' + req.params.id);
   contest.id = contest._id.toString();
   const myProblems = await getProblems().find({ author: req.session.user.username, deletedFromProfile: { $ne: true } }).toArray();
   const myProblemsWithId = myProblems.map(p => ({ ...p, id: p._id.toString() }));
@@ -1031,7 +1047,7 @@ app.post('/contests/:id/edit', requireLogin, async (req, res) => {
   try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
   if (!contest) return res.redirect('/organizations');
   const matchOrg = await getOrgs().findOne({ _id: new ObjectId(contest.orgId) });
-  if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
+  if (!matchOrg || (matchOrg.owner !== req.session.user.username && req.session.user.role !== 'admin')) return res.redirect('/contests/' + req.params.id);
   const { name, timezone, noTimeLimit, visibility } = req.body;
   let problemIds = req.body['problemIds[]'] || req.body.problemIds || [];
   if (!Array.isArray(problemIds)) problemIds = [problemIds];
@@ -1072,7 +1088,7 @@ app.get('/contests/:id/problems/create', requireLogin, async (req, res) => {
   try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
   if (!contest) return res.redirect('/organizations');
   const matchOrg = await getOrgs().findOne({ _id: new ObjectId(contest.orgId) });
-  if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
+  if (!matchOrg || (matchOrg.owner !== req.session.user.username && req.session.user.role !== 'admin')) return res.redirect('/contests/' + req.params.id);
   contest.id = contest._id.toString();
   res.render('create-problem-contest', { user: req.session.user, contestId: contest.id, contestName: contest.name, error: undefined });
 });
@@ -1082,13 +1098,32 @@ app.post('/contests/:id/problems/create', requireLogin, async (req, res) => {
   try { contest = await getContests().findOne({ _id: new ObjectId(req.params.id) }); } catch (e) { return res.redirect('/organizations'); }
   if (!contest) return res.redirect('/organizations');
   const matchOrg = await getOrgs().findOne({ _id: new ObjectId(contest.orgId) });
-  if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
+  if (!matchOrg || (matchOrg.owner !== req.session.user.username && req.session.user.role !== 'admin')) return res.redirect('/contests/' + req.params.id);
 
   const { title, difficulty, statement, inputFormat, outputFormat, timeLimit, constraints, explanation } = req.body;
   const sampleTestcases = parseTestcases(req.body['sampleInput[]'] || req.body.sampleInput, req.body['sampleOutput[]'] || req.body.sampleOutput);
   const hiddenTestcases = parseTestcases(req.body['hiddenInput[]'] || req.body.hiddenInput, req.body['hiddenOutput[]'] || req.body.hiddenOutput);
   let tags = req.body['tags[]'] || req.body.tags || [];
   if (!Array.isArray(tags)) tags = [tags];
+
+  const role = req.session.user.role;
+  const contestId = contest._id.toString();
+  const contestName = contest.name;
+
+  const allFields = [title, difficulty, statement, inputFormat, outputFormat, constraints, explanation, ...tags,
+    ...sampleTestcases.map(tc => tc.input + tc.output),
+    ...hiddenTestcases.map(tc => tc.input + tc.output)
+  ].join('');
+  const sizeBytes = Buffer.byteLength(allFields, 'utf8');
+
+  if (role === 'org') {
+    const problemCount = await getProblems().countDocuments({ author: req.session.user.username });
+    if (problemCount >= 120) return res.render('create-problem-contest', { user: req.session.user, contestId, contestName, error: 'You have reached the maximum limit of 120 problems.' });
+    if (sizeBytes > 0.4 * 1024 * 1024) return res.render('create-problem-contest', { user: req.session.user, contestId, contestName, error: 'Problem size exceeds the 0.4MB limit.' });
+  }
+  if (role === 'admin') {
+    if (sizeBytes > 0.85 * 1024 * 1024) return res.render('create-problem-contest', { user: req.session.user, contestId, contestName, error: 'Problem size exceeds the 0.85MB limit.' });
+  }
 
   const inserted = await getProblems().insertOne({
     title, difficulty, statement, inputFormat, outputFormat,
@@ -1112,7 +1147,7 @@ app.post('/contests/:id/delete', requireLogin, async (req, res) => {
     const contest = await getContests().findOne({ _id: new ObjectId(req.params.id) });
     if (!contest) return res.redirect('/organizations');
     const matchOrg = await getOrgs().findOne({ _id: new ObjectId(contest.orgId) });
-    if (!matchOrg || matchOrg.owner !== req.session.user.username) return res.redirect('/contests/' + req.params.id);
+    if (!matchOrg || (matchOrg.owner !== req.session.user.username && req.session.user.role !== 'admin')) return res.redirect('/contests/' + req.params.id);
     await getContests().deleteOne({ _id: new ObjectId(req.params.id) });
     res.redirect('/organizations/' + contest.orgId);
   } catch (e) { res.redirect('/organizations'); }
@@ -1125,7 +1160,7 @@ app.get('/contests/:id', async (req, res) => {
   contest.id = contest._id.toString();
 
   const matchOrg = await getOrgs().findOne({ _id: new ObjectId(contest.orgId) });
-  const isOwner = req.session.user && matchOrg && matchOrg.owner === req.session.user.username;
+  const isOwner = req.session.user && matchOrg && (matchOrg.owner === req.session.user.username || req.session.user.role === 'admin');
   const isMember = req.session.user && matchOrg && matchOrg.members && matchOrg.members.includes(req.session.user.username);
   const isAdmin = req.session.user && req.session.user.role === 'admin';
 

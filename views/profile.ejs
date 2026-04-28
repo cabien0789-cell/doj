@@ -56,7 +56,7 @@
       </div>
     </div>
 
-    <% if (user && user.username === targetUser.username) { %>
+    <% if (user && (user.username === targetUser.username || user.role === 'admin')) { %>
     <div style="display:flex; gap:8px; margin-bottom:24px;">
       <button onclick="showTab('myproblems')" id="tab-myproblems" class="tab-btn tab-active">My Problems (<%= myProblems.length %>)</button>
     </div>
@@ -75,7 +75,9 @@
               <th>Difficulty</th>
               <th>Tags</th>
               <th>Created</th>
-              <th>Action</th>
+              <% if (user.username === targetUser.username) { %>
+                <th>Action</th>
+              <% } %>
             </tr>
           </thead>
           <tbody id="myProblemsBody">
@@ -89,9 +91,11 @@
                   <% } else { %>—<% } %>
                 </td>
                 <td style="color:#7a9ab0; font-size:13px;"><%= new Date(p.createdAt).toLocaleDateString('en-GB') %></td>
-                <td>
-                  <button onclick="removeFromProfile('<%= p.id %>', '<%= p.title.replace(/'/g, "\\'") %>')" style="background:transparent; color:#ff4444; border:1px solid #ff4444; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px;">Remove</button>
-                </td>
+                <% if (user.username === targetUser.username) { %>
+                  <td>
+                    <button onclick="removeFromProfile('<%= p.id %>', '<%= p.title.replace(/'/g, "\\'") %>')" style="background:transparent; color:#ff4444; border:1px solid #ff4444; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px;">Remove</button>
+                  </td>
+                <% } %>
               </tr>
             <% }) %>
           </tbody>

@@ -60,6 +60,8 @@
           <a href="/organizations/<%= org.id %>/edit" class="btn-outline" style="text-decoration:none;">✏ Edit Organization</a>
           <button onclick="confirmAction('delete-org-form', 'Are you sure you want to delete this organization? This cannot be undone.')" class="btn-danger">Delete Organization</button>
           <form id="delete-org-form" action="/organizations/<%= org.id %>/delete" method="POST" style="display:none;"></form>
+        <% } else if (user.role === 'admin') { %>
+          <a href="/organizations/<%= org.id %>/contests/create" class="btn-register" style="text-decoration:none;">+ Create Contest</a>
         <% } else if (org.members && org.members.includes(user.username)) { %>
           <button onclick="confirmAction('leave-org-form', 'Are you sure you want to leave this organization?')" class="btn-outline">Leave Organization</button>
           <form id="leave-org-form" action="/organizations/<%= org.id %>/leave" method="POST" style="display:none;"></form>
@@ -86,7 +88,7 @@
 
     <% } else { %>
 
-      <% if (user && org.owner === user.username) { %>
+      <% if (user && (org.owner === user.username || user.role === 'admin')) { %>
         <div style="display:flex; gap:8px; margin-bottom:24px;">
           <button onclick="showTab('contests')" id="tab-contests" class="tab-btn tab-active">Contests</button>
           <button onclick="showTab('members')" id="tab-members" class="tab-btn">Members (<%= org.members ? org.members.length : 0 %>)</button>
@@ -129,7 +131,7 @@
                 <% } %>
               </div>
               <div style="display:flex; align-items:center; gap:10px;">
-                <% if (user && org.owner === user.username) { %>
+                <% if (user && (org.owner === user.username || user.role === 'admin')) { %>
                   <% if (contest.pinnedAt) { %>
                     <form action="/contests/<%= contest.id %>/unpin" method="POST" style="display:inline;">
                       <button type="submit" title="Unpin" style="background:transparent; color:#f5a623; border:1px solid #f5a623; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px; white-space:nowrap;">📌 Unpin</button>
