@@ -925,7 +925,7 @@ app.post('/organizations/:id/cancel-request', requireLogin, async (req, res) => 
 app.post('/organizations/:id/approve/:username', requireLogin, async (req, res) => {
   try {
     const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
-    if (!org || org.owner !== req.session.user.username) return res.redirect('/organizations/' + req.params.id);
+    if (!org || (org.owner !== req.session.user.username && req.session.user.role !== 'admin')) return res.redirect('/organizations/' + req.params.id);
     await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, { $pull: { pendingMembers: req.params.username }, $addToSet: { members: req.params.username } });
     await sendNotification(req.params.username, `Your request to join "${org.name}" has been approved!`);
   } catch (e) {}
@@ -935,7 +935,7 @@ app.post('/organizations/:id/approve/:username', requireLogin, async (req, res) 
 app.post('/organizations/:id/reject/:username', requireLogin, async (req, res) => {
   try {
     const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
-    if (!org || org.owner !== req.session.user.username) return res.redirect('/organizations/' + req.params.id);
+    if (!org || (org.owner !== req.session.user.username && req.session.user.role !== 'admin')) return res.redirect('/organizations/' + req.params.id);
     await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, { $pull: { pendingMembers: req.params.username } });
     await sendNotification(req.params.username, `Your request to join "${org.name}" has been rejected.`);
   } catch (e) {}
@@ -945,7 +945,7 @@ app.post('/organizations/:id/reject/:username', requireLogin, async (req, res) =
 app.post('/organizations/:id/kick/:username', requireLogin, async (req, res) => {
   try {
     const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
-    if (!org || org.owner !== req.session.user.username) return res.redirect('/organizations/' + req.params.id);
+    if (!org || (org.owner !== req.session.user.username && req.session.user.role !== 'admin')) return res.redirect('/organizations/' + req.params.id);
     await getOrgs().updateOne({ _id: new ObjectId(req.params.id) }, { $pull: { members: req.params.username } });
     await sendNotification(req.params.username, `You have been removed from the organization "${org.name}".`);
   } catch (e) {}

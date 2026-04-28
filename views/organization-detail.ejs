@@ -159,7 +159,7 @@
       </div>
 
       <div id="section-members" style="display:none;">
-        <% if (user && org.owner === user.username) { %>
+        <% if (user && (org.owner === user.username || user.role === 'admin')) { %>
           <% if (org.pendingMembers && org.pendingMembers.length > 0) { %>
             <div class="org-section">
               <h3>Join Requests (<%= org.pendingMembers.length %>)</h3>

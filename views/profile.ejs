@@ -58,7 +58,7 @@
 
     <% if (user && (user.username === targetUser.username || user.role === 'admin')) { %>
     <div style="display:flex; gap:8px; margin-bottom:24px;">
-      <button onclick="showTab('myproblems')" id="tab-myproblems" class="tab-btn tab-active">My Problems (<%= myProblems.length %>)</button>
+      <button onclick="showTab('myproblems')" id="tab-myproblems" class="tab-btn tab-active"><%= user.username === targetUser.username ? 'My Problems' : 'Problems' %> (<%= myProblems.length %>)</button>
     </div>
 
     <div id="section-myproblems">
