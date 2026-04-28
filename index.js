@@ -1033,10 +1033,13 @@ app.get('/contests/:id/edit', requireLogin, async (req, res) => {
   const matchOrg = await getOrgs().findOne({ _id: new ObjectId(contest.orgId) });
   if (!matchOrg || (matchOrg.owner !== req.session.user.username && req.session.user.role !== 'admin')) return res.redirect('/contests/' + req.params.id);
   contest.id = contest._id.toString();
+  const contestProblemObjectIds = contest.problemIds.map(pid => { try { return new ObjectId(pid); } catch(e) { return null; } }).filter(Boolean);
+  const contestProblems = await getProblems().find({ _id: { $in: contestProblemObjectIds } }).toArray();
+  const contestProblemsWithId = contestProblems.map(p => ({ ...p, id: p._id.toString() }));
   const myProblems = await getProblems().find({ author: req.session.user.username, deletedFromProfile: { $ne: true } }).toArray();
   const myProblemsWithId = myProblems.map(p => ({ ...p, id: p._id.toString() }));
   const problems = [
-    ...contest.problemIds.map(pid => myProblemsWithId.find(p => p.id === pid)).filter(p => p),
+    ...contest.problemIds.map(pid => contestProblemsWithId.find(p => p.id === pid)).filter(p => p),
     ...myProblemsWithId.filter(p => !contest.problemIds.includes(p.id))
   ];
   res.render('edit-contest', { user: req.session.user, contest, problems, error: undefined, serverTime: getServerTime() });
@@ -1064,10 +1067,13 @@ app.post('/contests/:id/edit', requireLogin, async (req, res) => {
       contest.name = name || contest.name;
       contest.visibility = visibility || contest.visibility;
       contest.noTimeLimit = isNoLimit;
+      const contestProblemObjectIds2 = contest.problemIds.map(pid => { try { return new ObjectId(pid); } catch(e) { return null; } }).filter(Boolean);
+      const contestProblems2 = await getProblems().find({ _id: { $in: contestProblemObjectIds2 } }).toArray();
+      const contestProblemsWithId2 = contestProblems2.map(p => ({ ...p, id: p._id.toString() }));
       const myProblems2 = await getProblems().find({ author: req.session.user.username, deletedFromProfile: { $ne: true } }).toArray();
       const myProblemsWithId2 = myProblems2.map(p => ({ ...p, id: p._id.toString() }));
       const problems2 = [
-        ...contest.problemIds.map(pid => myProblemsWithId2.find(p => p.id === pid)).filter(p => p),
+        ...contest.problemIds.map(pid => contestProblemsWithId2.find(p => p.id === pid)).filter(p => p),
         ...myProblemsWithId2.filter(p => !contest.problemIds.includes(p.id))
       ];
       return res.render('edit-contest', { user: req.session.user, contest, problems: problems2, error: validationError, serverTime: getServerTime() });
