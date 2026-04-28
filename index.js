@@ -335,6 +335,7 @@ function runProcessAsync(cmd, args, inputData, timeoutMs) {
       }
     });
 
+    proc.stdin.on('error', () => {});
     if (inputData) proc.stdin.write(inputData);
     proc.stdin.end();
   });
