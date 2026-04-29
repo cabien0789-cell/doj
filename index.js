@@ -82,9 +82,9 @@ function checkSubmitRateLimit(username) {
 }
 
 // ─── JUDGE CONCURRENCY CONTROL ────────────────────────────
-const MAX_CPP_CONCURRENT = 2;
+const MAX_CPP_CONCURRENT = 1;
 const MAX_TOTAL_POINTS = 6;
-const CPP_POINTS = 2;
+const CPP_POINTS = 4;
 const SCRIPT_POINTS = 1;
 
 let currentCppCount = 0;
