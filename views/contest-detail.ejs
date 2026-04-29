@@ -35,9 +35,15 @@
 
   <% if (accessDenied) { %>
     <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:calc(100vh - 64px); text-align:center;">
-      <div style="font-size:64px; margin-bottom:16px;">🔒</div>
-      <h2 style="color:#ffffff; margin-bottom:12px;">Private Contest</h2>
-      <p style="color:#7a9ab0; margin-bottom:24px;">This contest is private. Only members of the organization can access it.</p>
+      <% if (accessType === 'hidden') { %>
+        <div style="font-size:64px; margin-bottom:16px;">🚫</div>
+        <h2 style="color:#ffffff; margin-bottom:12px;">Contest Not Found</h2>
+        <p style="color:#7a9ab0; margin-bottom:24px;">This contest does not exist or is not available.</p>
+      <% } else { %>
+        <div style="font-size:64px; margin-bottom:16px;">🔒</div>
+        <h2 style="color:#ffffff; margin-bottom:12px;">Private Contest</h2>
+        <p style="color:#7a9ab0; margin-bottom:24px;">This contest is private. Only members of the organization can access it.</p>
+      <% } %>
       <a href="/organizations" class="btn-hero" style="font-size:15px; padding:10px 28px;">Browse Organizations</a>
     </div>
   <% } else { %>
@@ -48,6 +54,8 @@
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
         <% if (contest.visibility === 'private') { %>
           <span style="background:#f5a62320; color:#f5a623; font-size:12px; padding:4px 12px; border:1px solid #f5a623; border-radius:20px; font-weight:600;">🔒 Private</span>
+        <% } else if (contest.visibility === 'hidden') { %>
+          <span style="background:#7a9ab020; color:#7a9ab0; font-size:12px; padding:4px 12px; border:1px solid #7a9ab0; border-radius:20px; font-weight:600;">👁 Hidden</span>
         <% } else { %>
           <span style="background:#1a2a36; color:#7a9ab0; font-size:12px; padding:4px 12px; border:1px solid #2a3e4e; border-radius:20px;">🌐 Public</span>
         <% } %>

@@ -42,8 +42,8 @@
       <div class="form-group">
         <label>Visibility</label>
         <div style="display:flex; gap:12px; margin-top:8px; flex-wrap:wrap;">
-          <label class="visibility-option <%= contest.visibility !== 'private' ? 'selected-public' : '' %>" id="opt-public">
-            <input type="radio" name="visibility" value="public" <%= contest.visibility !== 'private' ? 'checked' : '' %> onchange="updateVisibility()">
+          <label class="visibility-option <%= contest.visibility === 'public' || (!contest.visibility) ? 'selected-public' : '' %>" id="opt-public">
+            <input type="radio" name="visibility" value="public" <%= (contest.visibility === 'public' || !contest.visibility) ? 'checked' : '' %> onchange="updateVisibility()">
             <div>
               <div style="color:#00e5a0; font-weight:600; font-size:14px;">🌐 Public</div>
               <div style="color:#7a9ab0; font-size:12px; margin-top:2px;">Anyone can view and participate</div>
@@ -54,6 +54,13 @@
             <div>
               <div style="color:#f5a623; font-weight:600; font-size:14px;">🔒 Private</div>
               <div style="color:#7a9ab0; font-size:12px; margin-top:2px;">Members only</div>
+            </div>
+          </label>
+          <label class="visibility-option <%= contest.visibility === 'hidden' ? 'selected-private' : '' %>" id="opt-hidden">
+            <input type="radio" name="visibility" value="hidden" <%= contest.visibility === 'hidden' ? 'checked' : '' %> onchange="updateVisibility()">
+            <div>
+              <div style="color:#7a9ab0; font-weight:600; font-size:14px;">👁 Hidden</div>
+              <div style="color:#7a9ab0; font-size:12px; margin-top:2px;">Only owner and admin can see</div>
             </div>
           </label>
         </div>
@@ -208,9 +215,10 @@
     }
 
     function updateVisibility() {
-      const isPublic = document.querySelector('input[name="visibility"][value="public"]').checked;
-      document.getElementById('opt-public').className = isPublic ? 'visibility-option selected-public' : 'visibility-option';
-      document.getElementById('opt-private').className = !isPublic ? 'visibility-option selected-private' : 'visibility-option';
+      const val = document.querySelector('input[name="visibility"]:checked').value;
+      document.getElementById('opt-public').className = val === 'public' ? 'visibility-option selected-public' : 'visibility-option';
+      document.getElementById('opt-private').className = val === 'private' ? 'visibility-option selected-private' : 'visibility-option';
+      document.getElementById('opt-hidden').className = val === 'hidden' ? 'visibility-option selected-private' : 'visibility-option';
     }
 
     function toggleTimeLimit() {
@@ -303,8 +311,6 @@
       syncHiddenInputOrder();
     }
 
-    // ── Drag & Drop ──────────────────────────────────────────
-
     let dragSrcEl = null;
 
     function bindDragEvents(el) {
@@ -314,14 +320,12 @@
         e.dataTransfer.setData('text/plain', this.dataset.id);
         setTimeout(() => this.classList.add('is-dragging'), 0);
       });
-
       el.addEventListener('dragend', function(e) {
         this.classList.remove('is-dragging');
         clearAllIndicators();
         dragSrcEl = null;
         syncHiddenInputOrder();
       });
-
       el.addEventListener('dragover', function(e) {
         e.preventDefault();
         if (!dragSrcEl || dragSrcEl === this) return;
@@ -335,12 +339,10 @@
           this.classList.add('drag-over-bottom');
         }
       });
-
       el.addEventListener('dragleave', function(e) {
         this.classList.remove('drag-over-top');
         this.classList.remove('drag-over-bottom');
       });
-
       el.addEventListener('drop', function(e) {
         e.preventDefault();
         if (!dragSrcEl || dragSrcEl === this) return;

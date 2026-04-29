@@ -56,6 +56,13 @@
               <div style="color:#7a9ab0; font-size:12px; margin-top:2px;">Members only</div>
             </div>
           </label>
+          <label class="visibility-option" id="opt-hidden">
+            <input type="radio" name="visibility" value="hidden" onchange="updateVisibility()">
+            <div>
+              <div style="color:#7a9ab0; font-weight:600; font-size:14px;">👁 Hidden</div>
+              <div style="color:#7a9ab0; font-size:12px; margin-top:2px;">Only owner and admin can see</div>
+            </div>
+          </label>
         </div>
       </div>
 
@@ -144,9 +151,10 @@
     }
 
     function updateVisibility() {
-      const isPublic = document.querySelector('input[name="visibility"][value="public"]').checked;
-      document.getElementById('opt-public').className = isPublic ? 'visibility-option selected-public' : 'visibility-option';
-      document.getElementById('opt-private').className = !isPublic ? 'visibility-option selected-private' : 'visibility-option';
+      const val = document.querySelector('input[name="visibility"]:checked').value;
+      document.getElementById('opt-public').className = val === 'public' ? 'visibility-option selected-public' : 'visibility-option';
+      document.getElementById('opt-private').className = val === 'private' ? 'visibility-option selected-private' : 'visibility-option';
+      document.getElementById('opt-hidden').className = val === 'hidden' ? 'visibility-option selected-private' : 'visibility-option';
     }
 
     function toggleTimeLimit() {

@@ -490,7 +490,7 @@ function parseTestcases(inputRaw, outputRaw) {
 // ─── ROUTES ───────────────────────────────────────────────
 
 app.get('/', async (req, res) => {
-  const allContests = await getContests().find().sort({ _id: -1 }).limit(3).toArray();
+  const allContests = await getContests().find({ visibility: { $ne: 'hidden' } }).sort({ _id: -1 }).limit(3).toArray();
   const recentContests = allContests.map(c => ({ ...c, id: c._id.toString() }));
 
   const topUsers = await getSolves().aggregate([
@@ -896,8 +896,11 @@ app.get('/organizations/:id', async (req, res) => {
   if (org.hidden === true && !isMember && !isAdmin) {
     return res.render('organization-detail', { user, org, contests: [], accessDenied: true });
   }
+  const isOwnerOrAdmin = user && (org.owner === user.username || user.role === 'admin');
   const allContests = await getContests().find({ orgId: org.id }).toArray();
-  const contests = allContests.map(c => ({ ...c, id: c._id.toString() })).sort((a, b) => {
+  const contests = allContests
+    .filter(c => isOwnerOrAdmin || c.visibility !== 'hidden')
+    .map(c => ({ ...c, id: c._id.toString() })).sort((a, b) => {
     const aPinned = a.pinnedAt ? 1 : 0;
     const bPinned = b.pinnedAt ? 1 : 0;
     if (aPinned !== bPinned) return bPinned - aPinned;
@@ -966,6 +969,7 @@ app.post('/organizations/:id/delete', requireLogin, async (req, res) => {
   try {
     const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
     if (!org || org.owner !== req.session.user.username) return res.redirect('/organizations/' + req.params.id);
+    await getContests().deleteMany({ orgId: req.params.id });
     await getOrgs().deleteOne({ _id: new ObjectId(req.params.id) });
   } catch (e) {}
   res.redirect('/organizations');
@@ -1056,6 +1060,32 @@ app.post('/contests/:id/edit', requireLogin, async (req, res) => {
   let problemIds = req.body['problemIds[]'] || req.body.problemIds || [];
   if (!Array.isArray(problemIds)) problemIds = [problemIds];
   const isNoLimit = noTimeLimit === 'on';
+
+  const buildEditContext = async (c) => {
+    c.id = c._id.toString();
+    const contestProblemObjectIds2 = c.problemIds.map(pid => { try { return new ObjectId(pid); } catch(e) { return null; } }).filter(Boolean);
+    const contestProblems2 = await getProblems().find({ _id: { $in: contestProblemObjectIds2 } }).toArray();
+    const contestProblemsWithId2 = contestProblems2.map(p => ({ ...p, id: p._id.toString() }));
+    const myProblems2 = await getProblems().find({ author: req.session.user.username, deletedFromProfile: { $ne: true } }).toArray();
+    const myProblemsWithId2 = myProblems2.map(p => ({ ...p, id: p._id.toString() }));
+    return [
+      ...c.problemIds.map(pid => contestProblemsWithId2.find(p => p.id === pid)).filter(p => p),
+      ...myProblemsWithId2.filter(p => !c.problemIds.includes(p.id))
+    ];
+  };
+
+  if (visibility === 'hidden' && contest.pinnedAt) {
+    contest.id = contest._id.toString();
+    contest.startTime = req.body.startTime ? req.body.startTime.slice(0, 16) : contest.startTime;
+    contest.endTime = req.body.endTime ? req.body.endTime.slice(0, 16) : contest.endTime;
+    contest.timezone = timezone || contest.timezone;
+    contest.name = name || contest.name;
+    contest.visibility = visibility;
+    contest.noTimeLimit = isNoLimit;
+    const problems2 = await buildEditContext(contest);
+    return res.render('edit-contest', { user: req.session.user, contest, problems: problems2, error: 'Cannot hide a pinned contest. Please unpin it first.', serverTime: getServerTime() });
+  }
+
   const startTimeUTC = isNoLimit ? null : toUTC(req.body.startTime, timezone);
   const endTimeUTC = isNoLimit ? null : toUTC(req.body.endTime, timezone);
   if (!isNoLimit) {
@@ -1068,15 +1098,7 @@ app.post('/contests/:id/edit', requireLogin, async (req, res) => {
       contest.name = name || contest.name;
       contest.visibility = visibility || contest.visibility;
       contest.noTimeLimit = isNoLimit;
-      const contestProblemObjectIds2 = contest.problemIds.map(pid => { try { return new ObjectId(pid); } catch(e) { return null; } }).filter(Boolean);
-      const contestProblems2 = await getProblems().find({ _id: { $in: contestProblemObjectIds2 } }).toArray();
-      const contestProblemsWithId2 = contestProblems2.map(p => ({ ...p, id: p._id.toString() }));
-      const myProblems2 = await getProblems().find({ author: req.session.user.username, deletedFromProfile: { $ne: true } }).toArray();
-      const myProblemsWithId2 = myProblems2.map(p => ({ ...p, id: p._id.toString() }));
-      const problems2 = [
-        ...contest.problemIds.map(pid => contestProblemsWithId2.find(p => p.id === pid)).filter(p => p),
-        ...myProblemsWithId2.filter(p => !contest.problemIds.includes(p.id))
-      ];
+      const problems2 = await buildEditContext(contest);
       return res.render('edit-contest', { user: req.session.user, contest, problems: problems2, error: validationError, serverTime: getServerTime() });
     }
   }
@@ -1173,7 +1195,13 @@ app.get('/contests/:id', async (req, res) => {
 
   if (contest.visibility === 'private' && !isMember && !isAdmin) {
     return res.render('contest-detail', {
-      user: req.session.user || null, contest, problems: [], scoreboard: [], isOwner: false, accessDenied: true, solvedSet: [], orgId: contest.orgId
+      user: req.session.user || null, contest, problems: [], scoreboard: [], isOwner: false, accessDenied: true, accessType: 'private', solvedSet: [], orgId: contest.orgId, userSolvedInContest: []
+    });
+  }
+
+  if (contest.visibility === 'hidden' && !isOwner) {
+    return res.render('contest-detail', {
+      user: req.session.user || null, contest, problems: [], scoreboard: [], isOwner: false, accessDenied: true, accessType: 'hidden', solvedSet: [], orgId: contest.orgId, userSolvedInContest: []
     });
   }
 
@@ -1265,6 +1293,7 @@ app.post('/admin/orgs/:id/delete', requireAdmin, async (req, res) => {
   try {
     const org = await getOrgs().findOne({ _id: new ObjectId(req.params.id) });
     if (org) {
+      await getContests().deleteMany({ orgId: req.params.id });
       await getOrgs().deleteOne({ _id: new ObjectId(req.params.id) });
       await sendNotification(org.owner, `Your organization "${org.name}" has been deleted by an administrator.`);
     }
@@ -1303,6 +1332,17 @@ app.post('/admin/problems/:id/delete', requireAdmin, async (req, res) => {
     }
   } catch (e) {}
   res.redirect('/admin');
+});
+
+// ─── GLOBAL ERROR HANDLER ─────────────────────────────────
+
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err.message);
+  try {
+    res.status(500).render('404', { user: req.session.user || null });
+  } catch (e) {
+    res.status(500).send('Internal Server Error');
+  }
 });
 
 // ─── 404 ──────────────────────────────────────────────────
