@@ -112,6 +112,8 @@
                   <a href="/contests/<%= contest.id %>" style="color:#ffffff; font-weight:600; text-decoration:none; font-size:16px;"><%= contest.name %></a>
                   <% if (contest.visibility === 'private') { %>
                     <span style="color:#f5a623; font-size:11px; padding:2px 8px; border:1px solid #f5a623; border-radius:20px;">🔒 Private</span>
+                  <% } else if (contest.visibility === 'hidden') { %>
+                    <span style="color:#7a9ab0; font-size:11px; padding:2px 8px; border:1px solid #7a9ab0; border-radius:20px;">👁 Hidden</span>
                   <% } else { %>
                     <span style="color:#7a9ab0; font-size:11px; padding:2px 8px; border:1px solid #2a3e4e; border-radius:20px;">🌐 Public</span>
                   <% } %>
