@@ -82,10 +82,12 @@ function checkSubmitRateLimit(username) {
 }
 
 // ─── JUDGE CONCURRENCY CONTROL ────────────────────────────
+const MAX_CPP_CONCURRENT = 1;
 const MAX_TOTAL_POINTS = 6;
-const CPP_POINTS = 5;
+const CPP_POINTS = 4;
 const SCRIPT_POINTS = 1;
 
+let currentCppCount = 0;
 let currentTotalPoints = 0;
 const cppQueue = [];
 const scriptQueue = [];
@@ -95,8 +97,9 @@ function isCppLanguage(language) {
 }
 
 function tryDispatch() {
-  while (cppQueue.length > 0 && currentTotalPoints + CPP_POINTS <= MAX_TOTAL_POINTS) {
+  while (cppQueue.length > 0 && currentCppCount < MAX_CPP_CONCURRENT && currentTotalPoints + CPP_POINTS <= MAX_TOTAL_POINTS) {
     const task = cppQueue.shift();
+    currentCppCount++;
     currentTotalPoints += CPP_POINTS;
     runJudgeTask(task);
   }
@@ -116,6 +119,7 @@ async function runJudgeTask(task) {
     await saveJudgeError(task);
   } finally {
     if (isCppLanguage(task.language)) {
+      currentCppCount--;
       currentTotalPoints -= CPP_POINTS;
     } else {
       currentTotalPoints -= SCRIPT_POINTS;
@@ -162,7 +166,8 @@ async function saveJudgeError(task) {
 
 function submitToJudge(task) {
   if (isCppLanguage(task.language)) {
-    if (currentTotalPoints + CPP_POINTS <= MAX_TOTAL_POINTS) {
+    if (currentCppCount < MAX_CPP_CONCURRENT && currentTotalPoints + CPP_POINTS <= MAX_TOTAL_POINTS) {
+      currentCppCount++;
       currentTotalPoints += CPP_POINTS;
       runJudgeTask(task);
     } else {
