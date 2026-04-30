@@ -88,6 +88,7 @@ const SCRIPT_POINTS = 1;
 
 let currentTotalPoints = 0;
 const judgeQueue = [];
+let dispatching = false;
 
 function isCppLanguage(language) {
   return language === 'cpp' || language === 'c';
@@ -98,6 +99,8 @@ function getTaskPoints(task) {
 }
 
 function tryDispatch() {
+  if (dispatching) return;
+  dispatching = true;
   let dispatched = true;
   while (dispatched) {
     dispatched = false;
@@ -113,6 +116,7 @@ function tryDispatch() {
       }
     }
   }
+  dispatching = false;
 }
 
 async function runJudgeTask(task) {
