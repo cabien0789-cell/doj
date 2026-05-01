@@ -160,13 +160,8 @@ async function saveJudgeError(task) {
 }
 
 function submitToJudge(task) {
-  const points = getTaskPoints(task);
-  if (currentTotalPoints + points <= MAX_TOTAL_POINTS) {
-    currentTotalPoints += points;
-    runJudgeTask(task);
-  } else {
-    judgeQueue.push(task);
-  }
+  judgeQueue.push(task);
+  tryDispatch();
 }
 
 // ─── DELETE PROBLEM AND RELATED ───────────────────────────
