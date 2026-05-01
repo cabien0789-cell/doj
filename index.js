@@ -82,31 +82,31 @@ function checkSubmitRateLimit(username) {
 }
 
 // ─── JUDGE CONCURRENCY CONTROL ────────────────────────────
-const MAX_CPP_CONCURRENT = 1;
 const MAX_TOTAL_POINTS = 6;
 const CPP_POINTS = 4;
 const SCRIPT_POINTS = 1;
 
-let currentCppCount = 0;
 let currentTotalPoints = 0;
-const cppQueue = [];
-const scriptQueue = [];
+const judgeQueue = [];
 
 function isCppLanguage(language) {
   return language === 'cpp' || language === 'c';
 }
 
+function getTaskPoints(task) {
+  return isCppLanguage(task.language) ? CPP_POINTS : SCRIPT_POINTS;
+}
+
 function tryDispatch() {
-  while (cppQueue.length > 0 && currentCppCount < MAX_CPP_CONCURRENT && currentTotalPoints + CPP_POINTS <= MAX_TOTAL_POINTS) {
-    const task = cppQueue.shift();
-    currentCppCount++;
-    currentTotalPoints += CPP_POINTS;
-    runJudgeTask(task);
-  }
-  while (scriptQueue.length > 0 && currentTotalPoints + SCRIPT_POINTS <= MAX_TOTAL_POINTS) {
-    const task = scriptQueue.shift();
-    currentTotalPoints += SCRIPT_POINTS;
-    runJudgeTask(task);
+  for (let i = 0; i < judgeQueue.length; i++) {
+    const task = judgeQueue[i];
+    const points = getTaskPoints(task);
+    if (currentTotalPoints + points <= MAX_TOTAL_POINTS) {
+      judgeQueue.splice(i, 1);
+      currentTotalPoints += points;
+      runJudgeTask(task);
+      return;
+    }
   }
 }
 
@@ -118,12 +118,7 @@ async function runJudgeTask(task) {
     console.error('Judge error:', e.message);
     await saveJudgeError(task);
   } finally {
-    if (isCppLanguage(task.language)) {
-      currentCppCount--;
-      currentTotalPoints -= CPP_POINTS;
-    } else {
-      currentTotalPoints -= SCRIPT_POINTS;
-    }
+    currentTotalPoints -= getTaskPoints(task);
     tryDispatch();
   }
 }
@@ -165,21 +160,12 @@ async function saveJudgeError(task) {
 }
 
 function submitToJudge(task) {
-  if (isCppLanguage(task.language)) {
-    if (currentCppCount < MAX_CPP_CONCURRENT && currentTotalPoints + CPP_POINTS <= MAX_TOTAL_POINTS) {
-      currentCppCount++;
-      currentTotalPoints += CPP_POINTS;
-      runJudgeTask(task);
-    } else {
-      cppQueue.push(task);
-    }
+  const points = getTaskPoints(task);
+  if (currentTotalPoints + points <= MAX_TOTAL_POINTS) {
+    currentTotalPoints += points;
+    runJudgeTask(task);
   } else {
-    if (currentTotalPoints + SCRIPT_POINTS <= MAX_TOTAL_POINTS) {
-      currentTotalPoints += SCRIPT_POINTS;
-      runJudgeTask(task);
-    } else {
-      scriptQueue.push(task);
-    }
+    judgeQueue.push(task);
   }
 }
 
