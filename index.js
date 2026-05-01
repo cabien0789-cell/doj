@@ -88,6 +88,8 @@ const SCRIPT_POINTS = 1;
 
 let currentTotalPoints = 0;
 const judgeQueue = [];
+let dispatching = false;
+let needsRedispatch = false;
 
 function isCppLanguage(language) {
   return language === 'cpp' || language === 'c';
@@ -98,6 +100,12 @@ function getTaskPoints(task) {
 }
 
 function tryDispatch() {
+  if (dispatching) {
+    needsRedispatch = true;
+    return;
+  }
+  dispatching = true;
+  needsRedispatch = false;
   for (let i = 0; i < judgeQueue.length; i++) {
     const task = judgeQueue[i];
     const points = getTaskPoints(task);
@@ -105,8 +113,12 @@ function tryDispatch() {
       judgeQueue.splice(i, 1);
       currentTotalPoints += points;
       runJudgeTask(task);
-      return;
+      break;
     }
+  }
+  dispatching = false;
+  if (needsRedispatch) {
+    tryDispatch();
   }
 }
 
