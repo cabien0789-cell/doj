@@ -90,7 +90,7 @@ const SCRIPT_POINTS = 1;
 let currentCppCount = 0;
 let currentTotalPoints = 0;
 const judgeQueue = [];
-let finishQueue = Promise.resolve();
+let serialQueue = Promise.resolve();
 
 function isCppLanguage(language) {
   return language === 'cpp' || language === 'c';
@@ -98,6 +98,10 @@ function isCppLanguage(language) {
 
 function getTaskPoints(task) {
   return isCppLanguage(task.language) ? CPP_POINTS : SCRIPT_POINTS;
+}
+
+function runSerial(fn) {
+  serialQueue = serialQueue.then(fn);
 }
 
 function tryDispatch() {
@@ -123,7 +127,7 @@ async function runJudgeTask(task) {
     console.error('Judge error:', e.message);
     await saveJudgeError(task);
   } finally {
-    finishQueue = finishQueue.then(() => {
+    runSerial(() => {
       currentTotalPoints -= getTaskPoints(task);
       if (isCppLanguage(task.language)) currentCppCount--;
       tryDispatch();
@@ -168,8 +172,8 @@ async function saveJudgeError(task) {
 }
 
 function submitToJudge(task) {
-  judgeQueue.push(task);
-  finishQueue = finishQueue.then(() => {
+  runSerial(() => {
+    judgeQueue.push(task);
     tryDispatch();
   });
 }
