@@ -88,8 +88,7 @@ const SCRIPT_POINTS = 1;
 
 let currentTotalPoints = 0;
 const judgeQueue = [];
-let dispatching = false;
-let needsRedispatch = false;
+let finishQueue = Promise.resolve();
 
 function isCppLanguage(language) {
   return language === 'cpp' || language === 'c';
@@ -100,12 +99,6 @@ function getTaskPoints(task) {
 }
 
 function tryDispatch() {
-  if (dispatching) {
-    needsRedispatch = true;
-    return;
-  }
-  dispatching = true;
-  needsRedispatch = false;
   for (let i = 0; i < judgeQueue.length; i++) {
     const task = judgeQueue[i];
     const points = getTaskPoints(task);
@@ -113,12 +106,8 @@ function tryDispatch() {
       judgeQueue.splice(i, 1);
       currentTotalPoints += points;
       runJudgeTask(task);
-      break;
+      return;
     }
-  }
-  dispatching = false;
-  if (needsRedispatch) {
-    tryDispatch();
   }
 }
 
@@ -130,8 +119,10 @@ async function runJudgeTask(task) {
     console.error('Judge error:', e.message);
     await saveJudgeError(task);
   } finally {
-    currentTotalPoints -= getTaskPoints(task);
-    tryDispatch();
+    finishQueue = finishQueue.then(() => {
+      currentTotalPoints -= getTaskPoints(task);
+      tryDispatch();
+    });
   }
 }
 
