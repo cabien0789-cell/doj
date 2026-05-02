@@ -115,7 +115,6 @@ function tryDispatch() {
     currentTotalPoints += points;
     if (isCpp) currentCppCount++;
     dispatching = false;
-    console.log(`[JUDGE] START lang=${task.language} pts=${currentTotalPoints} cpp=${currentCppCount} compiling=${cppCompiling} queue=${judgeQueue.length}`);
     runJudgeTask(task);
     return;
   }
@@ -142,7 +141,6 @@ async function runJudgeTask(task) {
     if (isCppLanguage(task.language)) cppCompiling = false;
     currentTotalPoints -= getTaskPoints(task);
     if (isCppLanguage(task.language)) currentCppCount--;
-    console.log(`[JUDGE] DONE lang=${task.language} pts=${currentTotalPoints} cpp=${currentCppCount} queue=${judgeQueue.length}`);
     tryDispatch();
   }
   if (hasError) {
