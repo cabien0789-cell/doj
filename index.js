@@ -103,33 +103,45 @@ function getTaskPoints(task) {
 function tryDispatch() {
   if (dispatching) return;
   dispatching = true;
-  let i = 0;
-  while (i < judgeQueue.length) {
-    const task = judgeQueue[i];
-    const isCpp = isCppLanguage(task.language);
-    const points = getTaskPoints(task);
-    if (isCpp && currentCppCount >= MAX_CPP_CONCURRENT) { i++; continue; }
-    if (currentTotalPoints + points > MAX_TOTAL_POINTS) { i++; continue; }
-    judgeQueue.splice(i, 1);
-    currentTotalPoints += points;
-    if (isCpp) currentCppCount++;
-    runJudgeTask(task);
-    i = 0;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let i = 0; i < judgeQueue.length; i++) {
+      const task = judgeQueue[i];
+      const isCpp = isCppLanguage(task.language);
+      const points = getTaskPoints(task);
+      if (isCpp && currentCppCount >= MAX_CPP_CONCURRENT) continue;
+      if (currentTotalPoints + points > MAX_TOTAL_POINTS) continue;
+      judgeQueue.splice(i, 1);
+      currentTotalPoints += points;
+      if (isCpp) currentCppCount++;
+      console.log(`[JUDGE] START lang=${task.language} pts=${currentTotalPoints} cpp=${currentCppCount} queue=${judgeQueue.length}`);
+      runJudgeTask(task);
+      changed = true;
+      break;
+    }
   }
   dispatching = false;
 }
 
 async function runJudgeTask(task) {
+  let result = null;
+  let hasError = false;
   try {
-    const result = await judgeCodeAsync(task.code, task.language, task.testcases, task.timeLimit);
-    await saveJudgeResult(task, result);
+    result = await judgeCodeAsync(task.code, task.language, task.testcases, task.timeLimit);
   } catch (e) {
+    hasError = true;
     console.error('Judge error:', e.message);
-    await saveJudgeError(task);
   } finally {
     currentTotalPoints -= getTaskPoints(task);
     if (isCppLanguage(task.language)) currentCppCount--;
+    console.log(`[JUDGE] DONE lang=${task.language} pts=${currentTotalPoints} cpp=${currentCppCount} queue=${judgeQueue.length}`);
     tryDispatch();
+  }
+  if (hasError) {
+    await saveJudgeError(task);
+  } else {
+    await saveJudgeResult(task, result);
   }
 }
 
@@ -173,6 +185,7 @@ function submitToJudge(task) {
   judgeQueue.push(task);
   tryDispatch();
 }
+
 
 // ─── DELETE PROBLEM AND RELATED ───────────────────────────
 async function deleteProblemAndRelated(problemId) {
