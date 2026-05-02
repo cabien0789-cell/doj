@@ -89,59 +89,42 @@ const SCRIPT_POINTS = 1;
 
 let currentCppCount = 0;
 let currentTotalPoints = 0;
-const judgeQueue = [];
-let dispatching = false;
+const cppQueue = [];
+const scriptQueue = [];
 
 function isCppLanguage(language) {
   return language === 'cpp' || language === 'c';
 }
 
-function getTaskPoints(task) {
-  return isCppLanguage(task.language) ? CPP_POINTS : SCRIPT_POINTS;
-}
-
 function tryDispatch() {
-  if (dispatching) return;
-  dispatching = true;
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (let i = 0; i < judgeQueue.length; i++) {
-      const task = judgeQueue[i];
-      const isCpp = isCppLanguage(task.language);
-      const points = getTaskPoints(task);
-      if (isCpp && currentCppCount >= MAX_CPP_CONCURRENT) continue;
-      if (currentTotalPoints + points > MAX_TOTAL_POINTS) continue;
-      judgeQueue.splice(i, 1);
-      currentTotalPoints += points;
-      if (isCpp) currentCppCount++;
-      console.log(`[JUDGE] START lang=${task.language} pts=${currentTotalPoints} cpp=${currentCppCount} queue=${judgeQueue.length}`);
-      runJudgeTask(task);
-      changed = true;
-      break;
-    }
+  while (cppQueue.length > 0 && currentCppCount < MAX_CPP_CONCURRENT && currentTotalPoints + CPP_POINTS <= MAX_TOTAL_POINTS) {
+    const task = cppQueue.shift();
+    currentCppCount++;
+    currentTotalPoints += CPP_POINTS;
+    runJudgeTask(task);
   }
-  dispatching = false;
+  while (scriptQueue.length > 0 && currentTotalPoints + SCRIPT_POINTS <= MAX_TOTAL_POINTS) {
+    const task = scriptQueue.shift();
+    currentTotalPoints += SCRIPT_POINTS;
+    runJudgeTask(task);
+  }
 }
 
 async function runJudgeTask(task) {
-  let result = null;
-  let hasError = false;
   try {
-    result = await judgeCodeAsync(task.code, task.language, task.testcases, task.timeLimit);
-  } catch (e) {
-    hasError = true;
-    console.error('Judge error:', e.message);
-  } finally {
-    currentTotalPoints -= getTaskPoints(task);
-    if (isCppLanguage(task.language)) currentCppCount--;
-    console.log(`[JUDGE] DONE lang=${task.language} pts=${currentTotalPoints} cpp=${currentCppCount} queue=${judgeQueue.length}`);
-    tryDispatch();
-  }
-  if (hasError) {
-    await saveJudgeError(task);
-  } else {
+    const result = await judgeCodeAsync(task.code, task.language, task.testcases, task.timeLimit);
     await saveJudgeResult(task, result);
+  } catch (e) {
+    console.error('Judge error:', e.message);
+    await saveJudgeError(task);
+  } finally {
+    if (isCppLanguage(task.language)) {
+      currentCppCount--;
+      currentTotalPoints -= CPP_POINTS;
+    } else {
+      currentTotalPoints -= SCRIPT_POINTS;
+    }
+    tryDispatch();
   }
 }
 
@@ -182,10 +165,23 @@ async function saveJudgeError(task) {
 }
 
 function submitToJudge(task) {
-  judgeQueue.push(task);
-  tryDispatch();
+  if (isCppLanguage(task.language)) {
+    if (currentCppCount < MAX_CPP_CONCURRENT && currentTotalPoints + CPP_POINTS <= MAX_TOTAL_POINTS) {
+      currentCppCount++;
+      currentTotalPoints += CPP_POINTS;
+      runJudgeTask(task);
+    } else {
+      cppQueue.push(task);
+    }
+  } else {
+    if (currentTotalPoints + SCRIPT_POINTS <= MAX_TOTAL_POINTS) {
+      currentTotalPoints += SCRIPT_POINTS;
+      runJudgeTask(task);
+    } else {
+      scriptQueue.push(task);
+    }
+  }
 }
-
 
 // ─── DELETE PROBLEM AND RELATED ───────────────────────────
 async function deleteProblemAndRelated(problemId) {
