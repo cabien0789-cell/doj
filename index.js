@@ -103,18 +103,18 @@ function getTaskPoints(task) {
 function tryDispatch() {
   if (dispatching) return;
   dispatching = true;
-  for (let i = 0; i < judgeQueue.length; i++) {
+  let i = 0;
+  while (i < judgeQueue.length) {
     const task = judgeQueue[i];
     const isCpp = isCppLanguage(task.language);
     const points = getTaskPoints(task);
-    if (isCpp && currentCppCount >= MAX_CPP_CONCURRENT) continue;
-    if (currentTotalPoints + points > MAX_TOTAL_POINTS) continue;
+    if (isCpp && currentCppCount >= MAX_CPP_CONCURRENT) { i++; continue; }
+    if (currentTotalPoints + points > MAX_TOTAL_POINTS) { i++; continue; }
     judgeQueue.splice(i, 1);
     currentTotalPoints += points;
     if (isCpp) currentCppCount++;
-    dispatching = false;
     runJudgeTask(task);
-    return;
+    i = 0;
   }
   dispatching = false;
 }
