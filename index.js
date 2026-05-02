@@ -89,53 +89,42 @@ const SCRIPT_POINTS = 1;
 
 let currentCppCount = 0;
 let currentTotalPoints = 0;
-const judgeQueue = [];
+const cppQueue = [];
+const scriptQueue = [];
 
 function isCppLanguage(language) {
   return language === 'cpp' || language === 'c';
 }
 
-function getTaskPoints(task) {
-  return isCppLanguage(task.language) ? CPP_POINTS : SCRIPT_POINTS;
-}
-
 function tryDispatch() {
-  for (let i = 0; i < judgeQueue.length; i++) {
-    const task = judgeQueue[i];
-    const isCpp = isCppLanguage(task.language);
-    const points = getTaskPoints(task);
-    if (isCpp && currentCppCount >= MAX_CPP_CONCURRENT) continue;
-    if (currentTotalPoints + points > MAX_TOTAL_POINTS) continue;
-    judgeQueue.splice(i, 1);
-    currentTotalPoints += points;
-    if (isCpp) currentCppCount++;
+  while (cppQueue.length > 0 && currentCppCount < MAX_CPP_CONCURRENT && currentTotalPoints + CPP_POINTS <= MAX_TOTAL_POINTS) {
+    const task = cppQueue.shift();
+    currentCppCount++;
+    currentTotalPoints += CPP_POINTS;
     runJudgeTask(task);
-    return;
+  }
+  while (scriptQueue.length > 0 && currentTotalPoints + SCRIPT_POINTS <= MAX_TOTAL_POINTS) {
+    const task = scriptQueue.shift();
+    currentTotalPoints += SCRIPT_POINTS;
+    runJudgeTask(task);
   }
 }
 
 async function runJudgeTask(task) {
-  let result = null;
-  let judgeError = null;
   try {
-    result = await judgeCodeAsync(task.code, task.language, task.testcases, task.timeLimit);
+    const result = await judgeCodeAsync(task.code, task.language, task.testcases, task.timeLimit);
+    await saveJudgeResult(task, result);
   } catch (e) {
-    judgeError = e;
-  }
-  // Trả slot về ngay sau khi bài xong chạy thực sự — trước khi lưu MongoDB
-  currentTotalPoints -= getTaskPoints(task);
-  if (isCppLanguage(task.language)) currentCppCount--;
-  tryDispatch();
-  // Lưu kết quả vào MongoDB sau — không ảnh hưởng đến slot
-  try {
-    if (judgeError) {
-      console.error('Judge error:', judgeError.message);
-      await saveJudgeError(task);
+    console.error('Judge error:', e.message);
+    await saveJudgeError(task);
+  } finally {
+    if (isCppLanguage(task.language)) {
+      currentCppCount--;
+      currentTotalPoints -= CPP_POINTS;
     } else {
-      await saveJudgeResult(task, result);
+      currentTotalPoints -= SCRIPT_POINTS;
     }
-  } catch (e) {
-    console.error('Save error:', e.message);
+    tryDispatch();
   }
 }
 
@@ -176,8 +165,22 @@ async function saveJudgeError(task) {
 }
 
 function submitToJudge(task) {
-  judgeQueue.push(task);
-  tryDispatch();
+  if (isCppLanguage(task.language)) {
+    if (currentCppCount < MAX_CPP_CONCURRENT && currentTotalPoints + CPP_POINTS <= MAX_TOTAL_POINTS) {
+      currentCppCount++;
+      currentTotalPoints += CPP_POINTS;
+      runJudgeTask(task);
+    } else {
+      cppQueue.push(task);
+    }
+  } else {
+    if (currentTotalPoints + SCRIPT_POINTS <= MAX_TOTAL_POINTS) {
+      currentTotalPoints += SCRIPT_POINTS;
+      runJudgeTask(task);
+    } else {
+      scriptQueue.push(task);
+    }
+  }
 }
 
 // ─── DELETE PROBLEM AND RELATED ───────────────────────────
