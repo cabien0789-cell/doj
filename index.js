@@ -89,42 +89,66 @@ const SCRIPT_POINTS = 1;
 
 let currentCppCount = 0;
 let currentTotalPoints = 0;
-const cppQueue = [];
-const scriptQueue = [];
+let cppCompiling = false;
+const judgeQueue = [];
+let dispatching = false;
 
 function isCppLanguage(language) {
   return language === 'cpp' || language === 'c';
 }
 
+function getTaskPoints(task) {
+  return isCppLanguage(task.language) ? CPP_POINTS : SCRIPT_POINTS;
+}
+
 function tryDispatch() {
-  while (cppQueue.length > 0 && currentCppCount < MAX_CPP_CONCURRENT && currentTotalPoints + CPP_POINTS <= MAX_TOTAL_POINTS) {
-    const task = cppQueue.shift();
-    currentCppCount++;
-    currentTotalPoints += CPP_POINTS;
+  if (dispatching) return;
+  dispatching = true;
+  for (let i = 0; i < judgeQueue.length; i++) {
+    const task = judgeQueue[i];
+    const isCpp = isCppLanguage(task.language);
+    const points = getTaskPoints(task);
+    if (isCpp && currentCppCount >= MAX_CPP_CONCURRENT) continue;
+    if (!isCpp && cppCompiling) continue;
+    if (currentTotalPoints + points > MAX_TOTAL_POINTS) continue;
+    judgeQueue.splice(i, 1);
+    currentTotalPoints += points;
+    if (isCpp) currentCppCount++;
+    dispatching = false;
+    console.log(`[JUDGE] START lang=${task.language} pts=${currentTotalPoints} cpp=${currentCppCount} compiling=${cppCompiling} queue=${judgeQueue.length}`);
     runJudgeTask(task);
+    return;
   }
-  while (scriptQueue.length > 0 && currentTotalPoints + SCRIPT_POINTS <= MAX_TOTAL_POINTS) {
-    const task = scriptQueue.shift();
-    currentTotalPoints += SCRIPT_POINTS;
-    runJudgeTask(task);
-  }
+  dispatching = false;
 }
 
 async function runJudgeTask(task) {
+  let result = null;
+  let hasError = false;
   try {
-    const result = await judgeCodeAsync(task.code, task.language, task.testcases, task.timeLimit);
-    await saveJudgeResult(task, result);
-  } catch (e) {
-    console.error('Judge error:', e.message);
-    await saveJudgeError(task);
-  } finally {
     if (isCppLanguage(task.language)) {
-      currentCppCount--;
-      currentTotalPoints -= CPP_POINTS;
+      cppCompiling = true;
+      result = await judgeCodeAsync(task.code, task.language, task.testcases, task.timeLimit, () => {
+        cppCompiling = false;
+        tryDispatch();
+      });
     } else {
-      currentTotalPoints -= SCRIPT_POINTS;
+      result = await judgeCodeAsync(task.code, task.language, task.testcases, task.timeLimit);
     }
+  } catch (e) {
+    hasError = true;
+    console.error('Judge error:', e.message);
+  } finally {
+    if (isCppLanguage(task.language)) cppCompiling = false;
+    currentTotalPoints -= getTaskPoints(task);
+    if (isCppLanguage(task.language)) currentCppCount--;
+    console.log(`[JUDGE] DONE lang=${task.language} pts=${currentTotalPoints} cpp=${currentCppCount} queue=${judgeQueue.length}`);
     tryDispatch();
+  }
+  if (hasError) {
+    await saveJudgeError(task);
+  } else {
+    await saveJudgeResult(task, result);
   }
 }
 
@@ -165,23 +189,10 @@ async function saveJudgeError(task) {
 }
 
 function submitToJudge(task) {
-  if (isCppLanguage(task.language)) {
-    if (currentCppCount < MAX_CPP_CONCURRENT && currentTotalPoints + CPP_POINTS <= MAX_TOTAL_POINTS) {
-      currentCppCount++;
-      currentTotalPoints += CPP_POINTS;
-      runJudgeTask(task);
-    } else {
-      cppQueue.push(task);
-    }
-  } else {
-    if (currentTotalPoints + SCRIPT_POINTS <= MAX_TOTAL_POINTS) {
-      currentTotalPoints += SCRIPT_POINTS;
-      runJudgeTask(task);
-    } else {
-      scriptQueue.push(task);
-    }
-  }
+  judgeQueue.push(task);
+  tryDispatch();
 }
+
 
 // ─── DELETE PROBLEM AND RELATED ───────────────────────────
 async function deleteProblemAndRelated(problemId) {
@@ -341,7 +352,7 @@ function runProcessAsync(cmd, args, inputData, timeoutMs) {
   });
 }
 
-async function judgeCodeAsync(code, language, testcases, timeLimit) {
+async function judgeCodeAsync(code, language, testcases, timeLimit, onCompileDone) {
   const tmpDir = makeTmpDir();
   const timeLimitMs = (timeLimit || 2) * 1000;
   const details = [];
@@ -362,6 +373,7 @@ async function judgeCodeAsync(code, language, testcases, timeLimit) {
         return { verdict: 'Compilation Error', passed: false, passedCount: 0, total: testcases.length, details };
       }
       compiledPath = outFile;
+      if (onCompileDone) onCompileDone();
     } else if (language === 'c') {
       const codeFile = path.join(tmpDir, 'solution.c');
       const outFile = path.join(tmpDir, 'solutionc');
@@ -375,6 +387,7 @@ async function judgeCodeAsync(code, language, testcases, timeLimit) {
         return { verdict: 'Compilation Error', passed: false, passedCount: 0, total: testcases.length, details };
       }
       compiledPath = outFile;
+      if (onCompileDone) onCompileDone();
     }
   } catch (e) {
     const errMsg = e.message || 'Compilation Error';
