@@ -163,12 +163,12 @@ async function saveJudgeResult(task, result) {
     }
   );
   const allMySubs = await getSubmissions().find(
-    { username: task.username, problemId: task.problemId },
-    { projection: { _id: 1, status: 1 } }
+    { username: task.username, problemId: task.problemId, status: 'done' },
+    { projection: { _id: 1 } }
   ).sort({ submittedAt: -1 }).toArray();
   if (allMySubs.length > 5) {
-    const toDelete = allMySubs.slice(5).filter(s => s.status === 'done').map(s => s._id);
-    if (toDelete.length > 0) await getSubmissions().deleteMany({ _id: { $in: toDelete } });
+    const toDelete = allMySubs.slice(5).map(s => s._id);
+    await getSubmissions().deleteMany({ _id: { $in: toDelete } });
   }
   if (result.verdict === 'Accepted') {
     await getSolves().updateOne(
