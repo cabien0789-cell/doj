@@ -163,7 +163,7 @@ async function saveJudgeResult(task, result) {
     }
   );
   const allMySubs = await getSubmissions().find(
-    { username: task.username, problemId: task.problemId, status: 'done' },
+    { username: task.username, problemId: task.problemId, status: { $ne: 'pending' } },
     { projection: { _id: 1 } }
   ).sort({ submittedAt: -1 }).toArray();
   if (allMySubs.length > 5) {
